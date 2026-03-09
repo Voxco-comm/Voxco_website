@@ -1,0 +1,21 @@
+Country,SMS/Voice,Direction,Available Numbers,Number Type,MRC,NRC,Currency,MOQ,Supplier,Specification,Bill Pulse,Requirements
+Canada,Both,Both,100,Geographic,1.25,10,USD,1,Globe Teleservices,Landline,60/60,Business registration required
+Canada,Voice only,Inbound only,50,Toll-Free,2.50,15,USD,5,BICS,1-800 Numbers,1/1,Valid business address
+United States,Both,Both,200,Geographic,1.50,12,USD,1,Telnyx,Local DID,60/60,Address verification
+United States,SMS only,Outbound only,75,Mobile,3.00,20,USD,10,Bandwidth,Mobile Numbers,N/A,ID verification required
+United Kingdom,Both,Both,150,Geographic,1.80,14,GBP,1,Vonage,London Area,60/60,Company registration
+United Kingdom,Voice only,Inbound only,30,Toll-Free,3.50,25,GBP,5,BT,0800 Numbers,1/1,Business address proof
+France,Both,Both,120,Geographic,2.00,16,EUR,1,Orange,Paris Region,60/60,SIRET number required
+France,SMS only,Both,80,Mobile,2.50,18,EUR,5,SFR,Mobile DID,N/A,Company documents
+Germany,Both,Both,180,Geographic,1.75,13,EUR,1,Deutsche Telekom,Berlin Area,60/60,Business registration
+Germany,Voice only,Outbound only,40,Mobile,2.80,22,EUR,10,Vodafone,Mobile Numbers,30/30,ID verification
+Australia,Both,Both,90,Geographic,2.20,15,AUD,1,Telstra,Sydney Region,60/60,ABN required
+Australia,Voice only,Inbound only,25,Toll-Free,4.00,30,AUD,5,Optus,1300 Numbers,1/1,Business verification
+Japan,Both,Both,60,Geographic,3.00,25,JPY,1,NTT,Tokyo Area,60/60,Company registration
+Japan,SMS only,Outbound only,35,Mobile,3.50,28,JPY,10,Softbank,Mobile Numbers,N/A,Business documents
+India,Both,Both,500,Geographic,0.50,5,INR,1,Airtel,Delhi Region,60/60,GST registration
+India,Voice only,Inbound only,200,Toll-Free,1.00,8,INR,10,Jio,1800 Numbers,1/1,Business PAN card
+Brazil,Both,Both,150,Geographic,1.80,12,BRL,1,Vivo,Sao Paulo,60/60,CNPJ required
+Brazil,SMS only,Both,100,Mobile,2.20,15,BRL,5,Claro,Mobile DID,N/A,Company documents
+Mexico,Both,Both,120,Geographic,1.50,10,MXN,1,Telmex,Mexico City,60/60,RFC registration
+Mexico,Voice only,Outbound only,60,Mobile,2.00,14,MXN,10,Telcel,Mobile Numbers,30/30,ID verification
