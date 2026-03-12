@@ -3079,9 +3079,7 @@ export default function AdminDashboard() {
             <p className="text-gray-600 mb-2">
               View and manage customer accounts, reset passwords, and handle user issues.
             </p>
-            <p className="text-sm text-gray-500 mb-6">
-              Password reset emails are sent via Supabase Auth. To use your own domain and branding, configure SMTP and email templates in the Supabase Dashboard (Authentication → Email Templates, Project Settings → Auth → SMTP).
-            </p>
+          
 
             {loadingUsers ? (
               <TableSkeleton rows={5} />
