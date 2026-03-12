@@ -18,6 +18,7 @@ export default function DisabledUserGuard({ children }: { children: React.ReactN
     if (pathname.startsWith(ADMIN_PATH_PREFIX)) return
     if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return
 
+    const userId = user.id
     let cancelled = false
     const supabase = createClient()
 
@@ -26,7 +27,7 @@ export default function DisabledUserGuard({ children }: { children: React.ReactN
         const { data: customer, error } = await supabase
           .from('customers')
           .select('is_disabled')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .maybeSingle()
 
         if (cancelled || error) return
