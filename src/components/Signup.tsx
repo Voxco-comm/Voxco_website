@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from './ui/Button'
 import Alert from './ui/Alert'
+import AuthPagesFooter from './AuthPagesFooter'
 
 interface PasswordStrength {
   score: number
@@ -25,6 +26,7 @@ export default function Signup() {
   const [loading, setLoading] = useState<boolean>(false)
   const [successMessage, setSuccessMessage] = useState<string>('')
   const [showPassword, setShowPassword] = useState<boolean>(false)
+  const [agreeToPrivacy, setAgreeToPrivacy] = useState<boolean>(false)
   const supabase = createClient()
 
   // Password strength calculator
@@ -87,6 +89,11 @@ export default function Signup() {
 
     if (passwordStrength.score < 3) {
       setError('Password is too weak. Please use a stronger password.')
+      return
+    }
+
+    if (!agreeToPrivacy) {
+      setError('Please read and agree to the Privacy Policy to continue.')
       return
     }
 
@@ -375,6 +382,25 @@ export default function Signup() {
               </div>
             </div>
 
+            {/* Privacy consent (required for GDPR) */}
+            <div className="animate-fade-in flex items-start gap-3" style={{ animationDelay: '375ms' }}>
+              <input
+                type="checkbox"
+                id="agreeToPrivacy"
+                checked={agreeToPrivacy}
+                onChange={(e) => { setAgreeToPrivacy(e.target.checked); handleInputChange() }}
+                disabled={loading}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-[#215F9A] focus:ring-[#215F9A]"
+              />
+              <label htmlFor="agreeToPrivacy" className="text-sm text-gray-700">
+                I have read and agree to the{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-[#215F9A] hover:text-[#2c78c0] underline font-medium">
+                  Privacy Policy
+                </a>
+                , which explains how my data is collected and used.
+              </label>
+            </div>
+
             {/* Message Field (Optional) */}
             <div className="animate-fade-in" style={{ animationDelay: '400ms' }}>
               <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -422,6 +448,9 @@ export default function Signup() {
           <p className="text-xs text-gray-500 text-center mt-4 animate-fade-in" style={{ animationDelay: '550ms' }}>
             Your signup request will be reviewed by our team. You&apos;ll receive an email once approved.
           </p>
+          <div className="mt-6 animate-fade-in" style={{ animationDelay: '600ms' }}>
+            <AuthPagesFooter />
+          </div>
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from './ui/Button'
 import Alert from './ui/Alert'
+import AuthPagesFooter from './AuthPagesFooter'
 
 export default function Signin() {
   const router = useRouter()
@@ -244,6 +245,9 @@ export default function Signin() {
         <p className="text-center text-sm text-gray-500 mt-6 animate-fade-in" style={{ animationDelay: '700ms' }}>
           Secure login powered by Supabase
         </p>
+        <div className="mt-4 animate-fade-in" style={{ animationDelay: '750ms' }}>
+          <AuthPagesFooter />
+        </div>
       </div>
     </div>
   )

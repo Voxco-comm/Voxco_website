@@ -4,6 +4,7 @@ import { NotificationProvider } from '@/components/NotificationContext'
 import Header from '@/components/Header'
 import ToastContainer from '@/components/ui/Toast'
 import DisabledUserGuard from '@/components/DisabledUserGuard'
+import CookieBanner from '@/components/CookieBanner'
 import './globals.css'
 import { createClient } from '@/lib/supabase/server'
 import { ReactNode } from 'react'
@@ -39,6 +40,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                   {children}
                 </div>
               </DisabledUserGuard>
+              <CookieBanner />
               <ToastContainer />
             </NotificationProvider>
           </IdleTimeoutProvider>

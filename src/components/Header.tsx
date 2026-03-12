@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from './AuthContext'
 import { createClient } from '@/lib/supabase/client'
-import { User, Settings, LogOut, ChevronDown } from 'lucide-react'
+import Link from 'next/link'
+import { User, Settings, LogOut, ChevronDown, Shield } from 'lucide-react'
 import ConfirmationModal from './ui/ConfirmationModal'
 import NotificationBell from './ui/NotificationBell'
 
@@ -196,6 +197,15 @@ export default function Header() {
                   Reset Password
                 </button>
 
+                <Link
+                  href="/privacy"
+                  className="w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors cursor-pointer"
+                  onClick={closeProfileDropdown}
+                >
+                  <Shield className="w-4 h-4 text-gray-400" />
+                  Privacy Policy
+                </Link>
+
                 <div className="border-t border-gray-100 mt-1 pt-1">
                   <button
                     onClick={handleLogoutClick}
@@ -257,6 +267,7 @@ export default function Header() {
 
               <button onClick={() => { handleProfile(); closeProfileDropdown() }} className="block w-full text-left px-4 py-3 hover:bg-gray-100 rounded-xl cursor-pointer transition-colors">Profile</button>
               <button onClick={handleResetPassword} className="block w-full text-left px-4 py-3 hover:bg-gray-100 rounded-xl cursor-pointer transition-colors">Reset Password</button>
+              <Link href="/privacy" onClick={() => setMobileOpen(false)} className="block w-full text-left px-4 py-3 hover:bg-gray-100 rounded-xl cursor-pointer transition-colors">Privacy Policy</Link>
               <button onClick={handleLogoutClick} className="block w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl cursor-pointer transition-colors">Logout</button>
             </div>
           </div>

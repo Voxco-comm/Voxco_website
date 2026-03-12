@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from './ui/Button'
 import Alert from './ui/Alert'
+import AuthPagesFooter from './AuthPagesFooter'
 
 export default function ResetPassword() {
   const router = useRouter()
@@ -151,6 +152,9 @@ export default function ResetPassword() {
         <p className="mt-6 text-center">
           <button type="button" onClick={() => router.push('/sign-in')} className="text-[#215F9A] font-semibold hover:underline">Back to Sign In</button>
         </p>
+        <div className="mt-6">
+          <AuthPagesFooter />
+        </div>
       </div>
     </div>
   )
