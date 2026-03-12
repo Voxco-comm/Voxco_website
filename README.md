@@ -5,7 +5,7 @@ A Next.js application for ordering phone numbers and managing communications ser
 ## Tech Stack
 
 - **Framework**: Next.js 15
-- **Authentication**: Supabase Auth 
+- **Authentication**: Supabase Auth  
 - **Database**: Supabase (PostgreSQL)  
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React 
