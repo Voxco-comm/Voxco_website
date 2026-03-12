@@ -12,6 +12,9 @@ import { ReactNode } from 'react'
 export const metadata = {
   title: 'Voxco Number Ordering Portal',
   description: 'Order phone numbers and manage your communications',
+  icons: {
+    icon: '/favicon.ico',
+  },
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

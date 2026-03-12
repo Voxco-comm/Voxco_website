@@ -147,35 +147,46 @@ export default function NumberFileUpload({
         return null
     }
 
+    // Normalize header cell for matching (handles newlines, extra spaces like "Out Call\nFixed" in Rates files)
+    const normalizeHeader = (h: any): string =>
+        String(h || '').replace(/\s+/g, ' ').toLowerCase().trim()
+
     const validateHeaders = (headers: any[]): { valid: boolean; errors: string[]; columnMap: Record<string, number> } => {
         const errors: string[] = []
         const columnMap: Record<string, number> = {}
 
-        // Only Country is strictly required
+        // Only Country/Destination is strictly required (Rates files use "Destination")
         const requiredColumns = [
-            { keywords: ['country'], name: 'Country' },
+            { keywords: ['country', 'destination'], name: 'Country' },
         ]
 
-        // Optional columns (with their possible header variations)
-        // SMS/Voice and Direction are optional - will default to "Both"
+        // Optional columns (with their possible header variations, including Rates (1).xlsx style)
         const optionalColumns = [
             { keywords: ['sms', 'voice', 'sms_capability', 'sms/voice', 'sms capability', 'capability'], name: 'SMS/Voice' },
             { keywords: ['direction', 'inbound', 'outbound'], name: 'Direction' },
             { keywords: ['available', 'available_numbers', 'qty', 'quantity'], name: 'Available Numbers' },
             { keywords: ['number_type', 'type', 'numbertype'], name: 'Number Type' },
-            { keywords: ['specification', 'spec', 'prefix', 'area'], name: 'Specification' },
-            { keywords: ['mrc', 'monthly', 'recurring'], name: 'MRC' },
-            { keywords: ['nrc', 'non-recurring', 'setup'], name: 'NRC' },
+            { keywords: ['specification', 'spec', 'prefix', 'area', 'remarks'], name: 'Specification' },
+            { keywords: ['customer mrc'], name: 'Customer MRC' },
+            { keywords: ['mrc', 'monthly', 'recurring', 'supplier mrc'], name: 'MRC' },
+            { keywords: ['customer nrc'], name: 'Customer NRC' },
+            { keywords: ['nrc', 'non-recurring', 'setup', 'supplier nrc'], name: 'NRC' },
             { keywords: ['currency', 'curr'], name: 'Currency' },
             { keywords: ['moq', 'minimum', 'min_order'], name: 'MOQ' },
             { keywords: ['supplier', 'provider', 'vendor'], name: 'Supplier' },
-            { keywords: ['bill_pulse', 'pulse', 'billing'], name: 'Bill Pulse' },
-            { keywords: ['requirements', 'req'], name: 'Requirements' },
-            { keywords: ['inbound_call', 'inbound call'], name: 'Inbound Call' },
-            { keywords: ['outbound_call_fixed', 'outbound call fixed', 'outbound fixed'], name: 'Outbound Call (Fixed)' },
-            { keywords: ['outbound_call_mobile', 'outbound call mobile', 'outbound mobile'], name: 'Outbound Call (Mobile)' },
-            { keywords: ['inbound_sms', 'inbound sms'], name: 'Inbound SMS' },
-            { keywords: ['outbound_sms', 'outbound sms'], name: 'Outbound SMS' },
+            { keywords: ['bill_pulse', 'pulse', 'billing', 'bill pulse'], name: 'Bill Pulse' },
+            { keywords: ['requirements', 'req', 'remarks'], name: 'Requirements' },
+            { keywords: ['customer incall'], name: 'Customer Incall' },
+            { keywords: ['inbound_call', 'inbound call', 'in call', 'incall'], name: 'Inbound Call' },
+            { keywords: ['customer call fixed'], name: 'Customer Call Fixed' },
+            { keywords: ['outbound_call_fixed', 'outbound call fixed', 'outbound fixed', 'out call fixed', 'call fixed'], name: 'Outbound Call (Fixed)' },
+            { keywords: ['customer out call mobile'], name: 'Customer Out Call Mobile' },
+            { keywords: ['outbound_call_mobile', 'outbound call mobile', 'outbound mobile', 'out call mobile'], name: 'Outbound Call (Mobile)' },
+            { keywords: ['customer in sms'], name: 'Customer In SMS' },
+            { keywords: ['inbound_sms', 'inbound sms', 'in sms'], name: 'Inbound SMS' },
+            { keywords: ['customer out sms'], name: 'Customer Out SMS' },
+            { keywords: ['outbound_sms', 'outbound sms', 'out sms'], name: 'Outbound SMS' },
+            { keywords: ['customer other'], name: 'Customer Other Fees' },
             { keywords: ['other_fees', 'other fees', 'fees'], name: 'Other Fees' },
             { keywords: ['voice_feature', 'voice feature'], name: 'Voice Feature' },
             { keywords: ['sms_feature', 'sms feature'], name: 'SMS Feature' },
@@ -183,13 +194,13 @@ export default function NumberFileUpload({
             { keywords: ['emergency', 'emergency_services'], name: 'Emergency Services' },
         ]
 
-        // Check required columns exist in headers
+        // Check required columns exist in headers (use normalized header for matching)
         for (const reqCol of requiredColumns) {
             const foundIndex = headers.findIndex((h: any) =>
-                reqCol.keywords.some(keyword =>
-                    String(h || '').toLowerCase().trim() === keyword ||
-                    String(h || '').toLowerCase().includes(keyword)
-                )
+                reqCol.keywords.some(keyword => {
+                    const norm = normalizeHeader(h)
+                    return norm === keyword || norm.includes(keyword)
+                })
             )
 
             if (foundIndex === -1) {
@@ -199,12 +210,12 @@ export default function NumberFileUpload({
             }
         }
 
-        // Map optional columns
+        // Map optional columns (use normalized header for matching)
         for (const optCol of optionalColumns) {
             const foundIndex = headers.findIndex((h: any) =>
                 optCol.keywords.some(keyword => {
-                    const headerLower = String(h || '').toLowerCase().trim()
-                    return headerLower === keyword || headerLower.includes(keyword)
+                    const norm = normalizeHeader(h)
+                    return norm === keyword || norm.includes(keyword)
                 })
             )
 
@@ -231,15 +242,15 @@ export default function NumberFileUpload({
             return []
         }
 
-        // Try to find header row (look for required column names)
+        // Try to find header row (look for required column names, including "destination" for Rates-style files)
         let headerRowIndex = -1
-        const headerKeywords = ['country', 'sms', 'voice', 'direction']
+        const headerKeywords = ['country', 'destination', 'sms', 'voice', 'direction', 'supplier', 'type', 'mrc', 'nrc']
 
         for (let i = 0; i < Math.min(5, data.length); i++) {
             const row = data[i]
             if (row && row.some((cell: any) =>
                 headerKeywords.some(keyword =>
-                    String(cell || '').toLowerCase().trim().includes(keyword)
+                    String(cell || '').replace(/\s+/g, ' ').toLowerCase().trim().includes(keyword)
                 )
             )) {
                 headerRowIndex = i
@@ -354,27 +365,38 @@ export default function NumberFileUpload({
                 }
             }
 
-            // Get optional - Number Type
+            // Get optional - Number Type (map Rates-style: Fixed/National → Geographic, Mobile → Mobile)
             if (columnMap['number type'] !== undefined) {
                 const value = row[columnMap['number type']]
                 if (value !== undefined && value !== null) {
                     const typeValue = String(value).trim()
-                    if (typeValue && ['Geographic', 'Mobile', 'Toll-Free'].includes(typeValue)) {
-                        extracted.number_type = typeValue
+                    if (typeValue) {
+                        const normalized = typeValue.toLowerCase()
+                        if (['geographic', 'mobile', 'toll-free'].includes(normalized)) {
+                            extracted.number_type = typeValue
+                        } else if (normalized === 'fixed' || normalized === 'national') {
+                            extracted.number_type = 'Geographic'
+                        } else if (normalized === 'mobile') {
+                            extracted.number_type = 'Mobile'
+                        }
                     }
                 }
             }
 
-            if (columnMap['mrc'] !== undefined) {
-                const value = row[columnMap['mrc']]
+            // MRC: prefer "Customer MRC" (Rates-style) when present, else "MRC"
+            const mrcCol = columnMap['customer mrc'] !== undefined ? columnMap['customer mrc'] : columnMap['mrc']
+            if (mrcCol !== undefined) {
+                const value = row[mrcCol]
                 if (value !== undefined && value !== null && String(value).trim()) {
                     const parsed = parseFloat(String(value))
                     extracted.mrc = isNaN(parsed) ? undefined : parsed
                 }
             }
 
-            if (columnMap['nrc'] !== undefined) {
-                const value = row[columnMap['nrc']]
+            // NRC: prefer "Customer NRC" (Rates-style) when present, else "NRC"
+            const nrcCol = columnMap['customer nrc'] !== undefined ? columnMap['customer nrc'] : columnMap['nrc']
+            if (nrcCol !== undefined) {
+                const value = row[nrcCol]
                 if (value !== undefined && value !== null && String(value).trim()) {
                     const parsed = parseFloat(String(value))
                     extracted.nrc = isNaN(parsed) ? undefined : parsed
@@ -428,88 +450,70 @@ export default function NumberFileUpload({
                     : undefined
             }
 
-            // Build other_charges object - check all possible key variations
+            // Build other_charges object - prefer "Customer X" columns (Rates-style) when present
             extracted.other_charges = {}
-            const inboundCallKeys = ['inbound call', 'inbound_call']
-            for (const key of inboundCallKeys) {
-                if (columnMap[key] !== undefined) {
-                    const value = row[columnMap[key]]
-                    if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                        const parsed = parseFloat(String(value))
-                        extracted.other_charges.inbound_call = isNaN(parsed) ? null : parsed
-                    } else {
-                        extracted.other_charges.inbound_call = null
-                    }
-                    break
+            const inboundCallCol = columnMap['customer incall'] ?? columnMap['inbound call']
+            if (inboundCallCol !== undefined) {
+                const value = row[inboundCallCol]
+                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
+                    const parsed = parseFloat(String(value))
+                    extracted.other_charges.inbound_call = isNaN(parsed) ? null : parsed
+                } else {
+                    extracted.other_charges.inbound_call = null
                 }
             }
 
-            const outboundFixedKeys = ['outbound call (fixed)', 'outbound call fixed', 'outbound_call_fixed']
-            for (const key of outboundFixedKeys) {
-                if (columnMap[key] !== undefined) {
-                    const value = row[columnMap[key]]
-                    if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                        const parsed = parseFloat(String(value))
-                        extracted.other_charges.outbound_call_fixed = isNaN(parsed) ? null : parsed
-                    } else {
-                        extracted.other_charges.outbound_call_fixed = null
-                    }
-                    break
+            const outboundFixedCol = columnMap['customer call fixed'] ?? columnMap['outbound call (fixed)']
+            if (outboundFixedCol !== undefined) {
+                const value = row[outboundFixedCol]
+                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
+                    const parsed = parseFloat(String(value))
+                    extracted.other_charges.outbound_call_fixed = isNaN(parsed) ? null : parsed
+                } else {
+                    extracted.other_charges.outbound_call_fixed = null
                 }
             }
 
-            const outboundMobileKeys = ['outbound call (mobile)', 'outbound call mobile', 'outbound_call_mobile']
-            for (const key of outboundMobileKeys) {
-                if (columnMap[key] !== undefined) {
-                    const value = row[columnMap[key]]
-                    if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                        const parsed = parseFloat(String(value))
-                        extracted.other_charges.outbound_call_mobile = isNaN(parsed) ? null : parsed
-                    } else {
-                        extracted.other_charges.outbound_call_mobile = null
-                    }
-                    break
+            const outboundMobileCol = columnMap['customer out call mobile'] ?? columnMap['outbound call (mobile)']
+            if (outboundMobileCol !== undefined) {
+                const value = row[outboundMobileCol]
+                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
+                    const parsed = parseFloat(String(value))
+                    extracted.other_charges.outbound_call_mobile = isNaN(parsed) ? null : parsed
+                } else {
+                    extracted.other_charges.outbound_call_mobile = null
                 }
             }
 
-            const inboundSmsKeys = ['inbound sms', 'inbound_sms']
-            for (const key of inboundSmsKeys) {
-                if (columnMap[key] !== undefined) {
-                    const value = row[columnMap[key]]
-                    if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                        const parsed = parseFloat(String(value))
-                        extracted.other_charges.inbound_sms = isNaN(parsed) ? null : parsed
-                    } else {
-                        extracted.other_charges.inbound_sms = null
-                    }
-                    break
+            const inboundSmsCol = columnMap['customer in sms'] ?? columnMap['inbound sms']
+            if (inboundSmsCol !== undefined) {
+                const value = row[inboundSmsCol]
+                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
+                    const parsed = parseFloat(String(value))
+                    extracted.other_charges.inbound_sms = isNaN(parsed) ? null : parsed
+                } else {
+                    extracted.other_charges.inbound_sms = null
                 }
             }
 
-            const outboundSmsKeys = ['outbound sms', 'outbound_sms']
-            for (const key of outboundSmsKeys) {
-                if (columnMap[key] !== undefined) {
-                    const value = row[columnMap[key]]
-                    if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                        const parsed = parseFloat(String(value))
-                        extracted.other_charges.outbound_sms = isNaN(parsed) ? null : parsed
-                    } else {
-                        extracted.other_charges.outbound_sms = null
-                    }
-                    break
+            const outboundSmsCol = columnMap['customer out sms'] ?? columnMap['outbound sms']
+            if (outboundSmsCol !== undefined) {
+                const value = row[outboundSmsCol]
+                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
+                    const parsed = parseFloat(String(value))
+                    extracted.other_charges.outbound_sms = isNaN(parsed) ? null : parsed
+                } else {
+                    extracted.other_charges.outbound_sms = null
                 }
             }
 
-            const otherFeesKeys = ['other fees', 'other_fees']
-            for (const key of otherFeesKeys) {
-                if (columnMap[key] !== undefined) {
-                    const value = row[columnMap[key]]
-                    if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                        extracted.other_charges.other_fees = String(value).trim()
-                    } else {
-                        extracted.other_charges.other_fees = null
-                    }
-                    break
+            const otherFeesCol = columnMap['customer other fees'] ?? columnMap['other fees']
+            if (otherFeesCol !== undefined) {
+                const value = row[otherFeesCol]
+                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
+                    extracted.other_charges.other_fees = String(value).trim()
+                } else {
+                    extracted.other_charges.other_fees = null
                 }
             }
 
@@ -675,7 +679,7 @@ export default function NumberFileUpload({
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="font-semibold text-[#215F9A] mb-3">Expected File Format</h4>
                 <p className="text-sm text-gray-700 mb-3">
-                    Your file should contain a table with at least a <strong>Country</strong> column. SMS/Voice and Direction will default to <strong>"Both"</strong> if not specified.
+                    Your file should contain a table with at least a <strong>Country</strong> or <strong>Destination</strong> column (e.g. Rates-style sheets). SMS/Voice and Direction default to <strong>"Both"</strong>. Type values <strong>Fixed</strong>/<strong>National</strong> are mapped to Geographic.
                 </p>
 
                 {/* Sample Data Table */}
