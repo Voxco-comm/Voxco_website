@@ -89,6 +89,8 @@ export interface PhoneNumber {
   supplier_mrc?: number | null
   supplier_nrc?: number | null
   supplier_currency?: string | null
+  /** Supplier-side fees (admin only); same keys as OtherCharges */
+  supplier_other_charges?: OtherCharges
 }
 
 export interface OtherCharges {

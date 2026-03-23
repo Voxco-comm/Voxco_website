@@ -120,7 +120,7 @@ export default function Header() {
             <img
               src="/logo.png"
               alt="Voxco Communications"
-              className="w-36 sm:w-44 md:w-52 transition-all group-hover:scale-105 duration-200"
+              className="w-28 sm:w-44 md:w-52 max-w-[min(100%,11rem)] sm:max-w-none transition-all group-hover:scale-105 duration-200"
             />
           </div>
 

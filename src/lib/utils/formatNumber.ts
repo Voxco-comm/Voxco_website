@@ -89,3 +89,39 @@ export function formatPricePerUnit(
 
   return `${currency} ${formatDecimal(num, 0, 4)}${unit}`
 }
+
+const NA_LIKE = /^(n\/?a|—|-|–|\.\.\.)$/i
+
+/**
+ * Parse a cell value from CSV/Excel into a float (MRC, per-minute rates, etc.).
+ * Handles currency symbols, thousands separators, and EU vs US decimal conventions.
+ */
+export function parseSpreadsheetFloat(raw: unknown): number | undefined {
+  if (raw === null || raw === undefined) return undefined
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw)) return undefined
+    return raw
+  }
+  let s = String(raw).trim()
+  if (!s || NA_LIKE.test(s)) return undefined
+  s = s.replace(/[$€£¥₹]/g, '').replace(/\s/g, '')
+  if (!s || NA_LIKE.test(s)) return undefined
+  const lastComma = s.lastIndexOf(',')
+  const lastDot = s.lastIndexOf('.')
+  if (lastComma > lastDot) {
+    s = s.replace(/\./g, '').replace(',', '.')
+  } else {
+    s = s.replace(/,/g, '')
+  }
+  const n = parseFloat(s)
+  return Number.isFinite(n) ? n : undefined
+}
+
+/**
+ * Parse a cell into a whole number (MOQ, available quantity). Uses float then Math.round for values like "1.0".
+ */
+export function parseSpreadsheetInt(raw: unknown): number | undefined {
+  const f = parseSpreadsheetFloat(raw)
+  if (f === undefined) return undefined
+  return Math.round(f)
+}

@@ -220,6 +220,21 @@ export const emailTemplates = {
       </div>
     `,
   }),
+
+  testNotification: (opts: { signInUrl?: string }) => ({
+    subject: 'Voxco: notification email test',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #215F9A; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0;">Test email</h1>
+        </div>
+        <div style="padding: 20px; background-color: #f9f9f9;">
+          <p>This message confirms that admin notification email delivery is working.</p>
+          ${opts.signInUrl ? `<p><a href="${opts.signInUrl}" style="color: #215F9A;">Sign in to the portal</a></p>` : ''}
+        </div>
+      </div>
+    `,
+  }),
 }
 
 // Create reusable transporter for Gmail SMTP
@@ -283,17 +298,18 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 // Uses a database function with SECURITY DEFINER to bypass RLS
 export async function getNotificationEmail(supabase: any): Promise<string | null> {
   try {
-    // Use the database function that bypasses RLS
     const { data, error } = await supabase.rpc('get_notification_email')
 
     if (error) {
       console.error('Error getting notification email:', error)
-      return null
+    } else {
+      const fromDb = typeof data === 'string' ? data.trim() : ''
+      if (fromDb) return fromDb
     }
-
-    return data || null
   } catch (err) {
     console.error('Exception getting notification email:', err)
-    return null
   }
+
+  const fallback = process.env.ADMIN_NOTIFICATION_EMAIL?.trim()
+  return fallback || null
 }

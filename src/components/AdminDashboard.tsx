@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import BackButton from './BackButton'
 import NumberFileUpload from './NumberFileUpload'
@@ -100,6 +100,7 @@ interface NumberFormData {
   bill_pulse?: string
   requirements_text?: string
   other_charges: OtherChargesForm
+  supplier_other_charges: OtherChargesForm
   features: Features
 }
 
@@ -170,6 +171,7 @@ interface Number {
   supplier_mrc?: number | null
   supplier_nrc?: number | null
   supplier_currency?: string | null
+  supplier_other_charges?: any
 }
 
 interface UploadedDocumentInfo {
@@ -276,6 +278,11 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('inventory')
   const [countries, setCountries] = useState<Country[]>([])
   const [allNumbers, setAllNumbers] = useState<Number[]>([])
+  const [inventoryFilters, setInventoryFilters] = useState({
+    country: '',
+    smsVoice: '',
+    inboundOutbound: '',
+  })
   const [orders, setOrders] = useState<Order[]>([])
   const [selectedOrderForDocs, setSelectedOrderForDocs] = useState<Order | null>(null)
   const [signupRequests, setSignupRequests] = useState<SignupRequest[]>([])
@@ -285,6 +292,7 @@ export default function AdminDashboard() {
   const [loadingOrders, setLoadingOrders] = useState(false)
   const [loadingSignupRequests, setLoadingSignupRequests] = useState(false)
   const [loadingSettings, setLoadingSettings] = useState(false)
+  const [sendingTestEmail, setSendingTestEmail] = useState(false)
   const [showAddNumber, setShowAddNumber] = useState(false)
   const [showAddCountry, setShowAddCountry] = useState(false)
   const [showFileUpload, setShowFileUpload] = useState(false)
@@ -314,6 +322,7 @@ export default function AdminDashboard() {
     bill_pulse: '',
     requirements_text: '',
     other_charges: {},
+    supplier_other_charges: {},
     features: {},
   })
   const [countryFormData, setCountryFormData] = useState<CountryFormData>({
@@ -607,6 +616,27 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleSendTestEmail = async () => {
+    setSendingTestEmail(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'test_notification', data: {} }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(json.error || `Request failed (${res.status})`)
+      }
+      setSuccess('Test email sent. Check the notification inbox (and spam folder).')
+    } catch (err: any) {
+      setError(err.message || 'Failed to send test email')
+    } finally {
+      setSendingTestEmail(false)
+    }
+  }
+
   const handleDeleteNumber = async (numberId: string) => {
     setError(null)
     if (!confirm('Are you sure you want to delete this number?')) return
@@ -654,12 +684,14 @@ export default function AdminDashboard() {
           specification: number.specification || null,
           bill_pulse: number.bill_pulse || null,
           other_charges: normalizeOtherChargesForDb(number.other_charges),
+          supplier_other_charges: normalizeOtherChargesForDb((number as any).supplier_other_charges),
           features: (number.features && typeof number.features === 'object' && Object.keys(number.features).length > 0)
             ? { voice: (number.features as any).voice || null, sms: (number.features as any).sms || null, reach: (number.features as any).reach || null, emergency_services: (number.features as any).emergency_services || null }
             : {},
           supplier_mrc: parseNullableNumberField((number as any).supplier_mrc),
           supplier_nrc: parseNullableNumberField((number as any).supplier_nrc),
           supplier_currency: (number as any).supplier_currency || null,
+          supplier: (number as any).supplier || null,
         })
         .eq('id', number.id)
 
@@ -880,6 +912,8 @@ export default function AdminDashboard() {
         .select(`
           id,
           number,
+          country_id,
+          available_numbers,
           number_type,
           sms_capability,
           direction,
@@ -895,6 +929,7 @@ export default function AdminDashboard() {
           bill_pulse,
           requirements_text,
           other_charges,
+          supplier_other_charges,
           features,
           is_available,
           is_reserved,
@@ -933,12 +968,13 @@ export default function AdminDashboard() {
           bill_pulse: n.bill_pulse,
           requirements_text: n.requirements_text,
           other_charges: n.other_charges,
+          supplier_other_charges: n.supplier_other_charges,
           features: n.features,
           is_available: n.is_available,
           is_reserved: n.is_reserved,
           country_name: n.countries?.name || 'Unknown',
           country_code: n.countries?.country_code || 'N/A',
-          available_numbers: n.available_numbers || 0,
+          available_numbers: n.available_numbers ?? 0,
           country_id: n.country_id || '',
         }))
         // Sort by country name alphabetically
@@ -1200,6 +1236,7 @@ export default function AdminDashboard() {
           bill_pulse: fulfillForm.bill_pulse.trim() || null,
           requirements_text: fulfillForm.requirements_text.trim() || null,
           other_charges: {},
+          supplier_other_charges: {},
           features: {},
           is_available: true,
         })
@@ -1390,6 +1427,7 @@ export default function AdminDashboard() {
         bill_pulse: formData.bill_pulse || null,
         requirements_text: formData.requirements_text || null,
         other_charges: normalizeOtherChargesForDb(formData.other_charges),
+        supplier_other_charges: normalizeOtherChargesForDb(formData.supplier_other_charges),
         features: formData.features,
         is_available: true,
       })
@@ -1418,6 +1456,7 @@ export default function AdminDashboard() {
         bill_pulse: '',
         requirements_text: '',
         other_charges: {},
+        supplier_other_charges: {},
         features: {},
       })
       setShowAddNumber(false)
@@ -1462,6 +1501,12 @@ export default function AdminDashboard() {
           numberType = 'Geographic'
         }
 
+        const soc = num.supplier_other_charges
+        const hasSupplierOc =
+          soc &&
+          typeof soc === 'object' &&
+          Object.keys(soc).some((k) => (soc as any)[k] !== null && (soc as any)[k] !== undefined)
+
         return {
           country_id: num.country_id,
           available_numbers: num.available_numbers || 1,
@@ -1477,6 +1522,10 @@ export default function AdminDashboard() {
           bill_pulse: num.bill_pulse || null,
           requirements_text: num.requirements_text || null,
           other_charges: num.other_charges || {},
+          supplier_mrc: num.supplier_mrc ?? null,
+          supplier_nrc: num.supplier_nrc ?? null,
+          supplier_currency: num.supplier_currency || null,
+          supplier_other_charges: hasSupplierOc ? soc : {},
           features: num.features || {},
           is_available: true,
         }
@@ -1774,6 +1823,169 @@ export default function AdminDashboard() {
     setExpandedRows(newExpanded)
   }
 
+  const filteredInventoryNumbers = useMemo(() => {
+    let list = [...allNumbers]
+    if (inventoryFilters.country) {
+      list = list.filter((n) => n.country_id === inventoryFilters.country)
+    }
+    if (inventoryFilters.smsVoice) {
+      list = list.filter((n) => n.sms_capability === inventoryFilters.smsVoice)
+    }
+    if (inventoryFilters.inboundOutbound) {
+      list = list.filter((n) => n.direction === inventoryFilters.inboundOutbound)
+    }
+    return list
+  }, [allNumbers, inventoryFilters])
+
+  const inventoryPricingDetailContent = (num: Number) => {
+    const otherCharges =
+      typeof num.other_charges === 'object' && num.other_charges !== null ? (num.other_charges as any) : {}
+    const supOther =
+      typeof num.supplier_other_charges === 'object' && num.supplier_other_charges !== null
+        ? (num.supplier_other_charges as any)
+        : {}
+    const supCur = num.supplier_currency || num.currency || 'USD'
+    return (
+      <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 space-y-6">
+        <div>
+          <h4 className="font-semibold text-[#215F9A] mb-3">Supplier rates &amp; fees (admin)</h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Supplier MRC</p>
+              <p className="font-medium">
+                {num.supplier_mrc != null ? `${supCur} ${formatDecimal(num.supplier_mrc, 2)}` : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Supplier NRC</p>
+              <p className="font-medium">
+                {num.supplier_nrc != null ? `${supCur} ${formatDecimal(num.supplier_nrc, 2)}` : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Supplier currency</p>
+              <p className="font-medium">{num.supplier_currency || '—'}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Inbound Call (supplier)</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.inbound_call, supCur, '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound Call Fixed (supplier)</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.outbound_call_fixed, supCur, '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound Call Mobile (supplier)</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.outbound_call_mobile, supCur, '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Inbound SMS (supplier)</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.inbound_sms, supCur, '/msg')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound SMS (supplier)</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.outbound_sms, supCur, '/msg')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Other fees (supplier)</p>
+              <p className="font-medium">
+                {supOther.other_fees != null && supOther.other_fees !== '' ? String(supOther.other_fees) : 'N/A'}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h4 className="font-semibold text-[#215F9A] mb-3">Customer pricing</h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Customer MRC</p>
+              <p className="font-medium">
+                {num.currency} {formatDecimal(num.mrc, 2)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Customer NRC</p>
+              <p className="font-medium">
+                {num.currency} {formatDecimal(num.nrc, 2)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Customer currency</p>
+              <p className="font-medium">{num.currency}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Inbound Call (customer)</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.inbound_call, num.currency, '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound Call (Fixed) (customer)</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_call_fixed, num.currency, '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound Call (Mobile) (customer)</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_call_mobile, num.currency, '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Inbound SMS (customer)</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.inbound_sms, num.currency, '/msg')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound SMS (customer)</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_sms, num.currency, '/msg')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Other fees (customer)</p>
+              <p className="font-medium">{otherCharges.other_fees || 'N/A'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const openInventoryEditorForModal = (num: Number) => {
+    const oc = (num.other_charges || {}) as any
+    const soc = (num.supplier_other_charges || {}) as any
+    const feat = (num.features || {}) as Record<string, string | null>
+    setEditingNumber({
+      ...num,
+      mrc: num.mrc === null || num.mrc === undefined ? ('' as any) : (String(num.mrc) as any),
+      nrc: num.nrc === null || num.nrc === undefined ? ('' as any) : (String(num.nrc) as any),
+      moq: num.moq === null || num.moq === undefined ? ('' as any) : (String(num.moq) as any),
+      other_charges: {
+        ...oc,
+        inbound_call: oc.inbound_call === null || oc.inbound_call === undefined ? '' : String(oc.inbound_call),
+        outbound_call_fixed: oc.outbound_call_fixed === null || oc.outbound_call_fixed === undefined ? '' : String(oc.outbound_call_fixed),
+        outbound_call_mobile: oc.outbound_call_mobile === null || oc.outbound_call_mobile === undefined ? '' : String(oc.outbound_call_mobile),
+        inbound_sms: oc.inbound_sms === null || oc.inbound_sms === undefined ? '' : String(oc.inbound_sms),
+        outbound_sms: oc.outbound_sms === null || oc.outbound_sms === undefined ? '' : String(oc.outbound_sms),
+        other_fees: oc.other_fees === null || oc.other_fees === undefined ? '' : String(oc.other_fees),
+      },
+      supplier_other_charges: {
+        ...soc,
+        inbound_call: soc.inbound_call === null || soc.inbound_call === undefined ? '' : String(soc.inbound_call),
+        outbound_call_fixed: soc.outbound_call_fixed === null || soc.outbound_call_fixed === undefined ? '' : String(soc.outbound_call_fixed),
+        outbound_call_mobile: soc.outbound_call_mobile === null || soc.outbound_call_mobile === undefined ? '' : String(soc.outbound_call_mobile),
+        inbound_sms: soc.inbound_sms === null || soc.inbound_sms === undefined ? '' : String(soc.inbound_sms),
+        outbound_sms: soc.outbound_sms === null || soc.outbound_sms === undefined ? '' : String(soc.outbound_sms),
+        other_fees: soc.other_fees === null || soc.other_fees === undefined ? '' : String(soc.other_fees),
+      },
+      features: {
+        voice: feat.voice ?? '',
+        sms: feat.sms ?? '',
+        reach: feat.reach ?? '',
+        emergency_services: feat.emergency_services ?? '',
+      },
+      supplier_mrc: num.supplier_mrc != null ? String(num.supplier_mrc) : ('' as any),
+      supplier_nrc: num.supplier_nrc != null ? String(num.supplier_nrc) : ('' as any),
+      supplier_currency: num.supplier_currency ?? ('' as any),
+    })
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -1796,25 +2008,26 @@ export default function AdminDashboard() {
     <main className="bg-gray-50 min-h-screen px-4 sm:px-6 md:px-8 py-8 md:py-10">
       <div className="max-w-7xl mx-auto">
         {/* Tabs - Main Navigation */}
-        <div className="bg-white rounded-t-lg shadow-lg border-b mb-6">
-          <div className="flex flex-wrap">
+        <div className="bg-white rounded-t-lg shadow-lg border-b mb-4 sm:mb-6 overflow-x-auto">
+          <div className="flex flex-wrap sm:flex-nowrap min-w-0">
             <button
               onClick={() => setActiveTab('inventory')}
-              className={`px-6 py-4 font-semibold text-lg transition-colors ${activeTab === 'inventory'
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors whitespace-nowrap ${activeTab === 'inventory'
                 ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
                 : 'text-gray-600 hover:text-[#215F9A]'
                 }`}
             >
-              Inventory Management
+              Inventory
             </button>
             <button
               onClick={() => setActiveTab('orders')}
-              className={`px-6 py-4 font-semibold text-lg transition-colors relative ${activeTab === 'orders'
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap ${activeTab === 'orders'
                 ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
                 : 'text-gray-600 hover:text-[#215F9A]'
                 }`}
             >
-              Orders Management
+              <span className="sm:hidden">Orders</span>
+              <span className="hidden sm:inline">Orders Management</span>
               {pendingOrdersCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center">
                   {pendingOrdersCount > 99 ? '99+' : pendingOrdersCount}
@@ -1823,12 +2036,13 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('custom_requests')}
-              className={`px-6 py-4 font-semibold text-lg transition-colors relative ${activeTab === 'custom_requests'
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap ${activeTab === 'custom_requests'
                 ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
                 : 'text-gray-600 hover:text-[#215F9A]'
                 }`}
             >
-              Custom number requests
+              <span className="sm:hidden">Custom</span>
+              <span className="hidden sm:inline">Custom number requests</span>
               {pendingCustomRequestsCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center">
                   {pendingCustomRequestsCount > 99 ? '99+' : pendingCustomRequestsCount}
@@ -1837,12 +2051,13 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('signup_requests')}
-              className={`px-6 py-4 font-semibold text-lg transition-colors relative ${activeTab === 'signup_requests'
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap ${activeTab === 'signup_requests'
                 ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
                 : 'text-gray-600 hover:text-[#215F9A]'
                 }`}
             >
-              Signup Requests
+              <span className="sm:hidden">Signups</span>
+              <span className="hidden sm:inline">Signup Requests</span>
               {pendingSignupCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   {pendingSignupCount}
@@ -1851,7 +2066,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('users')}
-              className={`px-6 py-4 font-semibold text-lg transition-colors ${activeTab === 'users'
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors whitespace-nowrap ${activeTab === 'users'
                 ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
                 : 'text-gray-600 hover:text-[#215F9A]'
                 }`}
@@ -1860,7 +2075,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('settings')}
-              className={`px-6 py-4 font-semibold text-lg transition-colors ${activeTab === 'settings'
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors whitespace-nowrap ${activeTab === 'settings'
                 ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
                 : 'text-gray-600 hover:text-[#215F9A]'
                 }`}
@@ -2070,7 +2285,7 @@ export default function AdminDashboard() {
 
                     <div>
                       <label className="block text-sm font-medium mb-2">
-                        MRC (Monthly Recurring Charge)
+                        Customer MRC (Monthly Recurring Charge)
                       </label>
                       <input
                         type="text"
@@ -2090,7 +2305,7 @@ export default function AdminDashboard() {
 
                     <div>
                       <label className="block text-sm font-medium mb-2">
-                        NRC (Non-Recurring Charge)
+                        Customer NRC (Non-Recurring Charge)
                       </label>
                       <input
                         type="text"
@@ -2110,7 +2325,7 @@ export default function AdminDashboard() {
 
                     <div>
                       <label className="block text-sm font-medium mb-2">
-                        Currency *
+                        Customer currency *
                       </label>
                       <select
                         value={formData.currency}
@@ -2256,9 +2471,9 @@ export default function AdminDashboard() {
 
                   </div>
 
-                  {/* Other Charges Table */}
+                  {/* Customer other charges */}
                   <div className="mt-4">
-                    <label className="block text-sm font-medium mb-2">Other Charges</label>
+                    <label className="block text-sm font-medium mb-2">Customer other charges</label>
                     <div className="border rounded-lg overflow-hidden">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-100">
@@ -2411,6 +2626,69 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
+                  {/* Supplier other charges (add form) */}
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium mb-2">Supplier other charges (admin)</label>
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="p-2 text-left">Charge Type</th>
+                            <th className="p-2 text-left">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(['inbound_call', 'outbound_call_fixed', 'outbound_call_mobile', 'inbound_sms', 'outbound_sms'] as const).map((key) => (
+                            <tr key={key} className="border-t">
+                              <td className="p-2 capitalize">{key.replace(/_/g, ' ')}</td>
+                              <td className="p-2">
+                                <input
+                                  type="text"
+                                  value={formData.supplier_other_charges[key] ?? ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value
+                                    if (value === '' || DECIMAL_INPUT_RE.test(value)) {
+                                      setFormData({
+                                        ...formData,
+                                        supplier_other_charges: {
+                                          ...formData.supplier_other_charges,
+                                          [key]: normalizeDecimalInput(value),
+                                        },
+                                      })
+                                    }
+                                  }}
+                                  className="w-full p-1 border rounded"
+                                  inputMode="decimal"
+                                  placeholder="0.0000"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="border-t">
+                            <td className="p-2">Other Fees</td>
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                value={formData.supplier_other_charges.other_fees ?? ''}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    supplier_other_charges: {
+                                      ...formData.supplier_other_charges,
+                                      other_fees: e.target.value || undefined,
+                                    },
+                                  })
+                                }
+                                className="w-full p-1 border rounded"
+                                placeholder="Description or amount"
+                              />
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
                   {/* Features Table */}
                   <div className="mt-4">
                     <label className="block text-sm font-medium mb-2">Features</label>
@@ -2509,97 +2787,190 @@ export default function AdminDashboard() {
 
             {/* All Numbers Table */}
             <div>
-              <h2 className="text-2xl font-semibold text-[#215F9A] mb-4">
-                All Available Numbers ({allNumbers.length})
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#215F9A] mb-2">
+                Inventory ({filteredInventoryNumbers.length}
+                {(inventoryFilters.country || inventoryFilters.smsVoice || inventoryFilters.inboundOutbound) &&
+                  allNumbers.length !== filteredInventoryNumbers.length
+                  ? ` of ${allNumbers.length}`
+                  : ''}
+                )
               </h2>
+
+              <section className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium mb-1">Filter by Country</label>
+                    <select
+                      className="w-full p-2 border rounded-lg text-sm"
+                      value={inventoryFilters.country}
+                      onChange={(e) => setInventoryFilters({ ...inventoryFilters, country: e.target.value })}
+                    >
+                      <option value="">All Countries</option>
+                      {countries.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.country_code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium mb-1">Filter by SMS/Voice</label>
+                    <select
+                      className="w-full p-2 border rounded-lg text-sm"
+                      value={inventoryFilters.smsVoice}
+                      onChange={(e) => setInventoryFilters({ ...inventoryFilters, smsVoice: e.target.value })}
+                    >
+                      <option value="">All Types</option>
+                      <option>SMS only</option>
+                      <option>Voice only</option>
+                      <option>Both</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium mb-1">Filter by Inbound/Outbound</label>
+                    <select
+                      className="w-full p-2 border rounded-lg text-sm"
+                      value={inventoryFilters.inboundOutbound}
+                      onChange={(e) => setInventoryFilters({ ...inventoryFilters, inboundOutbound: e.target.value })}
+                    >
+                      <option value="">All Directions</option>
+                      <option>Inbound only</option>
+                      <option>Outbound only</option>
+                      <option>Both</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => setInventoryFilters({ country: '', smsVoice: '', inboundOutbound: '' })}
+                      disabled={loadingNumbers}
+                      className="w-full bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 text-sm disabled:opacity-50"
+                    >
+                      Reset Filters
+                    </button>
+                  </div>
+                </div>
+                {(inventoryFilters.country || inventoryFilters.smsVoice || inventoryFilters.inboundOutbound) && (
+                  <p className="text-xs text-gray-500 mt-2">Filters narrow the list below; totals show matched rows.</p>
+                )}
+              </section>
 
               {loadingNumbers ? (
                 <div className="py-4 animate-fade-in">
                   <TableSkeleton rows={5} cols={8} />
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
+                <>
+                  <div className="md:hidden space-y-3 mb-2">
+                    {filteredInventoryNumbers.map((num) => {
+                      const isCardExpanded = expandedRows.has(num.id)
+                      const supCurM = num.supplier_currency || num.currency || 'USD'
+                      return (
+                        <div key={`m-${num.id}`} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+                          <div className="flex justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-[#215F9A] truncate">{num.country_name}</p>
+                              <p className="text-xs text-gray-600">
+                                {num.number_type} · {num.sms_capability} · {num.direction}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1 break-words">Supplier: {num.supplier || '—'}</p>
+                            </div>
+                            <div className="text-right text-sm shrink-0">
+                              <p className="text-xs text-gray-500">Supplier MRC</p>
+                              <p className="font-medium">
+                                {num.supplier_mrc != null ? `${supCurM} ${formatDecimal(num.supplier_mrc, 2)}` : '—'}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">NRC</p>
+                              <p className="font-medium">
+                                {num.supplier_nrc != null ? `${supCurM} ${formatDecimal(num.supplier_nrc, 2)}` : '—'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleRowExpansion(num.id)}
+                              className="text-[#215F9A] text-sm font-medium"
+                            >
+                              {isCardExpanded ? '▼ Hide details' : '▶ Details'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openInventoryEditorForModal(num)}
+                              className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteNumber(num.id)}
+                              className="bg-red-500 text-white px-3 py-1 rounded text-sm"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                          {isCardExpanded && <div className="pt-1">{inventoryPricingDetailContent(num)}</div>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="hidden md:block overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+                    <table className="w-full border-collapse min-w-[1040px] text-sm">
                     <thead>
-                      <tr className="bg-[#215F9A] text-white text-sm">
-                        <th className="p-3 text-left">Country</th>
-                        <th className="p-3 text-center">Available</th>
-                        <th className="p-3 text-left">Type</th>
-                        <th className="p-3 text-left">Specification</th>
-                        <th className="p-3 text-left">SMS/Voice</th>
-                        <th className="p-3 text-left">Inbound/Outbound</th>
-                        <th className="p-3 text-right">MRC</th>
-                        <th className="p-3 text-right">NRC</th>
-                        <th className="p-3 text-left">Currency</th>
-                        <th className="p-3 text-center">MOQ</th>
-                        <th className="p-3 text-left">Bill Pulse</th>
-                        <th className="p-3 text-center">Actions</th>
+                      <tr className="bg-[#215F9A] text-white text-xs sm:text-sm">
+                        <th className="p-2 sm:p-3 text-left">Country</th>
+                        <th className="p-2 sm:p-3 text-center">Available</th>
+                        <th className="p-2 sm:p-3 text-left">Type</th>
+                        <th className="p-2 sm:p-3 text-left">Specification</th>
+                        <th className="p-2 sm:p-3 text-left">SMS/Voice</th>
+                        <th className="p-2 sm:p-3 text-left">In/Out</th>
+                        <th className="p-2 sm:p-3 text-left max-w-[120px]">Supplier</th>
+                        <th className="p-2 sm:p-3 text-right" title="Supplier MRC">MRC</th>
+                        <th className="p-2 sm:p-3 text-right" title="Supplier NRC">NRC</th>
+                        <th className="p-2 sm:p-3 text-left" title="Supplier currency">Curr.</th>
+                        <th className="p-2 sm:p-3 text-center">MOQ</th>
+                        <th className="p-2 sm:p-3 text-left">Pulse</th>
+                        <th className="p-2 sm:p-3 text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {allNumbers.map((num) => {
+                      {filteredInventoryNumbers.map((num) => {
                         const isExpanded = expandedRows.has(num.id)
-                        const otherCharges = typeof num.other_charges === 'object' && num.other_charges !== null
-                          ? num.other_charges as any
-                          : {}
+                        const supCur = num.supplier_currency || num.currency || 'USD'
 
                         return (
                           <React.Fragment key={num.id}>
                             <tr className="border-b hover:bg-gray-50">
-                              <td className="p-3">
+                              <td className="p-2 sm:p-3">
                                 {num.country_name} ({num.country_code})
                               </td>
-                              <td className="p-3 text-center font-semibold">{num.available_numbers || 0}</td>
-                              <td className="p-3">{num.number_type}</td>
-                              <td className="p-3 text-sm">{num.specification || '-'}</td>
-                              <td className="p-3">{num.sms_capability}</td>
-                              <td className="p-3">{num.direction}</td>
-                              <td className="p-3 text-right">
-                                {num.currency} {formatDecimal(num.mrc, 2)}
+                              <td className="p-2 sm:p-3 text-center font-semibold">{num.available_numbers ?? 0}</td>
+                              <td className="p-2 sm:p-3">{num.number_type}</td>
+                              <td className="p-2 sm:p-3 text-xs sm:text-sm">{num.specification || '-'}</td>
+                              <td className="p-2 sm:p-3">{num.sms_capability}</td>
+                              <td className="p-2 sm:p-3">{num.direction}</td>
+                              <td className="p-2 sm:p-3 text-xs max-w-[120px] truncate" title={num.supplier || undefined}>
+                                {num.supplier || '—'}
                               </td>
-                              <td className="p-3 text-right">
-                                {num.currency} {formatDecimal(num.nrc, 2)}
+                              <td className="p-2 sm:p-3 text-right whitespace-nowrap">
+                                {num.supplier_mrc != null ? `${supCur} ${formatDecimal(num.supplier_mrc, 2)}` : '—'}
                               </td>
-                              <td className="p-3">{num.currency}</td>
-                              <td className="p-3 text-center">{num.moq}</td>
-                              <td className="p-3 text-sm">{num.bill_pulse || '-'}</td>
-                              <td className="p-3 text-center">
-                                <div className="flex gap-2 justify-center">
+                              <td className="p-2 sm:p-3 text-right whitespace-nowrap">
+                                {num.supplier_nrc != null ? `${supCur} ${formatDecimal(num.supplier_nrc, 2)}` : '—'}
+                              </td>
+                              <td className="p-2 sm:p-3">{num.supplier_currency || (num.supplier_mrc != null || num.supplier_nrc != null ? num.currency : '—')}</td>
+                              <td className="p-2 sm:p-3 text-center">{num.moq}</td>
+                              <td className="p-2 sm:p-3 text-xs">{num.bill_pulse || '-'}</td>
+                              <td className="p-2 sm:p-3 text-center">
+                                <div className="flex flex-wrap gap-1 justify-center">
                                   <button
                                     onClick={() => toggleRowExpansion(num.id)}
                                     className="text-[#215F9A] hover:text-[#2c78c0] font-medium text-xs"
                                   >
-                                    {isExpanded ? '▼ Hide' : '▶ View'}
+                                    {isExpanded ? '▼ Hide' : '▶ Details'}
                                   </button>
                                   <button
-                                    onClick={() => {
-                                      const oc = (num.other_charges || {}) as any
-                                      const feat = (num.features || {}) as Record<string, string | null>
-                                      setEditingNumber({
-                                        ...num,
-                                        mrc: num.mrc === null || num.mrc === undefined ? ('' as any) : (String(num.mrc) as any),
-                                        nrc: num.nrc === null || num.nrc === undefined ? ('' as any) : (String(num.nrc) as any),
-                                        moq: num.moq === null || num.moq === undefined ? ('' as any) : (String(num.moq) as any),
-                                        other_charges: {
-                                          ...oc,
-                                          inbound_call: oc.inbound_call === null || oc.inbound_call === undefined ? '' : String(oc.inbound_call),
-                                          outbound_call_fixed: oc.outbound_call_fixed === null || oc.outbound_call_fixed === undefined ? '' : String(oc.outbound_call_fixed),
-                                          outbound_call_mobile: oc.outbound_call_mobile === null || oc.outbound_call_mobile === undefined ? '' : String(oc.outbound_call_mobile),
-                                          inbound_sms: oc.inbound_sms === null || oc.inbound_sms === undefined ? '' : String(oc.inbound_sms),
-                                          outbound_sms: oc.outbound_sms === null || oc.outbound_sms === undefined ? '' : String(oc.outbound_sms),
-                                          other_fees: oc.other_fees === null || oc.other_fees === undefined ? '' : String(oc.other_fees),
-                                        },
-                                        features: {
-                                          voice: feat.voice ?? '',
-                                          sms: feat.sms ?? '',
-                                          reach: feat.reach ?? '',
-                                          emergency_services: feat.emergency_services ?? '',
-                                        },
-                                        supplier_mrc: num.supplier_mrc != null ? String(num.supplier_mrc) : ('' as any),
-                                        supplier_nrc: num.supplier_nrc != null ? String(num.supplier_nrc) : ('' as any),
-                                        supplier_currency: num.supplier_currency ?? ('' as any),
-                                      })
-                                    }}
+                                    onClick={() => openInventoryEditorForModal(num)}
                                     className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600"
                                   >
                                     Edit
@@ -2615,63 +2986,8 @@ export default function AdminDashboard() {
                             </tr>
                             {isExpanded && (
                               <tr className="bg-gray-50">
-                                <td colSpan={12} className="p-4">
-                                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                                    <h4 className="font-semibold text-[#215F9A] mb-3">Detailed Pricing Information</h4>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                      <div>
-                                        <p className="text-xs text-gray-600 mb-1">Inbound Call</p>
-                                        <p className="font-medium">
-                                          {formatPricePerUnit(otherCharges.inbound_call, num.currency, '/min')}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-600 mb-1">Outbound Call (Fixed)</p>
-                                        <p className="font-medium">
-                                          {formatPricePerUnit(otherCharges.outbound_call_fixed, num.currency, '/min')}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-600 mb-1">Outbound Call (Mobile)</p>
-                                        <p className="font-medium">
-                                          {formatPricePerUnit(otherCharges.outbound_call_mobile, num.currency, '/min')}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-600 mb-1">Inbound SMS</p>
-                                        <p className="font-medium">
-                                          {formatPricePerUnit(otherCharges.inbound_sms, num.currency, '/msg')}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-600 mb-1">Outbound SMS</p>
-                                        <p className="font-medium">
-                                          {formatPricePerUnit(otherCharges.outbound_sms, num.currency, '/msg')}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-600 mb-1">Other Fees</p>
-                                        <p className="font-medium">
-                                          {otherCharges.other_fees || 'N/A'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <h4 className="font-semibold text-[#215F9A] mt-4 mb-2">Supplier rate (admin only)</h4>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                      <div>
-                                        <p className="text-xs text-gray-600 mb-1">Supplier MRC</p>
-                                        <p className="font-medium">
-                                          {num.supplier_mrc != null ? `${num.supplier_currency || 'USD'} ${formatDecimal(num.supplier_mrc, 2)}` : '—'}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-600 mb-1">Supplier NRC</p>
-                                        <p className="font-medium">
-                                          {num.supplier_nrc != null ? `${num.supplier_currency || 'USD'} ${formatDecimal(num.supplier_nrc, 2)}` : '—'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
+                                <td colSpan={13} className="p-3 sm:p-4">
+                                  {inventoryPricingDetailContent(num)}
                                 </td>
                               </tr>
                             )}
@@ -2679,13 +2995,19 @@ export default function AdminDashboard() {
                         )
                       })}
                     </tbody>
-                  </table>
+                    </table>
+                  </div>
                   {allNumbers.length === 0 && (
                     <div className="text-center py-8 text-gray-600">
                       No numbers in inventory yet.
                     </div>
                   )}
-                </div>
+                  {allNumbers.length > 0 && filteredInventoryNumbers.length === 0 && (
+                    <div className="text-center py-8 text-gray-600">
+                      No rows match the current filters. Try resetting filters.
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -3272,6 +3594,13 @@ export default function AdminDashboard() {
                   <h3 className="text-lg font-medium mb-2">Email Notifications</h3>
                   <p className="text-sm text-gray-600 mb-4">
                     Configure the email address to receive notifications for new signup requests and orders.
+                    Delivery also requires SMTP environment variables on the server:{' '}
+                    <code className="text-xs bg-gray-100 px-1 rounded">SMTP_HOST</code>,{' '}
+                    <code className="text-xs bg-gray-100 px-1 rounded">SMTP_PORT</code>,{' '}
+                    <code className="text-xs bg-gray-100 px-1 rounded">SMTP_USER</code>,{' '}
+                    <code className="text-xs bg-gray-100 px-1 rounded">SMTP_PASS</code>
+                    (and optionally <code className="text-xs bg-gray-100 px-1 rounded">EMAIL_FROM</code>). You can set a fallback recipient with{' '}
+                    <code className="text-xs bg-gray-100 px-1 rounded">ADMIN_NOTIFICATION_EMAIL</code> if the database value is empty.
                   </p>
                   <div className="mb-4">
                     <label className="block text-sm font-medium mb-2">
@@ -3288,13 +3617,25 @@ export default function AdminDashboard() {
                       This email will receive notifications for new signup requests and customer orders.
                     </p>
                   </div>
-                  <button
-                    onClick={handleSaveSettings}
-                    disabled={loadingSettings}
-                    className="bg-[#215F9A] text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {loadingSettings ? 'Saving...' : 'Save Settings'}
-                  </button>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSaveSettings}
+                      disabled={loadingSettings}
+                      className="bg-[#215F9A] text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {loadingSettings ? 'Saving...' : 'Save Settings'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSendTestEmail}
+                      disabled={sendingTestEmail || !adminSettings.notification_email?.trim()}
+                      className="bg-white text-[#215F9A] border border-[#215F9A] px-6 py-2 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                      title={!adminSettings.notification_email?.trim() ? 'Save a notification email first' : undefined}
+                    >
+                      {sendingTestEmail ? 'Sending…' : 'Send test email'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -3303,8 +3644,8 @@ export default function AdminDashboard() {
 
         {/* Edit Number Modal */}
         {editingNumber && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-3xl shadow-lg p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-4 sm:p-8 max-w-2xl sm:max-w-4xl w-full max-h-[min(90vh,100dvh)] overflow-y-auto">
               <h2 className="text-2xl font-semibold text-[#215F9A] mb-6">
                 Edit Number
               </h2>
@@ -3316,7 +3657,7 @@ export default function AdminDashboard() {
                 }}
                 className="space-y-4"
               >
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">Country</label>
                     <input
@@ -3365,7 +3706,17 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">MRC</label>
+                    <label className="block text-sm font-medium mb-2">Supplier name</label>
+                    <SelectWithCustom
+                      value={editingNumber.supplier || ''}
+                      onChange={(value) => setEditingNumber({ ...editingNumber, supplier: value })}
+                      options={SUPPLIER_OPTIONS}
+                      placeholder="Select supplier..."
+                      customPlaceholder="Enter supplier name..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Customer MRC</label>
                     <input
                       type="text"
                       value={editingNumber.mrc}
@@ -3382,7 +3733,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">NRC</label>
+                    <label className="block text-sm font-medium mb-2">Customer NRC</label>
                     <input
                       type="text"
                       value={editingNumber.nrc}
@@ -3399,7 +3750,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Currency</label>
+                    <label className="block text-sm font-medium mb-2">Customer currency</label>
                     <select
                       value={editingNumber.currency}
                       onChange={(e) => setEditingNumber({ ...editingNumber, currency: e.target.value })}
@@ -3507,9 +3858,72 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Other Charges Section for Edit */}
+                {/* Supplier other charges (edit) */}
                 <div className="mt-4">
-                  <label className="block text-sm font-medium mb-2">Other Charges</label>
+                  <label className="block text-sm font-medium mb-2">Supplier other charges (admin)</label>
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="p-2 text-left">Charge Type</th>
+                          <th className="p-2 text-left">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(['inbound_call', 'outbound_call_fixed', 'outbound_call_mobile', 'inbound_sms', 'outbound_sms'] as const).map((key) => (
+                          <tr key={key} className="border-t">
+                            <td className="p-2 capitalize">{key.replace(/_/g, ' ')}</td>
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                value={((editingNumber as any).supplier_other_charges?.[key] ?? '') as string}
+                                onChange={(e) => {
+                                  const value = e.target.value
+                                  if (value === '' || DECIMAL_INPUT_RE.test(value)) {
+                                    setEditingNumber({
+                                      ...editingNumber,
+                                      supplier_other_charges: {
+                                        ...((editingNumber as any).supplier_other_charges || {}),
+                                        [key]: normalizeDecimalInput(value),
+                                      },
+                                    })
+                                  }
+                                }}
+                                className="w-full p-1 border rounded"
+                                inputMode="decimal"
+                                placeholder="0.0000"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="border-t">
+                          <td className="p-2">Other Fees</td>
+                          <td className="p-2">
+                            <input
+                              type="text"
+                              value={((editingNumber as any).supplier_other_charges?.other_fees ?? '') as string}
+                              onChange={(e) =>
+                                setEditingNumber({
+                                  ...editingNumber,
+                                  supplier_other_charges: {
+                                    ...((editingNumber as any).supplier_other_charges || {}),
+                                    other_fees: e.target.value || undefined,
+                                  },
+                                })
+                              }
+                              className="w-full p-1 border rounded"
+                              placeholder="Description or amount"
+                            />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Other Charges Section for Edit (customer) */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-2">Customer other charges</label>
                   <div className="border rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-100">

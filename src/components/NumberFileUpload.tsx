@@ -5,6 +5,7 @@ import { Upload, File, X, CheckCircle, AlertCircle } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import Papa from 'papaparse'
 import mammoth from 'mammoth'
+import { parseSpreadsheetFloat, parseSpreadsheetInt } from '@/lib/utils/formatNumber'
 
 // Levenshtein distance for fuzzy matching country names
 function levenshteinDistance(a: string, b: string): number {
@@ -109,6 +110,17 @@ interface ExtractedNumber {
         reach?: string | null
         emergency_services?: string | null
     }
+    supplier_mrc?: number
+    supplier_nrc?: number
+    supplier_currency?: string
+    supplier_other_charges?: {
+        inbound_call?: number | null
+        outbound_call_fixed?: number | null
+        outbound_call_mobile?: number | null
+        inbound_sms?: number | null
+        outbound_sms?: number | null
+        other_fees?: string | number | null
+    }
     row?: number
 }
 
@@ -160,38 +172,125 @@ export default function NumberFileUpload({
             { keywords: ['country', 'destination'], name: 'Country' },
         ]
 
-        // Optional columns (with their possible header variations, including Rates (1).xlsx style)
-        const optionalColumns = [
-            { keywords: ['sms', 'voice', 'sms_capability', 'sms/voice', 'sms capability', 'capability'], name: 'SMS/Voice' },
-            { keywords: ['direction', 'inbound', 'outbound'], name: 'Direction' },
-            { keywords: ['available', 'available_numbers', 'qty', 'quantity'], name: 'Available Numbers' },
-            { keywords: ['number_type', 'type', 'numbertype'], name: 'Number Type' },
+        type OptCol = { keywords: string[]; name: string; rejectIfIncludes?: string[] }
+
+        // Order matters: specific supplier/customer columns before generic ones (Rates-style sheets).
+        const optionalColumns: OptCol[] = [
+            {
+                keywords: ['sms/voice', 'sms voice', 'sms capability', 'sms_capability', 'capability', 'voice only', 'sms only', 'both'],
+                name: 'SMS/Voice',
+                rejectIfIncludes: ['call', 'inbound', 'outbound', 'fixed', 'mobile', 'fee', '/min', '/msg', 'per min', 'per msg', 'mrc', 'nrc'],
+            },
+            {
+                keywords: ['direction', 'inbound / outbound', 'inbound/outbound', 'traffic'],
+                name: 'Direction',
+                rejectIfIncludes: ['call', 'sms', 'mrc', 'nrc', 'fee', 'supplier', 'customer', 'fixed', 'mobile', 'incall', 'in call', 'out call'],
+            },
+            {
+                keywords: ['available', 'available_numbers', 'qty', 'quantity'],
+                name: 'Available Numbers',
+                rejectIfIncludes: ['min order', 'moq'],
+            },
+            {
+                keywords: ['number_type', 'numbertype', 'number type', 'type'],
+                name: 'Number Type',
+                rejectIfIncludes: ['sms', 'voice', 'mrc', 'nrc', 'call', 'fee', 'order'],
+            },
             { keywords: ['specification', 'spec', 'prefix', 'area', 'remarks'], name: 'Specification' },
+            { keywords: ['supplier mrc'], name: 'Supplier MRC' },
+            { keywords: ['supplier nrc'], name: 'Supplier NRC' },
+            { keywords: ['supplier currency', 'supplier curr'], name: 'Supplier Currency' },
+            {
+                keywords: ['supplier incall', 'supplier in call', 'supplier inbound call'],
+                name: 'Supplier Inbound Call',
+            },
+            {
+                keywords: ['supplier call fixed', 'supplier outbound call fixed', 'supplier out call fixed', 'supplier outbound fixed'],
+                name: 'Supplier Outbound Call (Fixed)',
+            },
+            {
+                keywords: ['supplier out call mobile', 'supplier outbound call mobile', 'supplier outbound mobile', 'supplier out call mob'],
+                name: 'Supplier Outbound Call (Mobile)',
+            },
+            { keywords: ['supplier in sms', 'supplier inbound sms'], name: 'Supplier Inbound SMS' },
+            { keywords: ['supplier out sms', 'supplier outbound sms'], name: 'Supplier Outbound SMS' },
+            { keywords: ['supplier other', 'supplier other fees'], name: 'Supplier Other Fees' },
             { keywords: ['customer mrc'], name: 'Customer MRC' },
-            { keywords: ['mrc', 'monthly', 'recurring', 'supplier mrc'], name: 'MRC' },
             { keywords: ['customer nrc'], name: 'Customer NRC' },
-            { keywords: ['nrc', 'non-recurring', 'setup', 'supplier nrc'], name: 'NRC' },
-            { keywords: ['currency', 'curr'], name: 'Currency' },
-            { keywords: ['moq', 'minimum', 'min_order'], name: 'MOQ' },
-            { keywords: ['supplier', 'provider', 'vendor'], name: 'Supplier' },
+            {
+                keywords: ['mrc', 'monthly', 'recurring'],
+                name: 'MRC',
+                rejectIfIncludes: ['supplier', 'customer'],
+            },
+            {
+                keywords: ['nrc', 'non-recurring', 'setup'],
+                name: 'NRC',
+                rejectIfIncludes: ['supplier', 'customer'],
+            },
+            { keywords: ['currency', 'curr'], name: 'Currency', rejectIfIncludes: ['supplier'] },
+            { keywords: ['moq', 'minimum', 'min_order', 'min order'], name: 'MOQ' },
+            {
+                keywords: ['supplier', 'provider', 'vendor'],
+                name: 'Supplier',
+                rejectIfIncludes: [
+                    'mrc',
+                    'nrc',
+                    'currency',
+                    'inbound',
+                    'outbound',
+                    'sms',
+                    'call',
+                    'fee',
+                    'mobile',
+                    'fixed',
+                    'incall',
+                    'national',
+                    'geographic',
+                    'other',
+                ],
+            },
             { keywords: ['bill_pulse', 'pulse', 'billing', 'bill pulse'], name: 'Bill Pulse' },
             { keywords: ['requirements', 'req', 'remarks'], name: 'Requirements' },
-            { keywords: ['customer incall'], name: 'Customer Incall' },
-            { keywords: ['inbound_call', 'inbound call', 'in call', 'incall'], name: 'Inbound Call' },
+            { keywords: ['customer incall', 'customer in call'], name: 'Customer Incall' },
+            {
+                keywords: ['inbound_call', 'inbound call', 'in call', 'incall'],
+                name: 'Inbound Call',
+                rejectIfIncludes: ['supplier'],
+            },
             { keywords: ['customer call fixed'], name: 'Customer Call Fixed' },
-            { keywords: ['outbound_call_fixed', 'outbound call fixed', 'outbound fixed', 'out call fixed', 'call fixed'], name: 'Outbound Call (Fixed)' },
+            {
+                keywords: ['outbound_call_fixed', 'outbound call fixed', 'outbound fixed', 'out call fixed', 'call fixed'],
+                name: 'Outbound Call (Fixed)',
+                rejectIfIncludes: ['supplier'],
+            },
             { keywords: ['customer out call mobile'], name: 'Customer Out Call Mobile' },
-            { keywords: ['outbound_call_mobile', 'outbound call mobile', 'outbound mobile', 'out call mobile'], name: 'Outbound Call (Mobile)' },
+            {
+                keywords: ['outbound_call_mobile', 'outbound call mobile', 'outbound mobile', 'out call mobile'],
+                name: 'Outbound Call (Mobile)',
+                rejectIfIncludes: ['supplier'],
+            },
             { keywords: ['customer in sms'], name: 'Customer In SMS' },
-            { keywords: ['inbound_sms', 'inbound sms', 'in sms'], name: 'Inbound SMS' },
+            {
+                keywords: ['inbound_sms', 'inbound sms', 'in sms'],
+                name: 'Inbound SMS',
+                rejectIfIncludes: ['supplier'],
+            },
             { keywords: ['customer out sms'], name: 'Customer Out SMS' },
-            { keywords: ['outbound_sms', 'outbound sms', 'out sms'], name: 'Outbound SMS' },
-            { keywords: ['customer other'], name: 'Customer Other Fees' },
-            { keywords: ['other_fees', 'other fees', 'fees'], name: 'Other Fees' },
-            { keywords: ['voice_feature', 'voice feature'], name: 'Voice Feature' },
-            { keywords: ['sms_feature', 'sms feature'], name: 'SMS Feature' },
+            {
+                keywords: ['outbound_sms', 'outbound sms', 'out sms'],
+                name: 'Outbound SMS',
+                rejectIfIncludes: ['supplier'],
+            },
+            { keywords: ['customer other', 'customer other fees'], name: 'Customer Other Fees' },
+            {
+                keywords: ['other_fees', 'other fees', 'fees'],
+                name: 'Other Fees',
+                rejectIfIncludes: ['supplier', 'customer', 'mrc', 'nrc', 'inbound', 'outbound', 'sms', 'call'],
+            },
+            { keywords: ['voice_feature', 'voice feature'], name: 'Voice Feature', rejectIfIncludes: ['sms feature'] },
+            { keywords: ['sms_feature', 'sms feature'], name: 'SMS Feature', rejectIfIncludes: ['voice feature'] },
             { keywords: ['reach'], name: 'Reach' },
-            { keywords: ['emergency', 'emergency_services'], name: 'Emergency Services' },
+            { keywords: ['emergency', 'emergency_services', 'emergency services'], name: 'Emergency Services' },
         ]
 
         // Check required columns exist in headers (use normalized header for matching)
@@ -212,12 +311,11 @@ export default function NumberFileUpload({
 
         // Map optional columns (use normalized header for matching)
         for (const optCol of optionalColumns) {
-            const foundIndex = headers.findIndex((h: any) =>
-                optCol.keywords.some(keyword => {
-                    const norm = normalizeHeader(h)
-                    return norm === keyword || norm.includes(keyword)
-                })
-            )
+            const foundIndex = headers.findIndex((h: any) => {
+                const norm = normalizeHeader(h)
+                if (optCol.rejectIfIncludes?.some((ex) => norm.includes(ex))) return false
+                return optCol.keywords.some((keyword) => norm === keyword || norm.includes(keyword))
+            })
 
             if (foundIndex !== -1) {
                 const normalizedKey = optCol.name.toLowerCase().replace(/\s+/g, ' ').trim()
@@ -356,50 +454,94 @@ export default function NumberFileUpload({
                 row: i + 1,
             }
 
+            const cellNumericOrNull = (value: unknown): number | null => {
+                const n = parseSpreadsheetFloat(value)
+                return n === undefined ? null : n
+            }
+
             // Get optional - Available Numbers
             if (columnMap['available numbers'] !== undefined) {
                 const value = row[columnMap['available numbers']]
-                if (value !== undefined && value !== null && String(value).trim()) {
-                    const parsed = parseInt(String(value))
-                    extracted.available_numbers = isNaN(parsed) ? 1 : parsed
+                const parsed = parseSpreadsheetInt(value)
+                if (parsed !== undefined && parsed >= 0) {
+                    extracted.available_numbers = parsed
                 }
             }
 
-            // Get optional - Number Type (map Rates-style: Fixed/National → Geographic, Mobile → Mobile)
+            // Get optional - Number Type (Rates / sheet labels → app enum)
             if (columnMap['number type'] !== undefined) {
                 const value = row[columnMap['number type']]
                 if (value !== undefined && value !== null) {
                     const typeValue = String(value).trim()
                     if (typeValue) {
-                        const normalized = typeValue.toLowerCase()
-                        if (['geographic', 'mobile', 'toll-free'].includes(normalized)) {
-                            extracted.number_type = typeValue
+                        const normalized = typeValue.toLowerCase().replace(/\s+/g, ' ').trim()
+                        const compact = normalized.replace(/[\s_-]/g, '')
+
+                        const is2Wv =
+                            normalized === '2wv' ||
+                            compact === '2wv' ||
+                            compact === '2wayvoice' ||
+                            compact === 'twowayvoice' ||
+                            /^2[-\s]*way[-\s]*voice$/i.test(normalized) ||
+                            /^two[-\s]*way[-\s]*voice$/i.test(normalized)
+
+                        // 2-way-voice / 2 way voice → 2WV (before any "mobile" handling)
+                        if (is2Wv) {
+                            extracted.number_type = '2WV'
+                        } else if (
+                            (normalized.includes('fixed') && normalized.includes('mobile')) ||
+                            compact === 'fixedmobile' ||
+                            compact === 'mobilefixed'
+                        ) {
+                            // "Fixed Mobile" etc. = fixed line, not cellular Mobile type
+                            extracted.number_type = 'Geographic'
                         } else if (normalized === 'fixed' || normalized === 'national') {
                             extracted.number_type = 'Geographic'
                         } else if (normalized === 'mobile') {
                             extracted.number_type = 'Mobile'
+                        } else if (normalized === 'toll-free' || normalized === 'toll free') {
+                            extracted.number_type = 'Toll-Free'
+                        } else if (normalized === 'non-geographic' || normalized === 'non geographic') {
+                            extracted.number_type = 'Non-Geographic'
+                        } else if (normalized === 'geographic') {
+                            extracted.number_type = 'Geographic'
+                        } else if (
+                            ['Geographic', 'Mobile', 'Toll-Free', 'Non-Geographic', '2WV'].includes(typeValue)
+                        ) {
+                            extracted.number_type = typeValue
                         }
                     }
                 }
             }
 
-            // MRC: prefer "Customer MRC" (Rates-style) when present, else "MRC"
-            const mrcCol = columnMap['customer mrc'] !== undefined ? columnMap['customer mrc'] : columnMap['mrc']
+            // Customer MRC / NRC
+            const mrcCol =
+                columnMap['customer mrc'] !== undefined ? columnMap['customer mrc'] : columnMap['mrc']
             if (mrcCol !== undefined) {
-                const value = row[mrcCol]
-                if (value !== undefined && value !== null && String(value).trim()) {
-                    const parsed = parseFloat(String(value))
-                    extracted.mrc = isNaN(parsed) ? undefined : parsed
-                }
+                const n = parseSpreadsheetFloat(row[mrcCol])
+                if (n !== undefined) extracted.mrc = n
             }
 
-            // NRC: prefer "Customer NRC" (Rates-style) when present, else "NRC"
-            const nrcCol = columnMap['customer nrc'] !== undefined ? columnMap['customer nrc'] : columnMap['nrc']
+            const nrcCol =
+                columnMap['customer nrc'] !== undefined ? columnMap['customer nrc'] : columnMap['nrc']
             if (nrcCol !== undefined) {
-                const value = row[nrcCol]
+                const n = parseSpreadsheetFloat(row[nrcCol])
+                if (n !== undefined) extracted.nrc = n
+            }
+
+            // Supplier MRC / NRC / currency
+            if (columnMap['supplier mrc'] !== undefined) {
+                const n = parseSpreadsheetFloat(row[columnMap['supplier mrc']])
+                if (n !== undefined) extracted.supplier_mrc = n
+            }
+            if (columnMap['supplier nrc'] !== undefined) {
+                const n = parseSpreadsheetFloat(row[columnMap['supplier nrc']])
+                if (n !== undefined) extracted.supplier_nrc = n
+            }
+            if (columnMap['supplier currency'] !== undefined) {
+                const value = row[columnMap['supplier currency']]
                 if (value !== undefined && value !== null && String(value).trim()) {
-                    const parsed = parseFloat(String(value))
-                    extracted.nrc = isNaN(parsed) ? undefined : parsed
+                    extracted.supplier_currency = String(value).trim().toUpperCase()
                 }
             }
 
@@ -411,11 +553,8 @@ export default function NumberFileUpload({
             }
 
             if (columnMap['moq'] !== undefined) {
-                const value = row[columnMap['moq']]
-                if (value !== undefined && value !== null && String(value).trim()) {
-                    const parsed = parseInt(String(value))
-                    extracted.moq = isNaN(parsed) ? undefined : parsed
-                }
+                const parsed = parseSpreadsheetInt(row[columnMap['moq']])
+                if (parsed !== undefined && parsed >= 1) extracted.moq = parsed
             }
 
             // Extract supplier
@@ -450,71 +589,87 @@ export default function NumberFileUpload({
                     : undefined
             }
 
-            // Build other_charges object - prefer "Customer X" columns (Rates-style) when present
+            // Build other_charges (customer) — prefer "Customer X" columns when present
             extracted.other_charges = {}
             const inboundCallCol = columnMap['customer incall'] ?? columnMap['inbound call']
             if (inboundCallCol !== undefined) {
-                const value = row[inboundCallCol]
-                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                    const parsed = parseFloat(String(value))
-                    extracted.other_charges.inbound_call = isNaN(parsed) ? null : parsed
-                } else {
-                    extracted.other_charges.inbound_call = null
-                }
+                const v = cellNumericOrNull(row[inboundCallCol])
+                extracted.other_charges.inbound_call = v
             }
 
             const outboundFixedCol = columnMap['customer call fixed'] ?? columnMap['outbound call (fixed)']
             if (outboundFixedCol !== undefined) {
-                const value = row[outboundFixedCol]
-                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                    const parsed = parseFloat(String(value))
-                    extracted.other_charges.outbound_call_fixed = isNaN(parsed) ? null : parsed
-                } else {
-                    extracted.other_charges.outbound_call_fixed = null
-                }
+                extracted.other_charges.outbound_call_fixed = cellNumericOrNull(row[outboundFixedCol])
             }
 
             const outboundMobileCol = columnMap['customer out call mobile'] ?? columnMap['outbound call (mobile)']
             if (outboundMobileCol !== undefined) {
-                const value = row[outboundMobileCol]
-                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                    const parsed = parseFloat(String(value))
-                    extracted.other_charges.outbound_call_mobile = isNaN(parsed) ? null : parsed
-                } else {
-                    extracted.other_charges.outbound_call_mobile = null
-                }
+                extracted.other_charges.outbound_call_mobile = cellNumericOrNull(row[outboundMobileCol])
             }
 
             const inboundSmsCol = columnMap['customer in sms'] ?? columnMap['inbound sms']
             if (inboundSmsCol !== undefined) {
-                const value = row[inboundSmsCol]
-                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                    const parsed = parseFloat(String(value))
-                    extracted.other_charges.inbound_sms = isNaN(parsed) ? null : parsed
-                } else {
-                    extracted.other_charges.inbound_sms = null
-                }
+                extracted.other_charges.inbound_sms = cellNumericOrNull(row[inboundSmsCol])
             }
 
             const outboundSmsCol = columnMap['customer out sms'] ?? columnMap['outbound sms']
             if (outboundSmsCol !== undefined) {
-                const value = row[outboundSmsCol]
-                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                    const parsed = parseFloat(String(value))
-                    extracted.other_charges.outbound_sms = isNaN(parsed) ? null : parsed
-                } else {
-                    extracted.other_charges.outbound_sms = null
-                }
+                extracted.other_charges.outbound_sms = cellNumericOrNull(row[outboundSmsCol])
             }
 
             const otherFeesCol = columnMap['customer other fees'] ?? columnMap['other fees']
             if (otherFeesCol !== undefined) {
                 const value = row[otherFeesCol]
-                if (value !== undefined && value !== null && String(value).trim() && String(value).toLowerCase() !== 'n/a') {
-                    extracted.other_charges.other_fees = String(value).trim()
+                if (value !== undefined && value !== null && String(value).trim()) {
+                    const n = parseSpreadsheetFloat(value)
+                    if (n !== undefined) extracted.other_charges.other_fees = n
+                    else {
+                        const s = String(value).trim()
+                        extracted.other_charges.other_fees = /^n\/?a$/i.test(s) ? null : s
+                    }
                 } else {
                     extracted.other_charges.other_fees = null
                 }
+            }
+
+            // Supplier-side fees (parallel columns)
+            extracted.supplier_other_charges = {}
+            const supInCol = columnMap['supplier inbound call']
+            if (supInCol !== undefined) {
+                extracted.supplier_other_charges.inbound_call = cellNumericOrNull(row[supInCol])
+            }
+            const supFixedCol = columnMap['supplier outbound call (fixed)']
+            if (supFixedCol !== undefined) {
+                extracted.supplier_other_charges.outbound_call_fixed = cellNumericOrNull(row[supFixedCol])
+            }
+            const supMobCol = columnMap['supplier outbound call (mobile)']
+            if (supMobCol !== undefined) {
+                extracted.supplier_other_charges.outbound_call_mobile = cellNumericOrNull(row[supMobCol])
+            }
+            const supInSmsCol = columnMap['supplier inbound sms']
+            if (supInSmsCol !== undefined) {
+                extracted.supplier_other_charges.inbound_sms = cellNumericOrNull(row[supInSmsCol])
+            }
+            const supOutSmsCol = columnMap['supplier outbound sms']
+            if (supOutSmsCol !== undefined) {
+                extracted.supplier_other_charges.outbound_sms = cellNumericOrNull(row[supOutSmsCol])
+            }
+            const supOtherCol = columnMap['supplier other fees']
+            if (supOtherCol !== undefined) {
+                const value = row[supOtherCol]
+                if (value !== undefined && value !== null && String(value).trim()) {
+                    const n = parseSpreadsheetFloat(value)
+                    if (n !== undefined) extracted.supplier_other_charges.other_fees = n
+                    else {
+                        const s = String(value).trim()
+                        extracted.supplier_other_charges.other_fees = /^n\/?a$/i.test(s) ? null : s
+                    }
+                } else {
+                    extracted.supplier_other_charges.other_fees = null
+                }
+            }
+            if (Object.keys(extracted.supplier_other_charges).length === 0) {
+                delete extracted.supplier_other_charges
             }
 
             // Build features object
@@ -587,7 +742,11 @@ export default function NumberFileUpload({
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' })
                 const firstSheetName = workbook.SheetNames[0]
                 const worksheet = workbook.Sheets[firstSheetName]
-                tableData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as any[][]
+                tableData = XLSX.utils.sheet_to_json(worksheet, {
+                    header: 1,
+                    defval: '',
+                    raw: false,
+                }) as any[][]
             } else if (fileExtension === 'doc' || fileExtension === 'docx') {
                 const arrayBuffer = await file.arrayBuffer()
                 const result = await mammoth.extractRawText({ arrayBuffer })
@@ -679,7 +838,7 @@ export default function NumberFileUpload({
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="font-semibold text-[#215F9A] mb-3">Expected File Format</h4>
                 <p className="text-sm text-gray-700 mb-3">
-                    Your file should contain a table with at least a <strong>Country</strong> or <strong>Destination</strong> column (e.g. Rates-style sheets). SMS/Voice and Direction default to <strong>"Both"</strong>. Type values <strong>Fixed</strong>/<strong>National</strong> are mapped to Geographic.
+                    Your file should contain a table with at least a <strong>Country</strong> or <strong>Destination</strong> column (e.g. Rates-style sheets). SMS/Voice and Direction default to <strong>&quot;Both&quot;</strong>. <strong>Fixed</strong>/<strong>National</strong> map to Geographic; <strong>Fixed Mobile</strong> (combined label) also maps to Geographic, not Mobile. <strong>2-way-voice</strong> / <strong>2 way voice</strong> map to <strong>2WV</strong>. Standalone <strong>Mobile</strong> maps to Mobile.
                 </p>
 
                 {/* Sample Data Table */}
