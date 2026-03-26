@@ -1680,8 +1680,8 @@ export default function RequirementsUpload() {
                       : 'border-gray-200 hover:border-gray-300'
                       }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           {hasDocument ? (
                             <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1692,27 +1692,27 @@ export default function RequirementsUpload() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                           )}
-                          <span className="font-medium text-gray-800">{requirement.title}</span>
+                          <span className="font-medium text-gray-800 break-words">{requirement.title}</span>
                           {requirement.required && (
                             <span className="text-red-500 text-sm">*</span>
                           )}
                         </div>
 
                         {uploadedDoc && (
-                          <div className="mt-2 flex items-center gap-3 ml-7">
+                          <div className="mt-2 flex items-center gap-3 ml-7 min-w-0">
                             {getFileIcon(uploadedDoc.fileType)}
                             <div>
-                              <p className="text-sm font-medium text-gray-700">{uploadedDoc.fileName}</p>
+                              <p className="text-sm font-medium text-gray-700 break-all">{uploadedDoc.fileName}</p>
                               <p className="text-xs text-gray-500">{formatFileSize(uploadedDoc.fileSize)}</p>
                             </div>
                           </div>
                         )}
 
                         {!uploadedDoc && savedDoc && (
-                          <div className="mt-2 flex items-center gap-3 ml-7">
+                          <div className="mt-2 flex items-center gap-3 ml-7 min-w-0">
                             {getFileIcon(savedDoc.file_type)}
                             <div>
-                              <p className="text-sm font-medium text-gray-700">{savedDoc.file_name}</p>
+                              <p className="text-sm font-medium text-gray-700 break-all">{savedDoc.file_name}</p>
                               <p className="text-xs text-gray-500">
                                 {formatFileSize(savedDoc.file_size)}
                                 <span className="text-blue-600 ml-2">(saved from draft)</span>
@@ -1722,7 +1722,7 @@ export default function RequirementsUpload() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 relative">
+                      <div className="flex items-center gap-2 relative w-full sm:w-auto">
                         {isUploading ? (
                           <div className="flex items-center gap-2 text-blue-600">
                             <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
@@ -1733,7 +1733,7 @@ export default function RequirementsUpload() {
                           </div>
                         ) : (
                           <>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
                               {/* Upload new file button */}
                               <input
                                 type="file"
@@ -1744,7 +1744,7 @@ export default function RequirementsUpload() {
                               />
                               <label
                                 htmlFor={`file-${requirement.key}`}
-                                className={`cursor-pointer px-3 py-2 rounded-lg text-sm font-medium transition-colors ${hasDocument
+                                className={`cursor-pointer px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${hasDocument
                                   ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                   : 'bg-[#215F9A] text-white hover:bg-blue-700'
                                   }`}
@@ -1756,7 +1756,7 @@ export default function RequirementsUpload() {
                               {customerDocuments.length > 0 && (
                                 <button
                                   onClick={() => setShowDocPicker(requirement.key)}
-                                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${hasDocument
+                                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${hasDocument
                                     ? 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
                                     : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
                                     }`}
@@ -1813,7 +1813,7 @@ export default function RequirementsUpload() {
 
                             {/* Document Picker Dropdown */}
                             {showDocPicker === requirement.key && (
-                              <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                              <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-full sm:w-80 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                                 <div className="p-3 border-b border-gray-200 flex justify-between items-center">
                                   <span className="font-medium text-gray-700">Select from your documents</span>
                                   <button

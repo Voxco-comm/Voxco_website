@@ -2008,7 +2008,7 @@ export default function AdminDashboard() {
     <main className="bg-gray-50 min-h-screen px-4 sm:px-6 md:px-8 py-8 md:py-10">
       <div className="max-w-7xl mx-auto">
         {/* Tabs - Main Navigation */}
-        <div className="bg-white rounded-t-lg shadow-lg border-b mb-4 sm:mb-6 overflow-x-auto">
+        <div className="bg-white rounded-t-lg shadow-lg border-b mb-4 sm:mb-6 overflow-x-auto overflow-y-visible">
           <div className="flex flex-wrap sm:flex-nowrap min-w-0">
             <button
               onClick={() => setActiveTab('inventory')}
@@ -2021,7 +2021,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('orders')}
-              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap ${activeTab === 'orders'
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap overflow-visible ${activeTab === 'orders'
                 ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
                 : 'text-gray-600 hover:text-[#215F9A]'
                 }`}
@@ -2029,14 +2029,14 @@ export default function AdminDashboard() {
               <span className="sm:hidden">Orders</span>
               <span className="hidden sm:inline">Orders Management</span>
               {pendingOrdersCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center">
+                <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-20 bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center shadow-sm">
                   {pendingOrdersCount > 99 ? '99+' : pendingOrdersCount}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveTab('custom_requests')}
-              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap ${activeTab === 'custom_requests'
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap overflow-visible ${activeTab === 'custom_requests'
                 ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
                 : 'text-gray-600 hover:text-[#215F9A]'
                 }`}
@@ -2044,14 +2044,14 @@ export default function AdminDashboard() {
               <span className="sm:hidden">Custom</span>
               <span className="hidden sm:inline">Custom number requests</span>
               {pendingCustomRequestsCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center">
+                <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-20 bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center shadow-sm">
                   {pendingCustomRequestsCount > 99 ? '99+' : pendingCustomRequestsCount}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveTab('signup_requests')}
-              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap ${activeTab === 'signup_requests'
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap overflow-visible ${activeTab === 'signup_requests'
                 ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
                 : 'text-gray-600 hover:text-[#215F9A]'
                 }`}
@@ -2059,7 +2059,7 @@ export default function AdminDashboard() {
               <span className="sm:hidden">Signups</span>
               <span className="hidden sm:inline">Signup Requests</span>
               {pendingSignupCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-20 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
                   {pendingSignupCount}
                 </span>
               )}
@@ -2114,11 +2114,11 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-b-lg shadow-lg p-6">
             {/* Add Number Section */}
             <div className="mb-8">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
                 <h2 className="text-2xl font-semibold text-[#215F9A]">
                   Add Number to Inventory
                 </h2>
-                <div className="flex gap-3">
+                <div className="grid grid-cols-2 sm:flex gap-3 w-full sm:w-auto">
                   <button
                     onClick={() => {
                       setShowFileUpload(!showFileUpload)
@@ -2126,7 +2126,7 @@ export default function AdminDashboard() {
                       setError(null)
                       setSuccess(null)
                     }}
-                    className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
+                    className="bg-green-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto"
                   >
                     {showFileUpload ? 'Cancel Upload' : 'Upload from File'}
                   </button>
@@ -2137,7 +2137,7 @@ export default function AdminDashboard() {
                       setError(null)
                       setSuccess(null)
                     }}
-                    className="bg-[#215F9A] text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                    className="bg-[#215F9A] text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
                   >
                     {showAddNumber ? 'Cancel' : 'Add Number'}
                   </button>
