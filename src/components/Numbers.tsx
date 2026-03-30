@@ -723,10 +723,10 @@ export default function Numbers() {
     }
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => closeModal(numberId)}>
-        <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-[#215F9A]">{title}</h3>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:p-6" onClick={() => closeModal(numberId)}>
+        <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 max-w-2xl w-full max-h-[min(90vh,100dvh)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-between items-start gap-3 mb-4">
+            <h3 className="text-lg sm:text-xl font-semibold text-[#215F9A] pr-2">{title}</h3>
             <button
               onClick={() => closeModal(numberId)}
               className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -737,10 +737,10 @@ export default function Numbers() {
           <div className="text-gray-700">
             {content}
           </div>
-          <div className="mt-6 text-right">
+          <div className="mt-6 flex justify-end">
             <button
               onClick={() => closeModal(numberId)}
-              className="bg-[#215F9A] text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+              className="w-full sm:w-auto bg-[#215F9A] text-white px-6 py-2 rounded-lg hover:bg-blue-700"
             >
               Close
             </button>
@@ -751,7 +751,7 @@ export default function Numbers() {
   }
 
   return (
-    <main className="bg-gray-50 min-h-screen px-4 sm:px-6 md:px-8 py-8 md:py-10">
+    <main className="bg-gray-50 min-h-screen px-3 sm:px-6 md:px-8 py-6 sm:py-8 md:py-10">
       <div className="max-w-7xl mx-auto">
         <BackButton href="/" label="Back to Dashboard" />
         {/* Title */}
@@ -778,8 +778,8 @@ export default function Numbers() {
         )}
 
         {/* Search Form */}
-        <section className="bg-white rounded-3xl shadow-lg p-4 sm:p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <section className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-3 sm:p-6 mb-4 sm:mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {/* Country */}
             <div>
               <label className="block text-sm font-medium mb-2">Filter by Country</label>
@@ -839,8 +839,8 @@ export default function Numbers() {
             </div>
 
             {/* Request a custom number */}
-            <div className="md:col-span-4 flex flex-col items-end justify-end pt-2 gap-1">
-              <p className="text-sm text-gray-600">
+            <div className="sm:col-span-2 md:col-span-4 flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 gap-3 border-t border-gray-100 sm:border-0 mt-1 sm:mt-0">
+              <p className="text-sm text-gray-600 text-center sm:text-left">
                 Can&apos;t find it on the list?{' '}
                 <button
                   type="button"
@@ -861,7 +861,7 @@ export default function Numbers() {
                   setCustomRequestError(null)
                   setCustomRequestSuccess(null)
                 }}
-                className="bg-[#215F9A] text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 text-xs sm:text-sm"
+                className="w-full sm:w-auto shrink-0 bg-[#215F9A] text-white px-4 sm:px-6 py-2.5 rounded-lg hover:bg-blue-700 text-sm"
               >
                 Request a custom number
               </button>
@@ -870,13 +870,13 @@ export default function Numbers() {
         </section>
 
         {/* Results Table */}
-        <section className="bg-white rounded-3xl shadow-lg p-4 sm:p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-[#215F9A]">
+        <section className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-3 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold text-[#215F9A]">
               Available Numbers ({availableNumbers.length})
             </h2>
             {(form.country || form.smsVoice || form.inboundOutbound) && (
-              <span className="text-sm text-gray-500">
+              <span className="text-xs sm:text-sm text-gray-500">
                 Filters active: {[form.country, form.smsVoice, form.inboundOutbound].filter(Boolean).length}
               </span>
             )}
@@ -899,103 +899,105 @@ export default function Numbers() {
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-[#215F9A] text-white text-xs sm:text-sm">
-                    <th className="p-3 text-left">Country</th>
-                    <th className="p-3 text-left">Type</th>
-                    <th className="p-3 text-left">SMS/Voice</th>
-                    <th className="p-3 text-left">Inbound/Outbound</th>
-                    <th className="p-3 text-right">MRC</th>
-                    <th className="p-3 text-right">NRC</th>
-                    <th className="p-3 text-left">Currency</th>
-                    <th className="p-3 text-center">MOQ</th>
-                    <th className="p-3 text-center">Other Charge</th>
-                    <th className="p-3 text-center">Requirements</th>
-                    <th className="p-3 text-center">Features</th>
-                    <th className="p-3 text-center">Quantity</th>
-                    <th className="p-3 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {availableNumbers.map((num) => {
-                    // Get quantity - use stored value if exists, otherwise default to MOQ
-                    const quantityStr = quantities[num.id]
-                    const quantity = quantityStr !== undefined ? (quantityStr === '' ? 0 : parseInt(quantityStr) || 0) : num.moq
-                    const displayValue = quantityStr !== undefined ? quantityStr : String(num.moq)
-                    return (
-                      <tr key={num.id} className="border-b hover:bg-gray-50">
-                        <td className="p-3">
-                          {num.country_name} ({num.country_code})
-                        </td>
-                        <td className="p-3">{num.number_type}</td>
-                        <td className="p-3">{num.sms_capability}</td>
-                        <td className="p-3">{num.direction}</td>
-                        <td className="p-3 text-right">
-                          {num.currency} {formatDecimal(num.mrc, 2)}
-                        </td>
-                        <td className="p-3 text-right">
-                          {num.currency} {formatDecimal(num.nrc, 2)}
-                        </td>
-                        <td className="p-3">{num.currency}</td>
-                        <td className="p-3 text-center">{num.moq}</td>
-                        <td className="p-3 text-center">
+            <>
+              <div className="lg:hidden space-y-3">
+                {availableNumbers.map((num) => {
+                  const quantityStr = quantities[num.id]
+                  const quantity = quantityStr !== undefined ? (quantityStr === '' ? 0 : parseInt(quantityStr) || 0) : num.moq
+                  const displayValue = quantityStr !== undefined ? quantityStr : String(num.moq)
+                  return (
+                    <article
+                      key={num.id}
+                      className="rounded-2xl border border-gray-200 bg-gray-50/80 p-4 space-y-3"
+                    >
+                      <div>
+                        <p className="font-semibold text-[#215F9A] text-base">
+                          {num.country_name}{' '}
+                          <span className="text-gray-600 font-normal">({num.country_code})</span>
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {num.number_type} · {num.sms_capability} · {num.direction}
+                        </p>
+                      </div>
+                      <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                        <div>
+                          <dt className="text-gray-500">MRC</dt>
+                          <dd className="font-medium">
+                            {num.currency} {formatDecimal(num.mrc, 2)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">NRC</dt>
+                          <dd className="font-medium">
+                            {num.currency} {formatDecimal(num.nrc, 2)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">Currency</dt>
+                          <dd className="font-medium">{num.currency}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">MOQ</dt>
+                          <dd className="font-medium">{num.moq}</dd>
+                        </div>
+                      </dl>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openModal(num.id, 'other_charges', num)}
+                          className="flex-1 min-w-[5.5rem] bg-white border border-[#215F9A]/30 text-[#215F9A] px-2 py-2 rounded-lg text-xs font-medium hover:bg-blue-50"
+                        >
+                          Charges
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openModal(num.id, 'requirements', num)}
+                          className="flex-1 min-w-[5.5rem] bg-white border border-[#215F9A]/30 text-[#215F9A] px-2 py-2 rounded-lg text-xs font-medium hover:bg-blue-50"
+                        >
+                          Requirements
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openModal(num.id, 'features', num)}
+                          className="flex-1 min-w-[5.5rem] bg-white border border-[#215F9A]/30 text-[#215F9A] px-2 py-2 rounded-lg text-xs font-medium hover:bg-blue-50"
+                        >
+                          Features
+                        </button>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-end gap-3 pt-1">
+                        <div className="flex-1 min-w-0">
+                          <label htmlFor={`qty-${num.id}`} className="block text-xs font-medium text-gray-600 mb-1">
+                            Quantity
+                          </label>
+                          <input
+                            id={`qty-${num.id}`}
+                            type="text"
+                            inputMode="numeric"
+                            value={displayValue}
+                            placeholder={num.moq.toString()}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              if (value === '' || /^\d+$/.test(value)) {
+                                handleQuantityChange(num.id, value, num.moq)
+                              }
+                            }}
+                            className={`w-full max-w-[8rem] p-2.5 border rounded-lg text-center text-base ${quantityErrors[num.id] ? 'border-red-500' : 'border-gray-300'
+                              }`}
+                          />
+                          {quantityErrors[num.id] && (
+                            <p className="text-red-500 text-xs mt-1">{quantityErrors[num.id]}</p>
+                          )}
+                        </div>
+                        <div className="flex sm:items-end">
                           <button
-                            onClick={() => openModal(num.id, 'other_charges', num)}
-                            className="bg-[#215F9A] text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-xs"
-                          >
-                            details
-                          </button>
-                        </td>
-                        <td className="p-3 text-center">
-                          <button
-                            onClick={() => openModal(num.id, 'requirements', num)}
-                            className="bg-[#215F9A] text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-xs"
-                          >
-                            details
-                          </button>
-                        </td>
-                        <td className="p-3 text-center">
-                          <button
-                            onClick={() => openModal(num.id, 'features', num)}
-                            className="bg-[#215F9A] text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-xs"
-                          >
-                            details
-                          </button>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex flex-col items-center">
-                            <input
-                              type="text"
-                              value={displayValue}
-                              placeholder={num.moq.toString()}
-                              onChange={(e) => {
-                                const value = e.target.value
-                                // Allow empty string or only digits
-                                if (value === '' || /^\d+$/.test(value)) {
-                                  handleQuantityChange(num.id, value, num.moq)
-                                }
-                              }}
-                              className={`w-20 p-2 border rounded-lg text-center ${quantityErrors[num.id] ? 'border-red-500' : ''
-                                }`}
-                            />
-                            {quantityErrors[num.id] && (
-                              <span className="text-red-500 text-xs mt-1 text-center">
-                                {quantityErrors[num.id]}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-3 text-center">
-                          <button
+                            type="button"
                             onClick={() => handleOrder(num.id, quantity)}
                             disabled={processingOrderId === num.id || quantity === 0}
-                            className="bg-[#215F9A] text-white px-4 py-1 rounded-lg hover:bg-blue-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 justify-center min-w-[100px]"
+                            className="w-full sm:w-auto min-h-[44px] min-w-[7.5rem] bg-[#215F9A] text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                           >
                             {processingOrderId === num.id ? (
                               <>
-                                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg className="animate-spin h-4 w-4 text-white shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
@@ -1005,13 +1007,124 @@ export default function Numbers() {
                               'Order'
                             )}
                           </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+              <div className="hidden lg:block overflow-x-auto -mx-1 px-1">
+                <table className="w-full border-collapse min-w-[960px]">
+                  <thead>
+                    <tr className="bg-[#215F9A] text-white text-xs sm:text-sm">
+                      <th className="p-3 text-left">Country</th>
+                      <th className="p-3 text-left">Type</th>
+                      <th className="p-3 text-left">SMS/Voice</th>
+                      <th className="p-3 text-left">Inbound/Outbound</th>
+                      <th className="p-3 text-right">MRC</th>
+                      <th className="p-3 text-right">NRC</th>
+                      <th className="p-3 text-left">Currency</th>
+                      <th className="p-3 text-center">MOQ</th>
+                      <th className="p-3 text-center">Other Charge</th>
+                      <th className="p-3 text-center">Requirements</th>
+                      <th className="p-3 text-center">Features</th>
+                      <th className="p-3 text-center">Quantity</th>
+                      <th className="p-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {availableNumbers.map((num) => {
+                      const quantityStr = quantities[num.id]
+                      const quantity = quantityStr !== undefined ? (quantityStr === '' ? 0 : parseInt(quantityStr) || 0) : num.moq
+                      const displayValue = quantityStr !== undefined ? quantityStr : String(num.moq)
+                      return (
+                        <tr key={num.id} className="border-b hover:bg-gray-50">
+                          <td className="p-3">
+                            {num.country_name} ({num.country_code})
+                          </td>
+                          <td className="p-3">{num.number_type}</td>
+                          <td className="p-3">{num.sms_capability}</td>
+                          <td className="p-3">{num.direction}</td>
+                          <td className="p-3 text-right">
+                            {num.currency} {formatDecimal(num.mrc, 2)}
+                          </td>
+                          <td className="p-3 text-right">
+                            {num.currency} {formatDecimal(num.nrc, 2)}
+                          </td>
+                          <td className="p-3">{num.currency}</td>
+                          <td className="p-3 text-center">{num.moq}</td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => openModal(num.id, 'other_charges', num)}
+                              className="bg-[#215F9A] text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-xs"
+                            >
+                              details
+                            </button>
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => openModal(num.id, 'requirements', num)}
+                              className="bg-[#215F9A] text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-xs"
+                            >
+                              details
+                            </button>
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => openModal(num.id, 'features', num)}
+                              className="bg-[#215F9A] text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-xs"
+                            >
+                              details
+                            </button>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex flex-col items-center">
+                              <input
+                                type="text"
+                                value={displayValue}
+                                placeholder={num.moq.toString()}
+                                onChange={(e) => {
+                                  const value = e.target.value
+                                  if (value === '' || /^\d+$/.test(value)) {
+                                    handleQuantityChange(num.id, value, num.moq)
+                                  }
+                                }}
+                                className={`w-20 p-2 border rounded-lg text-center ${quantityErrors[num.id] ? 'border-red-500' : ''
+                                  }`}
+                              />
+                              {quantityErrors[num.id] && (
+                                <span className="text-red-500 text-xs mt-1 text-center">
+                                  {quantityErrors[num.id]}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => handleOrder(num.id, quantity)}
+                              disabled={processingOrderId === num.id || quantity === 0}
+                              className="bg-[#215F9A] text-white px-4 py-1 rounded-lg hover:bg-blue-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 justify-center min-w-[100px]"
+                            >
+                              {processingOrderId === num.id ? (
+                                <>
+                                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  Processing...
+                                </>
+                              ) : (
+                                'Order'
+                              )}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </section>
 
@@ -1056,10 +1169,10 @@ export default function Numbers() {
 
         {showCustomRequestModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowCustomRequestModal(false)}>
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[min(90vh,100dvh)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               {/* Header */}
-              <div className="bg-[#215F9A] text-white px-8 py-6 rounded-t-2xl">
-                <h3 className="text-2xl font-bold mb-2">Request a custom number</h3>
+              <div className="bg-[#215F9A] text-white px-4 py-4 sm:px-8 sm:py-6 rounded-t-2xl">
+                <h3 className="text-xl sm:text-2xl font-bold mb-2">Request a custom number</h3>
                 <p className="text-blue-100 text-base">
                   Need a number that is not in our inventory? Submit your requirements and we will review your request.
                 </p>
@@ -1071,7 +1184,7 @@ export default function Numbers() {
                   How it works — see steps
                 </button>
               </div>
-              <div className="p-8">
+              <div className="p-4 sm:p-8">
                 {customRequestError && (
                   <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{customRequestError}</div>
                 )}
@@ -1135,17 +1248,17 @@ export default function Numbers() {
                     </div>
                   </div>
                 </section>
-                <div className="flex gap-4 mt-8">
+                <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 mt-6 sm:mt-8">
                   <button
                     onClick={handleSubmitCustomRequest}
                     disabled={submittingCustomRequest}
-                    className="flex-1 bg-[#215F9A] text-white py-3 px-4 rounded-xl font-medium hover:bg-[#1a4d7a] disabled:opacity-50 transition-colors"
+                    className="flex-1 bg-[#215F9A] text-white py-3 px-4 rounded-xl font-medium hover:bg-[#1a4d7a] disabled:opacity-50 transition-colors min-h-[44px]"
                   >
                     {submittingCustomRequest ? 'Submitting...' : 'Submit request'}
                   </button>
                   <button
                     onClick={() => setShowCustomRequestModal(false)}
-                    className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-300 transition-colors"
+                    className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-300 transition-colors min-h-[44px]"
                   >
                     Cancel
                   </button>
@@ -1158,8 +1271,8 @@ export default function Numbers() {
         {/* Custom order steps pop-up */}
         {showCustomOrderStepsModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" onClick={() => setShowCustomOrderStepsModal(false)}>
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8" onClick={(e) => e.stopPropagation()}>
-              <h4 className="text-xl font-bold text-[#215F9A] mb-6">Custom order — how it works</h4>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-8 max-h-[min(90vh,100dvh)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <h4 className="text-lg sm:text-xl font-bold text-[#215F9A] mb-4 sm:mb-6">Custom order — how it works</h4>
               <ol className="space-y-5 text-gray-700">
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-8 h-8 rounded-full bg-[#215F9A] text-white flex items-center justify-center font-semibold text-sm">1</span>
