@@ -151,11 +151,6 @@ export default function NumberFileUpload({
             return 'Invalid file type. Please upload CSV, Excel (.xls, .xlsx), Word (.doc, .docx), or PDF files.'
         }
 
-        const maxSize = 10 * 1024 * 1024 // 10MB
-        if (file.size > maxSize) {
-            return 'File size exceeds 10MB limit.'
-        }
-
         return null
     }
 
@@ -1031,7 +1026,7 @@ export default function NumberFileUpload({
                         Click to upload or drag and drop
                     </p>
                     <p className="text-xs text-gray-500">
-                        CSV, Excel (.xls, .xlsx), Word (.doc, .docx), or PDF files (max 10MB)
+                        CSV, Excel (.xls, .xlsx), Word (.doc, .docx), or PDF files
                     </p>
                 </label>
             </div>

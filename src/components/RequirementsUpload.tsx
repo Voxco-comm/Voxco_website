@@ -504,12 +504,6 @@ export default function RequirementsUpload() {
 
     const file = files[0]
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setError(`File "${file.name}" is too large. Maximum size is 10MB.`)
-      return
-    }
-
     // Validate file type
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
     if (!allowedTypes.includes(file.type)) {
@@ -568,10 +562,6 @@ export default function RequirementsUpload() {
     const files = e.target.files
     if (!files?.length || otherDocuments.length >= MAX_OTHER_DOCS) return
     const file = files[0]
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File is too large. Maximum size is 10MB.')
-      return
-    }
     const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
     if (!allowed.includes(file.type)) {
       setError('Please upload PDF, JPG, PNG, or DOC files.')
@@ -1658,7 +1648,7 @@ export default function RequirementsUpload() {
 
               {/* Document Upload Slots */}
               <p className="text-sm text-gray-600 mb-4">
-                Please upload the following documents. Accepted formats: PDF, JPG, PNG, DOC (max 10MB each).
+                Please upload the following documents. Accepted formats: PDF, JPG, PNG, DOC.
                 {customerDocuments.length > 0 && (
                   <span className="text-blue-600 ml-1">
                     You can also choose from your previously uploaded documents.
