@@ -46,6 +46,7 @@ interface Order {
   sms_capability: string
   direction: string
   moq: number
+  below_moq_at_order?: boolean
   requirements_text: string | null
   uploaded_documents: UploadedDocuments | null
   admin_request_changes: string | null
@@ -128,6 +129,7 @@ export default function CustomerOrders() {
           number_id,
           quantity,
           status,
+          below_moq_at_order,
           mrc_at_order,
           nrc_at_order,
           currency_at_order,
@@ -150,6 +152,7 @@ export default function CustomerOrders() {
         number_id: order.number_id,
         quantity: order.quantity,
         status: order.status,
+        below_moq_at_order: order.below_moq_at_order ?? false,
         mrc_at_order: order.mrc_at_order,
         nrc_at_order: order.nrc_at_order,
         currency_at_order: order.currency_at_order,
@@ -477,6 +480,12 @@ export default function CustomerOrders() {
                         {order.status === 'granted' && order.granted_at && (
                           <span className="text-green-600">
                             Approved on {new Date(order.granted_at).toLocaleDateString()}
+                          </span>
+                        )}
+                        {order.below_moq_at_order &&
+                          (order.status === 'pending' || order.status === 'documentation_review') && (
+                          <span className="text-amber-700 block mt-1">
+                            Pending admin approval (quantity below MOQ).
                           </span>
                         )}
                         {order.status === 'documentation_review' && (

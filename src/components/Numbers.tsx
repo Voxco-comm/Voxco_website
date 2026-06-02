@@ -63,6 +63,7 @@ export default function Numbers() {
   const [availableNumbers, setAvailableNumbers] = useState<AvailableNumber[]>([])
   const [quantities, setQuantities] = useState<QuantityState>({})
   const [quantityErrors, setQuantityErrors] = useState<QuantityErrorState>({})
+  const [quantityWarnings, setQuantityWarnings] = useState<QuantityErrorState>({})
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [countriesError, setCountriesError] = useState<string | null>(null)
@@ -84,6 +85,10 @@ export default function Numbers() {
   const [submittingCustomRequest, setSubmittingCustomRequest] = useState(false)
   const [showMoqWarningModal, setShowMoqWarningModal] = useState(false)
   const [moqWarningMoq, setMoqWarningMoq] = useState<number>(1)
+  const [pendingBelowMoqOrder, setPendingBelowMoqOrder] = useState<{
+    numberId: string
+    quantity: number
+  } | null>(null)
   const [showCustomOrderStepsModal, setShowCustomOrderStepsModal] = useState(false)
 
   useEffect(() => {
@@ -312,6 +317,7 @@ export default function Numbers() {
     setForm({ country: '', smsVoice: '', inboundOutbound: '' })
     setAvailableNumbers(allLoadedNumbers)
     setQuantities({})
+    setQuantityWarnings({})
   }
 
   const handleQuantityChange = (numberId: string, value: string, moq: number) => {
@@ -321,16 +327,23 @@ export default function Numbers() {
     // Validate
     if (value === '') {
       setQuantityErrors({ ...quantityErrors, [numberId]: 'Quantity is required' })
+      setQuantityWarnings({ ...quantityWarnings, [numberId]: null })
       return
     }
 
     const qty = parseInt(value)
     if (isNaN(qty) || qty < 0) {
       setQuantityErrors({ ...quantityErrors, [numberId]: 'Invalid quantity' })
-    } else if (qty < moq) {
-      setQuantityErrors({ ...quantityErrors, [numberId]: `Minimum order quantity is ${moq}` })
+      setQuantityWarnings({ ...quantityWarnings, [numberId]: null })
+    } else if (qty > 0 && qty < moq) {
+      setQuantityErrors({ ...quantityErrors, [numberId]: null })
+      setQuantityWarnings({
+        ...quantityWarnings,
+        [numberId]: `Below MOQ (${moq}) — admin review required before approval`,
+      })
     } else {
       setQuantityErrors({ ...quantityErrors, [numberId]: null })
+      setQuantityWarnings({ ...quantityWarnings, [numberId]: null })
     }
   }
 
@@ -484,27 +497,14 @@ export default function Numbers() {
     }
   }
 
-  const handleOrder = async (numberId: string, quantity: number) => {
-    // Find the number to get its details
-    const number = availableNumbers.find(n => n.id === numberId)
-    if (!number) {
-      alert('Number not found')
-      return
-    }
-
-    const moq = number.moq || 1
-
-    // Strictly prevent ordering below MOQ - show warning modal
-    if (quantity < moq) {
-      setMoqWarningMoq(moq)
-      setShowMoqWarningModal(true)
-      return
-    }
-
-    setProcessingOrderId(numberId)
+  const proceedToOrder = async (
+    number: AvailableNumber,
+    quantity: number,
+    belowMoq: boolean
+  ) => {
+    setProcessingOrderId(number.id)
 
     try {
-      // Check if user is signed in
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         alert('Please sign in to place an order')
@@ -512,7 +512,6 @@ export default function Numbers() {
         return
       }
 
-      // Build URL params for requirements upload page
       const params = new URLSearchParams({
         numberId: number.id,
         quantity: quantity.toString(),
@@ -527,8 +526,10 @@ export default function Numbers() {
         currency: number.currency,
         moq: number.moq.toString(),
       })
+      if (belowMoq) {
+        params.set('belowMoq', 'true')
+      }
 
-      // Redirect to requirements upload page
       router.push(`/order?${params.toString()}`)
     } catch (err: any) {
       console.error('Error:', err)
@@ -536,6 +537,39 @@ export default function Numbers() {
     } finally {
       setProcessingOrderId(null)
     }
+  }
+
+  const handleOrder = async (numberId: string, quantity: number) => {
+    const number = availableNumbers.find(n => n.id === numberId)
+    if (!number) {
+      alert('Number not found')
+      return
+    }
+
+    const moq = number.moq || 1
+
+    if (quantity < moq) {
+      setPendingBelowMoqOrder({ numberId, quantity })
+      setMoqWarningMoq(moq)
+      setShowMoqWarningModal(true)
+      return
+    }
+
+    await proceedToOrder(number, quantity, false)
+  }
+
+  const handleConfirmBelowMoqOrder = async () => {
+    if (!pendingBelowMoqOrder) return
+    const number = availableNumbers.find(n => n.id === pendingBelowMoqOrder.numberId)
+    if (!number) {
+      alert('Number not found')
+      return
+    }
+
+    setShowMoqWarningModal(false)
+    const { quantity } = pendingBelowMoqOrder
+    setPendingBelowMoqOrder(null)
+    await proceedToOrder(number, quantity, true)
   }
 
   const renderModal = (numberId: string, modal: { open: boolean; data: any; type: string }) => {
@@ -981,11 +1015,18 @@ export default function Numbers() {
                                 handleQuantityChange(num.id, value, num.moq)
                               }
                             }}
-                            className={`w-full max-w-[8rem] p-2.5 border rounded-lg text-center text-base ${quantityErrors[num.id] ? 'border-red-500' : 'border-gray-300'
+                            className={`w-full max-w-[8rem] p-2.5 border rounded-lg text-center text-base ${quantityErrors[num.id]
+                              ? 'border-red-500'
+                              : quantityWarnings[num.id]
+                                ? 'border-amber-400'
+                                : 'border-gray-300'
                               }`}
                           />
                           {quantityErrors[num.id] && (
                             <p className="text-red-500 text-xs mt-1">{quantityErrors[num.id]}</p>
+                          )}
+                          {!quantityErrors[num.id] && quantityWarnings[num.id] && (
+                            <p className="text-amber-700 text-xs mt-1">{quantityWarnings[num.id]}</p>
                           )}
                         </div>
                         <div className="flex sm:items-end">
@@ -1089,12 +1130,21 @@ export default function Numbers() {
                                     handleQuantityChange(num.id, value, num.moq)
                                   }
                                 }}
-                                className={`w-20 p-2 border rounded-lg text-center ${quantityErrors[num.id] ? 'border-red-500' : ''
+                                className={`w-20 p-2 border rounded-lg text-center ${quantityErrors[num.id]
+                                  ? 'border-red-500'
+                                  : quantityWarnings[num.id]
+                                    ? 'border-amber-400'
+                                    : ''
                                   }`}
                               />
                               {quantityErrors[num.id] && (
                                 <span className="text-red-500 text-xs mt-1 text-center">
                                   {quantityErrors[num.id]}
+                                </span>
+                              )}
+                              {!quantityErrors[num.id] && quantityWarnings[num.id] && (
+                                <span className="text-amber-700 text-xs mt-1 text-center block max-w-[10rem]">
+                                  {quantityWarnings[num.id]}
                                 </span>
                               )}
                             </div>
@@ -1138,29 +1188,29 @@ export default function Numbers() {
         {showMoqWarningModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-xl font-semibold text-[#215F9A] mb-3">Minimum order quantity</h3>
+              <h3 className="text-xl font-semibold text-[#215F9A] mb-3">Below minimum order quantity</h3>
               <p className="text-gray-700 mb-4">
-                Your order is below the minimum order quantity (MOQ) of <strong>{moqWarningMoq}</strong>. Please enter a quantity of at least {moqWarningMoq} to proceed, or request a custom number instead.
+                Your order quantity is below the minimum order quantity (MOQ) of <strong>{moqWarningMoq}</strong>.
+                This order will be <strong>reviewed by an administrator</strong> before it is approved. Do you want to continue?
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowMoqWarningModal(false)
-                    setShowCustomRequestModal(true)
-                    setCustomRequestError(null)
-                    setCustomRequestSuccess(null)
-                  }}
-                  className="flex-1 bg-[#215F9A] text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
+                  onClick={handleConfirmBelowMoqOrder}
+                  disabled={processingOrderId !== null}
+                  className="flex-1 bg-[#215F9A] text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
                 >
-                  Request a custom number instead
+                  {processingOrderId ? 'Processing...' : 'Confirm and continue'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowMoqWarningModal(false)}
+                  onClick={() => {
+                    setShowMoqWarningModal(false)
+                    setPendingBelowMoqOrder(null)
+                  }}
                   className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium"
                 >
-                  OK
+                  Cancel
                 </button>
               </div>
             </div>

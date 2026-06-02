@@ -126,6 +126,7 @@ export interface Order {
   rejected_at?: string | null
   rejected_reason?: string | null
   admin_notes?: string | null
+  below_moq_at_order?: boolean
   uploaded_documents?: UploadedDocuments | null
   // Joined fields
   customer_name?: string
