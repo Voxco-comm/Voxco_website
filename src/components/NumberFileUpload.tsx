@@ -129,6 +129,7 @@ interface NumberFileUploadProps {
     onNumbersExtracted: (numbers: ExtractedNumber[]) => void
     onError: (error: string) => void
     onSuccess: (message: string) => void
+    onRequestAddCountry?: (countryName: string) => void
 }
 
 export default function NumberFileUpload({
@@ -136,11 +137,13 @@ export default function NumberFileUpload({
     onNumbersExtracted,
     onError,
     onSuccess,
+    onRequestAddCountry,
 }: NumberFileUploadProps) {
     const [file, setFile] = useState<File | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [extractedNumbers, setExtractedNumbers] = useState<ExtractedNumber[]>([])
     const [validationErrors, setValidationErrors] = useState<string[]>([])
+    const [unknownCountries, setUnknownCountries] = useState<string[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const validateFile = (file: File): string | null => {
@@ -149,11 +152,6 @@ export default function NumberFileUpload({
 
         if (!fileExtension || !validExtensions.includes(fileExtension)) {
             return 'Invalid file type. Please upload CSV, Excel (.xls, .xlsx), Word (.doc, .docx), or PDF files.'
-        }
-
-        const maxSize = 10 * 1024 * 1024 // 10MB
-        if (file.size > maxSize) {
-            return 'File size exceeds 10MB limit.'
         }
 
         return null
@@ -333,10 +331,12 @@ export default function NumberFileUpload({
     const extractNumbersFromTable = (data: any[][]): ExtractedNumber[] => {
         const numbers: ExtractedNumber[] = []
         const errors: string[] = []
+        const unknownCountrySet = new Set<string>()
 
         if (!data || data.length === 0) {
             errors.push('No data found in file')
             setValidationErrors(errors)
+            setUnknownCountries([])
             return []
         }
 
@@ -367,6 +367,7 @@ export default function NumberFileUpload({
         const validation = validateHeaders(headers)
         if (!validation.valid) {
             setValidationErrors(validation.errors)
+            setUnknownCountries([])
             return []
         }
 
@@ -395,10 +396,12 @@ export default function NumberFileUpload({
                         countryId = country.id
                     } else if (suggestion) {
                         // Typo detected - suggest the correct spelling
+                        unknownCountrySet.add(countryInput)
                         errors.push(`Row ${i + 1}: Country "${countryInput}" not found. Did you mean "${suggestion}"? (${Math.round(similarity * 100)}% match)`)
                         continue
                     } else {
                         // No match and no good suggestion
+                        unknownCountrySet.add(countryInput)
                         errors.push(`Row ${i + 1}: Country "${countryInput}" not found in system. Please check the spelling.`)
                         continue
                     }
@@ -717,8 +720,11 @@ export default function NumberFileUpload({
             numbers.push(extracted)
         }
 
+        setUnknownCountries(Array.from(unknownCountrySet).sort((a, b) => a.localeCompare(b)))
         if (errors.length > 0) {
             setValidationErrors(errors)
+        } else {
+            setValidationErrors([])
         }
 
         return numbers
@@ -727,6 +733,7 @@ export default function NumberFileUpload({
     const processFile = async (file: File) => {
         setIsProcessing(true)
         setValidationErrors([])
+        setUnknownCountries([])
         setExtractedNumbers([])
 
         try {
@@ -820,9 +827,15 @@ export default function NumberFileUpload({
         setFile(null)
         setExtractedNumbers([])
         setValidationErrors([])
+        setUnknownCountries([])
         if (fileInputRef.current) {
             fileInputRef.current.value = ''
         }
+    }
+
+    const handleRevalidateFile = async () => {
+        if (!file || isProcessing) return
+        await processFile(file)
     }
 
     const handleConfirm = () => {
@@ -1031,7 +1044,7 @@ export default function NumberFileUpload({
                         Click to upload or drag and drop
                     </p>
                     <p className="text-xs text-gray-500">
-                        CSV, Excel (.xls, .xlsx), Word (.doc, .docx), or PDF files (max 10MB)
+                        CSV, Excel (.xls, .xlsx), Word (.doc, .docx), or PDF files
                     </p>
                 </label>
             </div>
@@ -1060,13 +1073,51 @@ export default function NumberFileUpload({
                 </div>
             )}
 
+            {unknownCountries.length > 0 && onRequestAddCountry && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-amber-900 mb-2">
+                        Missing countries ({unknownCountries.length})
+                    </p>
+                    <p className="text-sm text-amber-800 mb-3">
+                        Add these countries to the system, then re-validate your file to import the affected rows.
+                    </p>
+                    <ul className="space-y-2 mb-3">
+                        {unknownCountries.map((name) => (
+                            <li
+                                key={name}
+                                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-amber-900"
+                            >
+                                <span className="font-medium">{name}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => onRequestAddCountry(name)}
+                                    className="shrink-0 bg-[#215F9A] text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-xs font-medium"
+                                >
+                                    Add country
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                    {file && (
+                        <button
+                            type="button"
+                            onClick={handleRevalidateFile}
+                            disabled={isProcessing}
+                            className="text-sm text-[#215F9A] font-semibold hover:underline disabled:opacity-50"
+                        >
+                            Re-validate file
+                        </button>
+                    )}
+                </div>
+            )}
+
             {validationErrors.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <div className="flex items-start gap-2">
                         <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
                         <div className="flex-1">
                             <p className="text-sm font-medium text-red-800 mb-1">Validation Errors:</p>
-                            <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                            <ul className="text-sm text-red-700 list-disc list-inside space-y-1 max-h-48 overflow-y-auto">
                                 {validationErrors.map((error, idx) => (
                                     <li key={idx}>{error}</li>
                                 ))}

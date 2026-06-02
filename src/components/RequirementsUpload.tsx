@@ -21,6 +21,7 @@ interface OrderDetails {
   currency: string
   moq: number
   draftId?: string
+  belowMoq?: boolean
 }
 
 interface RequirementDocument {
@@ -215,13 +216,19 @@ export default function RequirementsUpload() {
     const nrc = searchParams.get('nrc')
     const currency = searchParams.get('currency')
     const moq = searchParams.get('moq')
+    const belowMoqParam = searchParams.get('belowMoq')
     const draftId = searchParams.get('draftId')
     const orderId = searchParams.get('orderId')
 
     if (numberId && quantity) {
+      const parsedQuantity = parseInt(quantity)
+      const parsedMoq = parseInt(moq || '1')
+      const belowMoq =
+        belowMoqParam === 'true' || (parsedQuantity > 0 && parsedQuantity < parsedMoq)
+
       setOrderDetails({
         numberId,
-        quantity: parseInt(quantity),
+        quantity: parsedQuantity,
         countryName: countryName || '',
         countryCode: countryCode || '',
         countryId: countryId || '',
@@ -231,8 +238,9 @@ export default function RequirementsUpload() {
         mrc: parseFloat(mrc || '0'),
         nrc: parseFloat(nrc || '0'),
         currency: currency || 'USD',
-        moq: parseInt(moq || '1'),
+        moq: parsedMoq,
         draftId: draftId || undefined,
+        belowMoq,
       })
       setExistingOrderId(orderId || null)
 
@@ -504,12 +512,6 @@ export default function RequirementsUpload() {
 
     const file = files[0]
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setError(`File "${file.name}" is too large. Maximum size is 10MB.`)
-      return
-    }
-
     // Validate file type
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
     if (!allowedTypes.includes(file.type)) {
@@ -568,10 +570,6 @@ export default function RequirementsUpload() {
     const files = e.target.files
     if (!files?.length || otherDocuments.length >= MAX_OTHER_DOCS) return
     const file = files[0]
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File is too large. Maximum size is 10MB.')
-      return
-    }
     const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
     if (!allowed.includes(file.type)) {
       setError('Please upload PDF, JPG, PNG, or DOC files.')
@@ -1395,6 +1393,16 @@ export default function RequirementsUpload() {
         customerId = customerData.id
       }
 
+      const belowMoqAtOrder = !!orderDetails.belowMoq
+      const adminNotesParts: string[] = []
+      if (belowMoqAtOrder) {
+        adminNotesParts.push('[Below MOQ — requires admin approval]')
+      }
+      if (notes.trim()) {
+        adminNotesParts.push(`Customer notes: ${notes.trim()}`)
+      }
+      const adminNotesValue = adminNotesParts.length > 0 ? adminNotesParts.join(' ') : null
+
       const { error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -1403,6 +1411,7 @@ export default function RequirementsUpload() {
           number_id: orderDetails.numberId,
           quantity: orderDetails.quantity,
           status: 'documentation_review',
+          below_moq_at_order: belowMoqAtOrder,
           mrc_at_order: orderDetails.mrc,
           nrc_at_order: orderDetails.nrc,
           currency_at_order: orderDetails.currency,
@@ -1412,7 +1421,7 @@ export default function RequirementsUpload() {
             notes: notes,
             other_documents: otherDocsForOrder,
           },
-          admin_notes: notes ? `Customer notes: ${notes}` : null,
+          admin_notes: adminNotesValue,
         })
         .select()
         .single()
@@ -1451,12 +1460,17 @@ export default function RequirementsUpload() {
               currency: orderDetails.currency,
               documentsUploaded: allDocuments.length,
               customerType: customerType,
+              belowMoq: belowMoqAtOrder,
             },
           }),
         })
       } catch (emailErr) {
         console.warn('Failed to send email notification:', emailErr)
       }
+
+      const moqReviewSuffix = belowMoqAtOrder
+        ? ` (quantity ${orderDetails.quantity} is below MOQ ${orderDetails.moq} — requires MOQ approval)`
+        : ''
 
       // Send in-app notification to all admins
       try {
@@ -1469,13 +1483,14 @@ export default function RequirementsUpload() {
           const notifications = adminUsers.map((admin) => ({
             user_id: admin.user_id,
             type: 'new_order',
-            title: 'New Order Received',
-            message: `A new order has been placed for ${orderDetails.quantity} ${orderDetails.numberType} number(s) in ${orderDetails.countryName}`,
+            title: belowMoqAtOrder ? 'New Order (Below MOQ)' : 'New Order Received',
+            message: `A new order has been placed for ${orderDetails.quantity} ${orderDetails.numberType} number(s) in ${orderDetails.countryName}${moqReviewSuffix}`,
             metadata: {
               order_id: orderId,
               country: orderDetails.countryName,
               number_type: orderDetails.numberType,
               quantity: orderDetails.quantity,
+              below_moq: belowMoqAtOrder,
             },
           }))
 
@@ -1658,7 +1673,7 @@ export default function RequirementsUpload() {
 
               {/* Document Upload Slots */}
               <p className="text-sm text-gray-600 mb-4">
-                Please upload the following documents. Accepted formats: PDF, JPG, PNG, DOC (max 10MB each).
+                Please upload the following documents. Accepted formats: PDF, JPG, PNG, DOC.
                 {customerDocuments.length > 0 && (
                   <span className="text-blue-600 ml-1">
                     You can also choose from your previously uploaded documents.

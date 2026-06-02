@@ -220,6 +220,7 @@ interface Order {
   supplier_mrc?: number | null
   supplier_nrc?: number | null
   supplier_currency?: string | null
+  below_moq_at_order?: boolean
 }
 
 interface SignupRequest {
@@ -236,7 +237,7 @@ interface AdminSettings {
   notification_email: string
 }
 
-type TabType = 'inventory' | 'orders' | 'custom_requests' | 'signup_requests' | 'users' | 'settings'
+type TabType = 'inventory' | 'countries' | 'orders' | 'custom_requests' | 'signup_requests' | 'users' | 'settings'
 
 interface CustomNumberRequest {
   id: string
@@ -296,6 +297,7 @@ export default function AdminDashboard() {
   const [showAddNumber, setShowAddNumber] = useState(false)
   const [showAddCountry, setShowAddCountry] = useState(false)
   const [showFileUpload, setShowFileUpload] = useState(false)
+  const [countrySearch, setCountrySearch] = useState('')
   const [fetchingRequirements, setFetchingRequirements] = useState(false)
   const [uploadingNumbers, setUploadingNumbers] = useState(false)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
@@ -370,6 +372,8 @@ export default function AdminDashboard() {
     loadPendingCustomRequestsCount()
     if (activeTab === 'inventory') {
       loadAllNumbers()
+    } else if (activeTab === 'countries') {
+      loadCountries()
     } else if (activeTab === 'orders') {
       loadOrders()
       loadPendingOrdersCount()
@@ -1010,6 +1014,7 @@ export default function AdminDashboard() {
           number_id,
           quantity,
           status,
+          below_moq_at_order,
           mrc_at_order,
           nrc_at_order,
           currency_at_order,
@@ -1042,6 +1047,7 @@ export default function AdminDashboard() {
         number_id: o.number_id,
         quantity: o.quantity,
         status: o.status,
+        below_moq_at_order: o.below_moq_at_order ?? false,
         mrc_at_order: o.mrc_at_order,
         nrc_at_order: o.nrc_at_order,
         currency_at_order: o.currency_at_order,
@@ -1371,7 +1377,11 @@ export default function AdminDashboard() {
 
       if (error) throw error
 
-      setSuccess('Country added successfully with requirements fetched!')
+      setSuccess(
+        showFileUpload
+          ? 'Country added successfully. Re-validate your file to import rows for the new country.'
+          : 'Country added successfully with requirements fetched!'
+      )
       setCountryFormData({ name: '', country_code: '', regulator: '' })
       setShowAddCountry(false)
       await loadCountries()
@@ -1806,12 +1816,32 @@ export default function AdminDashboard() {
   const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value
     if (value === 'new') {
-      setShowAddCountry(true)
+      openAddCountryModal()
       setFormData({ ...formData, country_id: '' })
     } else {
       setFormData({ ...formData, country_id: value })
     }
   }
+
+  const openAddCountryModal = (prefillName = '') => {
+    setCountryFormData({
+      name: prefillName,
+      country_code: '',
+      regulator: '',
+    })
+    setShowAddCountry(true)
+  }
+
+  const filteredCountriesList = useMemo(() => {
+    const q = countrySearch.trim().toLowerCase()
+    if (!q) return countries
+    return countries.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.country_code.toLowerCase().includes(q) ||
+        (c.regulator || '').toLowerCase().includes(q)
+    )
+  }, [countries, countrySearch])
 
   const toggleRowExpansion = (numberId: string) => {
     const newExpanded = new Set(expandedRows)
@@ -2020,6 +2050,15 @@ export default function AdminDashboard() {
               Inventory
             </button>
             <button
+              onClick={() => setActiveTab('countries')}
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors whitespace-nowrap ${activeTab === 'countries'
+                ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
+                : 'text-gray-600 hover:text-[#215F9A]'
+                }`}
+            >
+              Countries
+            </button>
+            <button
               onClick={() => setActiveTab('orders')}
               className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap overflow-visible ${activeTab === 'orders'
                 ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
@@ -2147,9 +2186,18 @@ export default function AdminDashboard() {
               {/* File Upload Section */}
               {showFileUpload && (
                 <div className="mb-8 p-6 border-2 border-dashed border-gray-300 rounded-lg">
-                  <h3 className="text-xl font-semibold text-[#215F9A] mb-4">
-                    Upload Numbers from File
-                  </h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                    <h3 className="text-xl font-semibold text-[#215F9A]">
+                      Upload Numbers from File
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('countries')}
+                      className="text-sm text-[#215F9A] font-medium hover:underline text-left sm:text-right"
+                    >
+                      Manage countries
+                    </button>
+                  </div>
                   <p className="text-sm text-gray-600 mb-4">
                     Upload a CSV, Excel, Word, or PDF file containing a table with phone numbers.
                     The system will automatically detect the number column and extract additional
@@ -2160,6 +2208,7 @@ export default function AdminDashboard() {
                     onNumbersExtracted={handleBulkAddNumbers}
                     onError={(error) => setError(error)}
                     onSuccess={(message) => setSuccess(message)}
+                    onRequestAddCountry={(name: string) => openAddCountryModal(name)}
                   />
                   {uploadingNumbers && (
                     <div className="mt-4 flex items-center gap-2 text-blue-600">
@@ -3013,6 +3062,59 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* Countries Tab */}
+        {activeTab === 'countries' && (
+          <div className="bg-white rounded-b-lg shadow-lg p-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+              <h2 className="text-2xl font-semibold text-[#215F9A]">
+                Countries ({countries.length})
+              </h2>
+              <button
+                type="button"
+                onClick={() => openAddCountryModal()}
+                className="bg-[#215F9A] text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
+              >
+                Add country
+              </button>
+            </div>
+            <div className="mb-4">
+              <input
+                type="search"
+                value={countrySearch}
+                onChange={(e) => setCountrySearch(e.target.value)}
+                placeholder="Search by name, code, or regulator..."
+                className="w-full max-w-md p-2 border rounded-lg"
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse min-w-[480px]">
+                <thead>
+                  <tr className="bg-[#215F9A] text-white text-sm">
+                    <th className="p-3 text-left">Name</th>
+                    <th className="p-3 text-left">Code</th>
+                    <th className="p-3 text-left">Regulator</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCountriesList.map((country) => (
+                    <tr key={country.id} className="border-b hover:bg-gray-50">
+                      <td className="p-3">{country.name}</td>
+                      <td className="p-3">{country.country_code}</td>
+                      <td className="p-3 text-gray-600">{country.regulator || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {countries.length === 0 && !loading && (
+                <p className="text-center py-8 text-gray-600">No countries in the system yet.</p>
+              )}
+              {countries.length > 0 && filteredCountriesList.length === 0 && (
+                <p className="text-center py-8 text-gray-600">No countries match your search.</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Orders Tab */}
         {activeTab === 'orders' && (
           <div className="bg-white rounded-b-lg shadow-lg p-6">
@@ -3061,7 +3163,16 @@ export default function AdminDashboard() {
                         <td className="p-2 text-xs">{order.number_type}</td>
                         <td className="p-2 text-xs">{order.sms_capability}</td>
                         <td className="p-2 text-xs">{order.direction}</td>
-                        <td className="p-2 text-center text-xs">{order.quantity}</td>
+                        <td className="p-2 text-center text-xs">
+                          <div className="flex flex-col items-center gap-1">
+                            <span>{order.quantity}</span>
+                            {(order.below_moq_at_order || order.quantity < (order.moq ?? 1)) && (
+                              <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap">
+                                Below MOQ
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="p-2 text-center text-xs">{order.moq}</td>
                         <td className="p-2 text-right text-xs">
                           {order.supplier_mrc != null ? `${order.supplier_currency || 'USD'} ${formatDecimal(order.supplier_mrc, 2)}` : '—'}
