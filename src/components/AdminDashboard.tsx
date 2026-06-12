@@ -308,7 +308,7 @@ export default function AdminDashboard() {
   const [pendingCustomRequestsCount, setPendingCustomRequestsCount] = useState(0)
   const [formData, setFormData] = useState<NumberFormData>({
     country_id: '',
-    available_numbers: '',
+    available_numbers: '100',
     number_type: 'Geographic',
     sms_capability: 'Both',
     direction: 'Both',
@@ -1399,7 +1399,7 @@ export default function AdminDashboard() {
     }
 
     // Parse and validate numeric fields
-    const availableNumbers = parseIntField(formData.available_numbers, 0)
+    const availableNumbers = parseIntField(formData.available_numbers, 100)
     const mrc = parseNumberField(formData.mrc, 0)
     const nrc = parseNumberField(formData.nrc, 0)
     const moq = parseIntField(formData.moq, 1)
@@ -1450,7 +1450,7 @@ export default function AdminDashboard() {
       setSuccess('Number added to inventory successfully!')
       setFormData({
         country_id: '',
-        available_numbers: '',
+        available_numbers: '100',
         number_type: 'Geographic',
         sms_capability: 'Both',
         direction: 'Both',
@@ -1519,7 +1519,7 @@ export default function AdminDashboard() {
 
         return {
           country_id: num.country_id,
-          available_numbers: num.available_numbers || 1,
+          available_numbers: num.available_numbers ?? 100,
           number_type: numberType,
           sms_capability: smsCapability,
           direction: direction,
@@ -1973,6 +1973,27 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+        <div>
+          <h4 className="font-semibold text-[#215F9A] mb-3">Features</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Voice</p>
+              <p className="font-medium">{(num.features as any)?.voice || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">SMS</p>
+              <p className="font-medium">{(num.features as any)?.sms || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Reach</p>
+              <p className="font-medium">{(num.features as any)?.reach || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Emergency services</p>
+              <p className="font-medium">{(num.features as any)?.emergency_services || '—'}</p>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -2185,7 +2206,7 @@ export default function AdminDashboard() {
 
               {/* File Upload Section */}
               {showFileUpload && (
-                <div className="mb-8 p-6 border-2 border-dashed border-gray-300 rounded-lg">
+                <div className="mb-8 p-3 sm:p-6 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
                     <h3 className="text-xl font-semibold text-[#215F9A]">
                       Upload Numbers from File
@@ -2262,7 +2283,7 @@ export default function AdminDashboard() {
                             setFormData({ ...formData, available_numbers: value })
                           }
                         }}
-                        placeholder="Enter quantity available"
+                        placeholder="100"
                         className="w-full p-2 border rounded-lg"
                       />
                     </div>
@@ -2918,11 +2939,14 @@ export default function AdminDashboard() {
                         <div key={`m-${num.id}`} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
                           <div className="flex justify-between gap-2">
                             <div className="min-w-0">
+                              <p className="text-xs text-gray-500 truncate">Supplier: {num.supplier || '—'}</p>
                               <p className="font-semibold text-[#215F9A] truncate">{num.country_name}</p>
                               <p className="text-xs text-gray-600">
                                 {num.number_type} · {num.sms_capability} · {num.direction}
                               </p>
-                              <p className="text-xs text-gray-500 mt-1 break-words">Supplier: {num.supplier || '—'}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Voice: {(num.features as any)?.voice || '—'} · SMS: {(num.features as any)?.sms || '—'}
+                              </p>
                             </div>
                             <div className="text-right text-sm shrink-0">
                               <p className="text-xs text-gray-500">Supplier MRC</p>
@@ -2964,21 +2988,23 @@ export default function AdminDashboard() {
                     })}
                   </div>
                   <div className="hidden md:block overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
-                    <table className="w-full border-collapse min-w-[1040px] text-sm">
+                    <table className="w-full border-collapse min-w-[1200px] text-sm">
                     <thead>
                       <tr className="bg-[#215F9A] text-white text-xs sm:text-sm">
+                        <th className="p-2 sm:p-3 text-left max-w-[120px]">Supplier</th>
                         <th className="p-2 sm:p-3 text-left">Country</th>
+                        <th className="p-2 sm:p-3 text-left">SMS/Voice</th>
+                        <th className="p-2 sm:p-3 text-left">In/Out</th>
                         <th className="p-2 sm:p-3 text-center">Available</th>
                         <th className="p-2 sm:p-3 text-left">Type</th>
                         <th className="p-2 sm:p-3 text-left">Specification</th>
-                        <th className="p-2 sm:p-3 text-left">SMS/Voice</th>
-                        <th className="p-2 sm:p-3 text-left">In/Out</th>
-                        <th className="p-2 sm:p-3 text-left max-w-[120px]">Supplier</th>
                         <th className="p-2 sm:p-3 text-right" title="Supplier MRC">MRC</th>
                         <th className="p-2 sm:p-3 text-right" title="Supplier NRC">NRC</th>
                         <th className="p-2 sm:p-3 text-left" title="Supplier currency">Curr.</th>
                         <th className="p-2 sm:p-3 text-center">MOQ</th>
                         <th className="p-2 sm:p-3 text-left">Pulse</th>
+                        <th className="p-2 sm:p-3 text-left">Voice</th>
+                        <th className="p-2 sm:p-3 text-left">SMS</th>
                         <th className="p-2 sm:p-3 text-center">Actions</th>
                       </tr>
                     </thead>
@@ -2990,17 +3016,17 @@ export default function AdminDashboard() {
                         return (
                           <React.Fragment key={num.id}>
                             <tr className="border-b hover:bg-gray-50">
-                              <td className="p-2 sm:p-3">
-                                {num.country_name} ({num.country_code})
-                              </td>
-                              <td className="p-2 sm:p-3 text-center font-semibold">{num.available_numbers ?? 0}</td>
-                              <td className="p-2 sm:p-3">{num.number_type}</td>
-                              <td className="p-2 sm:p-3 text-xs sm:text-sm">{num.specification || '-'}</td>
-                              <td className="p-2 sm:p-3">{num.sms_capability}</td>
-                              <td className="p-2 sm:p-3">{num.direction}</td>
                               <td className="p-2 sm:p-3 text-xs max-w-[120px] truncate" title={num.supplier || undefined}>
                                 {num.supplier || '—'}
                               </td>
+                              <td className="p-2 sm:p-3">
+                                {num.country_name} ({num.country_code})
+                              </td>
+                              <td className="p-2 sm:p-3">{num.sms_capability}</td>
+                              <td className="p-2 sm:p-3">{num.direction}</td>
+                              <td className="p-2 sm:p-3 text-center font-semibold">{num.available_numbers ?? 0}</td>
+                              <td className="p-2 sm:p-3">{num.number_type}</td>
+                              <td className="p-2 sm:p-3 text-xs sm:text-sm">{num.specification || '-'}</td>
                               <td className="p-2 sm:p-3 text-right whitespace-nowrap">
                                 {num.supplier_mrc != null ? `${supCur} ${formatDecimal(num.supplier_mrc, 2)}` : '—'}
                               </td>
@@ -3010,6 +3036,8 @@ export default function AdminDashboard() {
                               <td className="p-2 sm:p-3">{num.supplier_currency || (num.supplier_mrc != null || num.supplier_nrc != null ? num.currency : '—')}</td>
                               <td className="p-2 sm:p-3 text-center">{num.moq}</td>
                               <td className="p-2 sm:p-3 text-xs">{num.bill_pulse || '-'}</td>
+                              <td className="p-2 sm:p-3 text-xs">{(num.features as any)?.voice || '—'}</td>
+                              <td className="p-2 sm:p-3 text-xs">{(num.features as any)?.sms || '—'}</td>
                               <td className="p-2 sm:p-3 text-center">
                                 <div className="flex flex-wrap gap-1 justify-center">
                                   <button
@@ -3035,7 +3063,7 @@ export default function AdminDashboard() {
                             </tr>
                             {isExpanded && (
                               <tr className="bg-gray-50">
-                                <td colSpan={13} className="p-3 sm:p-4">
+                                <td colSpan={15} className="p-3 sm:p-4">
                                   {inventoryPricingDetailContent(num)}
                                 </td>
                               </tr>

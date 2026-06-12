@@ -175,6 +175,26 @@ export default function NumberFileUpload({
         // Order matters: specific supplier/customer columns before generic ones (Rates-style sheets).
         const optionalColumns: OptCol[] = [
             {
+                keywords: ['supplier', 'provider', 'vendor'],
+                name: 'Supplier',
+                rejectIfIncludes: [
+                    'mrc',
+                    'nrc',
+                    'currency',
+                    'inbound',
+                    'outbound',
+                    'sms',
+                    'call',
+                    'fee',
+                    'mobile',
+                    'fixed',
+                    'incall',
+                    'national',
+                    'geographic',
+                    'other',
+                ],
+            },
+            {
                 keywords: ['sms/voice', 'sms voice', 'sms capability', 'sms_capability', 'capability', 'voice only', 'sms only', 'both'],
                 name: 'SMS/Voice',
                 rejectIfIncludes: ['call', 'inbound', 'outbound', 'fixed', 'mobile', 'fee', '/min', '/msg', 'per min', 'per msg', 'mrc', 'nrc'],
@@ -196,7 +216,17 @@ export default function NumberFileUpload({
             },
             { keywords: ['specification', 'spec', 'prefix', 'area', 'remarks'], name: 'Specification' },
             { keywords: ['supplier mrc'], name: 'Supplier MRC' },
+            {
+                keywords: ['mrc', 'monthly', 'recurring'],
+                name: 'Supplier MRC',
+                rejectIfIncludes: ['customer'],
+            },
             { keywords: ['supplier nrc'], name: 'Supplier NRC' },
+            {
+                keywords: ['nrc', 'non-recurring', 'setup'],
+                name: 'Supplier NRC',
+                rejectIfIncludes: ['customer'],
+            },
             { keywords: ['supplier currency', 'supplier curr'], name: 'Supplier Currency' },
             {
                 keywords: ['supplier incall', 'supplier in call', 'supplier inbound call'],
@@ -215,38 +245,8 @@ export default function NumberFileUpload({
             { keywords: ['supplier other', 'supplier other fees'], name: 'Supplier Other Fees' },
             { keywords: ['customer mrc'], name: 'Customer MRC' },
             { keywords: ['customer nrc'], name: 'Customer NRC' },
-            {
-                keywords: ['mrc', 'monthly', 'recurring'],
-                name: 'MRC',
-                rejectIfIncludes: ['supplier', 'customer'],
-            },
-            {
-                keywords: ['nrc', 'non-recurring', 'setup'],
-                name: 'NRC',
-                rejectIfIncludes: ['supplier', 'customer'],
-            },
             { keywords: ['currency', 'curr'], name: 'Currency', rejectIfIncludes: ['supplier'] },
             { keywords: ['moq', 'minimum', 'min_order', 'min order'], name: 'MOQ' },
-            {
-                keywords: ['supplier', 'provider', 'vendor'],
-                name: 'Supplier',
-                rejectIfIncludes: [
-                    'mrc',
-                    'nrc',
-                    'currency',
-                    'inbound',
-                    'outbound',
-                    'sms',
-                    'call',
-                    'fee',
-                    'mobile',
-                    'fixed',
-                    'incall',
-                    'national',
-                    'geographic',
-                    'other',
-                ],
-            },
             { keywords: ['bill_pulse', 'pulse', 'billing', 'bill pulse'], name: 'Bill Pulse' },
             { keywords: ['requirements', 'req', 'remarks'], name: 'Requirements' },
             { keywords: ['customer incall', 'customer in call'], name: 'Customer Incall' },
@@ -286,7 +286,17 @@ export default function NumberFileUpload({
                 rejectIfIncludes: ['supplier', 'customer', 'mrc', 'nrc', 'inbound', 'outbound', 'sms', 'call'],
             },
             { keywords: ['voice_feature', 'voice feature'], name: 'Voice Feature', rejectIfIncludes: ['sms feature'] },
+            {
+                keywords: ['voice'],
+                name: 'Voice Feature',
+                rejectIfIncludes: ['sms/voice', 'sms voice', 'only', 'inbound', 'outbound', 'feature'],
+            },
             { keywords: ['sms_feature', 'sms feature'], name: 'SMS Feature', rejectIfIncludes: ['voice feature'] },
+            {
+                keywords: ['sms'],
+                name: 'SMS Feature',
+                rejectIfIncludes: ['sms/voice', 'sms voice', 'inbound', 'outbound', 'customer', 'supplier', 'feature'],
+            },
             { keywords: ['reach'], name: 'Reach' },
             { keywords: ['emergency', 'emergency_services', 'emergency services'], name: 'Emergency Services' },
         ]
@@ -340,19 +350,35 @@ export default function NumberFileUpload({
             return []
         }
 
-        // Try to find header row (look for required column names, including "destination" for Rates-style files)
+        // Try to find header row (Rates-style sheets may have a title row with "Features" above column headers)
         let headerRowIndex = -1
-        const headerKeywords = ['country', 'destination', 'sms', 'voice', 'direction', 'supplier', 'type', 'mrc', 'nrc']
 
-        for (let i = 0; i < Math.min(5, data.length); i++) {
+        for (let i = 0; i < Math.min(6, data.length); i++) {
             const row = data[i]
-            if (row && row.some((cell: any) =>
-                headerKeywords.some(keyword =>
-                    String(cell || '').replace(/\s+/g, ' ').toLowerCase().trim().includes(keyword)
-                )
-            )) {
+            if (!row || row.length === 0) continue
+            const norms = row.map((cell: any) => normalizeHeader(cell))
+            const hasCountry = norms.some((n) => n.includes('country') || n.includes('destination'))
+            const hasSupplier = norms.some((n) => n === 'supplier' || (n.includes('supplier') && !n.includes('currency')))
+            const hasPricing = norms.some((n) => n.includes('mrc') || n.includes('nrc') || n.includes('number type'))
+            if (hasCountry && (hasSupplier || hasPricing)) {
                 headerRowIndex = i
                 break
+            }
+        }
+
+        // Fallback: look for common header keywords in the first few rows
+        if (headerRowIndex === -1) {
+            const headerKeywords = ['country', 'destination', 'sms', 'voice', 'direction', 'supplier', 'type', 'mrc', 'nrc']
+            for (let i = 0; i < Math.min(5, data.length); i++) {
+                const row = data[i]
+                if (row && row.some((cell: any) =>
+                    headerKeywords.some(keyword =>
+                        String(cell || '').replace(/\s+/g, ' ').toLowerCase().trim().includes(keyword)
+                    )
+                )) {
+                    headerRowIndex = i
+                    break
+                }
             }
         }
 
@@ -417,13 +443,14 @@ export default function NumberFileUpload({
                 const value = row[columnMap['sms/voice']]
                 if (value !== undefined && value !== null && String(value).trim()) {
                     const capValue = String(value).trim()
+                    const capNorm = capValue.toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim()
                     if (['SMS only', 'Voice only', 'Both'].includes(capValue)) {
                         smsCapability = capValue
-                    } else if (capValue.toLowerCase().includes('sms') && capValue.toLowerCase().includes('voice')) {
+                    } else if (capNorm.includes('sms') && capNorm.includes('voice')) {
                         smsCapability = 'Both'
-                    } else if (capValue.toLowerCase().includes('sms')) {
+                    } else if (capNorm.includes('sms')) {
                         smsCapability = 'SMS only'
-                    } else if (capValue.toLowerCase().includes('voice')) {
+                    } else if (capNorm.includes('voice')) {
                         smsCapability = 'Voice only'
                     }
                     // If value doesn't match any, leave undefined (will default to "Both")
@@ -436,13 +463,14 @@ export default function NumberFileUpload({
                 const value = row[columnMap['direction']]
                 if (value !== undefined && value !== null && String(value).trim()) {
                     const dirValue = String(value).trim()
+                    const dirNorm = dirValue.toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim()
                     if (['Inbound only', 'Outbound only', 'Both'].includes(dirValue)) {
                         direction = dirValue
-                    } else if (dirValue.toLowerCase().includes('inbound') && dirValue.toLowerCase().includes('outbound')) {
+                    } else if (dirNorm.includes('inbound') && dirNorm.includes('outbound')) {
                         direction = 'Both'
-                    } else if (dirValue.toLowerCase().includes('inbound')) {
+                    } else if (dirNorm.includes('inbound')) {
                         direction = 'Inbound only'
-                    } else if (dirValue.toLowerCase().includes('outbound')) {
+                    } else if (dirNorm.includes('outbound')) {
                         direction = 'Outbound only'
                     }
                     // If value doesn't match any, leave undefined (will default to "Both")
@@ -498,7 +526,7 @@ export default function NumberFileUpload({
                         ) {
                             // "Fixed Mobile" etc. = fixed line, not cellular Mobile type
                             extracted.number_type = 'Geographic'
-                        } else if (normalized === 'fixed' || normalized === 'national') {
+                        } else if (normalized === 'landline' || normalized === 'fixed line') {
                             extracted.number_type = 'Geographic'
                         } else if (normalized === 'mobile') {
                             extracted.number_type = 'Mobile'
@@ -508,27 +536,27 @@ export default function NumberFileUpload({
                             extracted.number_type = 'Non-Geographic'
                         } else if (normalized === 'geographic') {
                             extracted.number_type = 'Geographic'
+                        } else if (normalized === 'national') {
+                            extracted.number_type = 'National'
+                        } else if (normalized === 'local') {
+                            extracted.number_type = 'Local'
                         } else if (
                             ['Geographic', 'Mobile', 'Toll-Free', 'Non-Geographic', '2WV'].includes(typeValue)
                         ) {
                             extracted.number_type = typeValue
-                        }
+                        } 
                     }
                 }
             }
 
-            // Customer MRC / NRC
-            const mrcCol =
-                columnMap['customer mrc'] !== undefined ? columnMap['customer mrc'] : columnMap['mrc']
-            if (mrcCol !== undefined) {
-                const n = parseSpreadsheetFloat(row[mrcCol])
+            // Customer MRC / NRC (Rates sheets use explicit "Customer MRC" / "Customer NRC" columns)
+            if (columnMap['customer mrc'] !== undefined) {
+                const n = parseSpreadsheetFloat(row[columnMap['customer mrc']])
                 if (n !== undefined) extracted.mrc = n
             }
 
-            const nrcCol =
-                columnMap['customer nrc'] !== undefined ? columnMap['customer nrc'] : columnMap['nrc']
-            if (nrcCol !== undefined) {
-                const n = parseSpreadsheetFloat(row[nrcCol])
+            if (columnMap['customer nrc'] !== undefined) {
+                const n = parseSpreadsheetFloat(row[columnMap['customer nrc']])
                 if (n !== undefined) extracted.nrc = n
             }
 
@@ -717,6 +745,14 @@ export default function NumberFileUpload({
                 }
             }
 
+            if (Object.keys(extracted.features).length === 0) {
+                delete extracted.features
+            }
+
+            if (extracted.available_numbers === undefined) {
+                extracted.available_numbers = 100
+            }
+
             numbers.push(extracted)
         }
 
@@ -846,186 +882,147 @@ export default function NumberFileUpload({
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 max-w-full overflow-hidden">
             {/* Format Guide Card */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-[#215F9A] mb-3">Expected File Format</h4>
-                <p className="text-sm text-gray-700 mb-3">
-                    Your file should contain a table with at least a <strong>Country</strong> or <strong>Destination</strong> column (e.g. Rates-style sheets). SMS/Voice and Direction default to <strong>&quot;Both&quot;</strong>. <strong>Fixed</strong>/<strong>National</strong> map to Geographic; <strong>Fixed Mobile</strong> (combined label) also maps to Geographic, not Mobile. <strong>2-way-voice</strong> / <strong>2 way voice</strong> map to <strong>2WV</strong>. Standalone <strong>Mobile</strong> maps to Mobile.
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+                <h4 className="font-semibold text-[#215F9A] mb-2 sm:mb-3 text-sm sm:text-base">Expected File Format</h4>
+                <p className="text-xs sm:text-sm text-gray-700 mb-3">
+                    Your file should match the <strong>Rates</strong> sheet layout: <strong>Supplier</strong> and <strong>Country</strong> first, then SMS/Voice, Direction, pricing columns, and optional <strong>Features</strong> (Voice, SMS). SMS/Voice and Direction default to <strong>&quot;Both&quot;</strong> when omitted. Empty Available Numbers defaults to <strong>100</strong>. Bare <strong>MRC</strong>/<strong>NRC</strong> columns are treated as supplier rates; <strong>Customer MRC</strong>/<strong>Customer NRC</strong> are customer rates.
                 </p>
 
                 {/* Sample Data Table */}
-                <div className="bg-white rounded-lg p-3 border border-blue-100 mb-4 overflow-x-auto">
+                <div className="bg-white rounded-lg p-2 sm:p-3 border border-blue-100 mb-4 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
                     <p className="text-xs font-semibold text-gray-600 mb-2">Sample Data Format:</p>
-                    <table className="w-full text-xs border-collapse">
+                    <table className="w-full text-[10px] sm:text-xs border-collapse min-w-[1100px]">
                         <thead>
                             <tr className="bg-[#215F9A] text-white">
-                                <th className="p-2 text-left border">Country</th>
-                                <th className="p-2 text-left border">SMS/Voice</th>
-                                <th className="p-2 text-left border">Direction</th>
-                                <th className="p-2 text-left border">Available Numbers</th>
-                                <th className="p-2 text-left border">Number Type</th>
-                                <th className="p-2 text-left border">Specification</th>
-                                <th className="p-2 text-left border">MRC</th>
-                                <th className="p-2 text-left border">NRC</th>
-                                <th className="p-2 text-left border">Currency</th>
-                                <th className="p-2 text-left border">MOQ</th>
-                                <th className="p-2 text-left border">Supplier</th>
-                                <th className="p-2 text-left border">Bill Pulse</th>
-                                <th className="p-2 text-left border">Inbound Call</th>
-                                <th className="p-2 text-left border">Outbound Call Fixed</th>
-                                <th className="p-2 text-left border">Outbound Call Mobile</th>
-                                <th className="p-2 text-left border">Inbound SMS</th>
-                                <th className="p-2 text-left border">Outbound SMS</th>
-                                <th className="p-2 text-left border">Other Fees</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Country</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">SMS/Voice</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Direction</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Available Numbers</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Number Type</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Specification</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">MRC</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">NRC</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer MRC</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer NRC</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier Currency</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Currency</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">MOQ</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Bill Pulse</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Inbound Call</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Outbound Call Fixed</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Outbound Call Mobile</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Inbound SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Outbound SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Other Fees</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Voice</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">SMS</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr className="bg-gray-50">
-                                <td className="p-2 border">Canada</td>
-                                <td className="p-2 border">Both</td>
-                                <td className="p-2 border">Both</td>
-                                <td className="p-2 border">100</td>
-                                <td className="p-2 border">Geographic</td>
-                                <td className="p-2 border">Landline</td>
-                                <td className="p-2 border">1.25</td>
-                                <td className="p-2 border">10</td>
-                                <td className="p-2 border">USD</td>
-                                <td className="p-2 border">1</td>
-                                <td className="p-2 border">Globe Teleservices</td>
-                                <td className="p-2 border">60/60</td>
-                                <td className="p-2 border">0.0050</td>
-                                <td className="p-2 border">0.0080</td>
-                                <td className="p-2 border">0.0120</td>
-                                <td className="p-2 border">0.0030</td>
-                                <td className="p-2 border">0.0040</td>
-                                <td className="p-2 border">N/A</td>
-                            </tr>
-                            <tr>
-                                <td className="p-2 border">United States</td>
-                                <td className="p-2 border">Voice only</td>
-                                <td className="p-2 border">Inbound only</td>
-                                <td className="p-2 border">50</td>
-                                <td className="p-2 border">Toll-Free</td>
-                                <td className="p-2 border">800 Prefix</td>
-                                <td className="p-2 border">2.50</td>
-                                <td className="p-2 border">15</td>
-                                <td className="p-2 border">USD</td>
-                                <td className="p-2 border">5</td>
-                                <td className="p-2 border">BICS</td>
-                                <td className="p-2 border">1/6</td>
-                                <td className="p-2 border">0.0100</td>
-                                <td className="p-2 border">N/A</td>
-                                <td className="p-2 border">N/A</td>
-                                <td className="p-2 border">N/A</td>
-                                <td className="p-2 border">N/A</td>
-                                <td className="p-2 border">$5 setup</td>
-                            </tr>
-                            <tr className="bg-gray-50">
-                                <td className="p-2 border">France</td>
-                                <td className="p-2 border">SMS only</td>
-                                <td className="p-2 border">Both</td>
-                                <td className="p-2 border">200</td>
-                                <td className="p-2 border">Mobile</td>
-                                <td className="p-2 border">France (07)</td>
-                                <td className="p-2 border">1.80</td>
-                                <td className="p-2 border">12</td>
-                                <td className="p-2 border">EUR</td>
-                                <td className="p-2 border">10</td>
-                                <td className="p-2 border">Orange</td>
-                                <td className="p-2 border">20/20</td>
-                                <td className="p-2 border">N/A</td>
-                                <td className="p-2 border">N/A</td>
-                                <td className="p-2 border">N/A</td>
-                                <td className="p-2 border">0.0025</td>
-                                <td className="p-2 border">0.0035</td>
-                                <td className="p-2 border">N/A</td>
+                                <td className="p-1.5 sm:p-2 border">Riptec</td>
+                                <td className="p-1.5 sm:p-2 border">Albania</td>
+                                <td className="p-1.5 sm:p-2 border">Voice-Only</td>
+                                <td className="p-1.5 sm:p-2 border">Both</td>
+                                <td className="p-1.5 sm:p-2 border">100</td>
+                                <td className="p-1.5 sm:p-2 border">local</td>
+                                <td className="p-1.5 sm:p-2 border"></td>
+                                <td className="p-1.5 sm:p-2 border">17.16</td>
+                                <td className="p-1.5 sm:p-2 border">17.16</td>
+                                <td className="p-1.5 sm:p-2 border">25</td>
+                                <td className="p-1.5 sm:p-2 border">25</td>
+                                <td className="p-1.5 sm:p-2 border">USD</td>
+                                <td className="p-1.5 sm:p-2 border">USD</td>
+                                <td className="p-1.5 sm:p-2 border">1</td>
+                                <td className="p-1.5 sm:p-2 border"></td>
+                                <td className="p-1.5 sm:p-2 border">yes</td>
+                                <td className="p-1.5 sm:p-2 border">yes</td>
+                                <td className="p-1.5 sm:p-2 border">yes</td>
+                                <td className="p-1.5 sm:p-2 border">no</td>
+                                <td className="p-1.5 sm:p-2 border">no</td>
+                                <td className="p-1.5 sm:p-2 border">0</td>
+                                <td className="p-1.5 sm:p-2 border">Supported</td>
+                                <td className="p-1.5 sm:p-2 border">Not Supported</td>
                             </tr>
                         </tbody>
                     </table>
+                    <p className="text-[10px] sm:text-xs text-gray-500 mt-2">Swipe horizontally on mobile to see all columns.</p>
                 </div>
 
                 {/* Column Reference */}
-                <div className="bg-white rounded-lg p-3 border border-blue-100">
+                <div className="bg-white rounded-lg p-2 sm:p-3 border border-blue-100 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
                     <p className="text-xs font-semibold text-gray-600 mb-2">Column Reference:</p>
-                    <table className="w-full text-xs">
+                    <table className="w-full text-[10px] sm:text-xs min-w-[480px]">
                         <thead>
                             <tr className="bg-gray-100">
-                                <th className="p-2 text-left font-semibold">Column Name</th>
-                                <th className="p-2 text-left font-semibold">Required</th>
-                                <th className="p-2 text-left font-semibold">Accepted Values</th>
+                                <th className="p-1.5 sm:p-2 text-left font-semibold">Column Name</th>
+                                <th className="p-1.5 sm:p-2 text-left font-semibold">Required</th>
+                                <th className="p-1.5 sm:p-2 text-left font-semibold">Accepted Values</th>
                             </tr>
                         </thead>
                         <tbody>
+                            <tr className="border-b">
+                                <td className="p-1.5 sm:p-2">Supplier</td>
+                                <td className="p-1.5 sm:p-2 text-gray-500">Optional</td>
+                                <td className="p-1.5 sm:p-2">Supplier name (e.g., Riptec)</td>
+                            </tr>
                             <tr className="border-b bg-red-50">
-                                <td className="p-2 font-medium">Country</td>
-                                <td className="p-2"><span className="text-red-600 font-semibold">Required</span></td>
-                                <td className="p-2">Country name or code (e.g., Canada, CA, United States, US)</td>
+                                <td className="p-1.5 sm:p-2 font-medium">Country</td>
+                                <td className="p-1.5 sm:p-2"><span className="text-red-600 font-semibold">Required</span></td>
+                                <td className="p-1.5 sm:p-2">Country name or code (e.g., Albania, AL)</td>
                             </tr>
                             <tr className="border-b">
-                                <td className="p-2">SMS/Voice</td>
-                                <td className="p-2 text-gray-500">Optional (default: Both)</td>
-                                <td className="p-2">SMS only, Voice only, Both</td>
+                                <td className="p-1.5 sm:p-2">SMS/Voice</td>
+                                <td className="p-1.5 sm:p-2 text-gray-500">Optional (default: Both)</td>
+                                <td className="p-1.5 sm:p-2">SMS only, Voice only, Both, Voice-Only, etc.</td>
                             </tr>
                             <tr className="border-b">
-                                <td className="p-2">Direction</td>
-                                <td className="p-2 text-gray-500">Optional (default: Both)</td>
-                                <td className="p-2">Inbound only, Outbound only, Both</td>
+                                <td className="p-1.5 sm:p-2">Direction</td>
+                                <td className="p-1.5 sm:p-2 text-gray-500">Optional (default: Both)</td>
+                                <td className="p-1.5 sm:p-2">Inbound only, Outbound only, Both, Inbound-only, etc.</td>
                             </tr>
                             <tr className="border-b">
-                                <td className="p-2">Available Numbers</td>
-                                <td className="p-2 text-gray-500">Optional</td>
-                                <td className="p-2">Number of available units (default: 1)</td>
+                                <td className="p-1.5 sm:p-2">Available Numbers</td>
+                                <td className="p-1.5 sm:p-2 text-gray-500">Optional</td>
+                                <td className="p-1.5 sm:p-2">Number of available units (default: 100)</td>
                             </tr>
                             <tr className="border-b">
-                                <td className="p-2">Number Type</td>
-                                <td className="p-2 text-gray-500">Optional</td>
-                                <td className="p-2">Geographic, Mobile, Toll-Free</td>
+                                <td className="p-1.5 sm:p-2">Number Type</td>
+                                <td className="p-1.5 sm:p-2 text-gray-500">Optional</td>
+                                <td className="p-1.5 sm:p-2">Geographic, Mobile, Toll-Free, local, etc.</td>
                             </tr>
                             <tr className="border-b">
-                                <td className="p-2">MRC</td>
-                                <td className="p-2 text-gray-500">Optional</td>
-                                <td className="p-2">Monthly recurring charge (e.g., 1.25, 2.50)</td>
+                                <td className="p-1.5 sm:p-2">MRC / NRC</td>
+                                <td className="p-1.5 sm:p-2 text-gray-500">Optional</td>
+                                <td className="p-1.5 sm:p-2">Supplier monthly / setup rates</td>
                             </tr>
                             <tr className="border-b">
-                                <td className="p-2">NRC</td>
-                                <td className="p-2 text-gray-500">Optional</td>
-                                <td className="p-2">Non-recurring charge (e.g., 10, 15)</td>
+                                <td className="p-1.5 sm:p-2">Customer MRC / NRC</td>
+                                <td className="p-1.5 sm:p-2 text-gray-500">Optional</td>
+                                <td className="p-1.5 sm:p-2">Customer monthly / setup rates</td>
                             </tr>
                             <tr className="border-b">
-                                <td className="p-2">Currency</td>
-                                <td className="p-2 text-gray-500">Optional</td>
-                                <td className="p-2">USD, EUR, GBP, CAD (default: USD)</td>
-                            </tr>
-                            <tr className="border-b">
-                                <td className="p-2">MOQ</td>
-                                <td className="p-2 text-gray-500">Optional</td>
-                                <td className="p-2">Minimum order quantity (default: 1)</td>
-                            </tr>
-                            <tr className="border-b">
-                                <td className="p-2">Supplier</td>
-                                <td className="p-2 text-gray-500">Optional</td>
-                                <td className="p-2">Supplier name (e.g., Globe Teleservices)</td>
-                            </tr>
-                            <tr className="border-b">
-                                <td className="p-2">Specification</td>
-                                <td className="p-2 text-gray-500">Optional</td>
-                                <td className="p-2">Prefix/Area (e.g., Landline, France (07))</td>
+                                <td className="p-1.5 sm:p-2">Voice / SMS (Features)</td>
+                                <td className="p-1.5 sm:p-2 text-gray-500">Optional</td>
+                                <td className="p-1.5 sm:p-2">Feature status (e.g., Supported, Not Supported)</td>
                             </tr>
                             <tr>
-                                <td className="p-2">Requirements</td>
-                                <td className="p-2 text-gray-500">Optional</td>
-                                <td className="p-2">Documentation requirements text</td>
+                                <td className="p-1.5 sm:p-2">Requirements</td>
+                                <td className="p-1.5 sm:p-2 text-gray-500">Optional</td>
+                                <td className="p-1.5 sm:p-2">Documentation requirements text</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                <p className="text-xs text-gray-600 mt-3">
-                    <strong>Note:</strong> Only Country is required. SMS/Voice defaults to "Both", Direction defaults to "Both", Number Type defaults to "Geographic".
+                <p className="text-[10px] sm:text-xs text-gray-600 mt-3">
+                    <strong>Note:</strong> Only Country is required. Empty Available Numbers defaults to 100. SMS/Voice and Direction default to &quot;Both&quot;. Number Type defaults to &quot;Geographic&quot;.
                 </p>
             </div>
 
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6">
                 <input
                     ref={fileInputRef}
                     type="file"
@@ -1137,27 +1134,33 @@ export default function NumberFileUpload({
                             </p>
                         </div>
                     </div>
-                    <div className="max-h-60 overflow-x-auto overflow-y-auto">
-                        <table className="w-full text-sm">
+                    <div className="max-h-60 overflow-x-auto overflow-y-auto -mx-1 px-1">
+                        <table className="w-full text-xs sm:text-sm min-w-[640px]">
                             <thead>
                                 <tr className="border-b bg-gray-100">
-                                    <th className="text-left p-2">Country</th>
-                                    <th className="text-left p-2">SMS/Voice</th>
-                                    <th className="text-left p-2">Direction</th>
-                                    <th className="text-left p-2">Available</th>
-                                    <th className="text-left p-2">Type</th>
+                                    <th className="text-left p-2 whitespace-nowrap">Supplier</th>
+                                    <th className="text-left p-2 whitespace-nowrap">Country</th>
+                                    <th className="text-left p-2 whitespace-nowrap">SMS/Voice</th>
+                                    <th className="text-left p-2 whitespace-nowrap">Direction</th>
+                                    <th className="text-left p-2 whitespace-nowrap">Available</th>
+                                    <th className="text-left p-2 whitespace-nowrap">Type</th>
+                                    <th className="text-left p-2 whitespace-nowrap">Voice</th>
+                                    <th className="text-left p-2 whitespace-nowrap">SMS</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {extractedNumbers.slice(0, 10).map((num, idx) => (
                                     <tr key={idx} className="border-b">
+                                        <td className="p-2">{num.supplier || '—'}</td>
                                         <td className="p-2">
                                             {countries.find(c => c.id === num.country_id)?.name || 'N/A'}
                                         </td>
                                         <td className="p-2">{num.sms_capability || 'Both'}</td>
                                         <td className="p-2">{num.direction || 'Both'}</td>
-                                        <td className="p-2">{num.available_numbers || 1}</td>
+                                        <td className="p-2">{num.available_numbers ?? 100}</td>
                                         <td className="p-2">{num.number_type || 'Geographic'}</td>
+                                        <td className="p-2">{num.features?.voice || '—'}</td>
+                                        <td className="p-2">{num.features?.sms || '—'}</td>
                                     </tr>
                                 ))}
                             </tbody>
