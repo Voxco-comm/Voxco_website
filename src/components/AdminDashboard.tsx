@@ -85,9 +85,9 @@ interface Features {
 interface NumberFormData {
   country_id: string
   available_numbers: string  // Store as string to allow empty
-  number_type: 'Geographic' | 'Mobile' | 'Toll-Free' | 'Non-Geographic' | '2WV'
-  sms_capability: 'SMS only' | 'Voice only' | 'Both'
-  direction: 'Inbound only' | 'Outbound only' | 'Both'
+  number_type: string
+  sms_capability: string
+  direction: string
   mrc: string  // Store as string to allow empty/decimal
   nrc: string  // Store as string to allow empty/decimal
   currency: string
@@ -308,10 +308,10 @@ export default function AdminDashboard() {
   const [pendingCustomRequestsCount, setPendingCustomRequestsCount] = useState(0)
   const [formData, setFormData] = useState<NumberFormData>({
     country_id: '',
-    available_numbers: '100',
-    number_type: 'Geographic',
-    sms_capability: 'Both',
-    direction: 'Both',
+    available_numbers: '',
+    number_type: '',
+    sms_capability: ' ',
+    direction: ' ',
     mrc: '',
     nrc: '',
     currency: 'USD',
@@ -1399,7 +1399,7 @@ export default function AdminDashboard() {
     }
 
     // Parse and validate numeric fields
-    const availableNumbers = parseIntField(formData.available_numbers, 100)
+    const availableNumbers = parseIntField(formData.available_numbers, 0)
     const mrc = parseNumberField(formData.mrc, 0)
     const nrc = parseNumberField(formData.nrc, 0)
     const moq = parseIntField(formData.moq, 1)
@@ -1450,10 +1450,10 @@ export default function AdminDashboard() {
       setSuccess('Number added to inventory successfully!')
       setFormData({
         country_id: '',
-        available_numbers: '100',
-        number_type: 'Geographic',
-        sms_capability: 'Both',
-        direction: 'Both',
+        available_numbers: '',
+        number_type: '',
+        sms_capability: '',
+        direction: '',
         mrc: '',
         nrc: '',
         currency: 'USD',
@@ -1484,7 +1484,7 @@ export default function AdminDashboard() {
     // Valid values for constrained fields
     const validSmsCapabilities = ['SMS only', 'Voice only', 'Both']
     const validDirections = ['Inbound only', 'Outbound only', 'Both']
-    const validNumberTypes = ['Geographic', 'Mobile', 'Toll-Free', 'Non-Geographic', '2WV']
+    const validNumberTypes = ['Geographic', 'Mobile', 'Toll-Free', 'Non-Geographic', '2WV', "Local", "National", "Shared Cost", "DID", "Fixed"]
 
     try {
       const numbersToAdd = extractedNumbers.map((num, index) => {
@@ -1496,19 +1496,19 @@ export default function AdminDashboard() {
         // Default sms_capability to "Both" if not provided or invalid
         let smsCapability = num.sms_capability
         if (!smsCapability || !validSmsCapabilities.includes(smsCapability)) {
-          smsCapability = 'Both'
+          smsCapability = ''
         }
 
         // Default direction to "Both" if not provided or invalid
         let direction = num.direction
         if (!direction || !validDirections.includes(direction)) {
-          direction = 'Both'
+          direction = ''
         }
 
         // Default number_type to "Geographic" if not provided or invalid
-        let numberType = num.number_type || 'Geographic'
+        let numberType = num.number_type
         if (!validNumberTypes.includes(numberType)) {
-          numberType = 'Geographic'
+          numberType = ''
         }
 
         const soc = num.supplier_other_charges
@@ -1519,7 +1519,7 @@ export default function AdminDashboard() {
 
         return {
           country_id: num.country_id,
-          available_numbers: num.available_numbers ?? 100,
+          available_numbers: num.available_numbers ?? 1,
           number_type: numberType,
           sms_capability: smsCapability,
           direction: direction,
@@ -1548,7 +1548,6 @@ export default function AdminDashboard() {
 
       for (let i = 0; i < numbersToAdd.length; i += batchSize) {
         const batch = numbersToAdd.slice(i, i + batchSize)
-        console.log('Inserting batch:', batch)
         const { error } = await supabase.from('numbers').insert(batch)
 
         if (error) {
@@ -2240,7 +2239,7 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {showAddNumber && (
+{showAddNumber && (
                 <form
                   onSubmit={(e) => {
                     e.preventDefault()
@@ -2412,7 +2411,7 @@ export default function AdminDashboard() {
                       </select>
                     </div>
 
-                    <div className="col-span-2 text-sm font-semibold text-[#215F9A] mt-2">Supplier rate (admin only)</div>
+                    <div className="col-span-1 md:col-span-2 text-sm font-semibold text-[#215F9A] mt-2">Supplier rate (admin only)</div>
                     <div>
                       <label className="block text-sm font-medium mb-2">Supplier MRC</label>
                       <input
@@ -2544,8 +2543,8 @@ export default function AdminDashboard() {
                   {/* Customer other charges */}
                   <div className="mt-4">
                     <label className="block text-sm font-medium mb-2">Customer other charges</label>
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
+                    <div className="border rounded-lg overflow-x-auto">
+                      <table className="w-full text-sm min-w-[500px] md:min-w-0">
                         <thead className="bg-gray-100">
                           <tr>
                             <th className="p-2 text-left">Charge Type</th>
@@ -2699,8 +2698,8 @@ export default function AdminDashboard() {
                   {/* Supplier other charges (add form) */}
                   <div className="mt-4">
                     <label className="block text-sm font-medium mb-2">Supplier other charges (admin)</label>
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
+                    <div className="border rounded-lg overflow-x-auto">
+                      <table className="w-full text-sm min-w-[500px] md:min-w-0">
                         <thead className="bg-gray-100">
                           <tr>
                             <th className="p-2 text-left">Charge Type</th>
@@ -2762,8 +2761,8 @@ export default function AdminDashboard() {
                   {/* Features Table */}
                   <div className="mt-4">
                     <label className="block text-sm font-medium mb-2">Features</label>
-                    <div className="border rounded-lg">
-                      <table className="w-full text-sm">
+                    <div className="border rounded-lg overflow-x-auto">
+                      <table className="w-full text-sm min-w-[500px] md:min-w-0">
                         <thead className="bg-gray-100">
                           <tr>
                             <th className="p-2 text-left">Feature</th>

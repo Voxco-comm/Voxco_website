@@ -540,6 +540,12 @@ export default function NumberFileUpload({
                             extracted.number_type = 'National'
                         } else if (normalized === 'local') {
                             extracted.number_type = 'Local'
+                        } else if (normalized === 'shared cost') {
+                            extracted.number_type = 'Shared Cost'
+                        } else if (normalized === 'did') {
+                            extracted.number_type = 'DID'
+                        } else if (normalized === 'fixed') {
+                            extracted.number_type = 'Fixed'
                         } else if (
                             ['Geographic', 'Mobile', 'Toll-Free', 'Non-Geographic', '2WV'].includes(typeValue)
                         ) {
