@@ -605,7 +605,7 @@ export default function Numbers() {
                         <tr key={`other-charge-${key}-${idx}`} className="border-b hover:bg-gray-50">
                           <td className="p-3 text-sm">{formattedKey}</td>
                           <td className="p-3 text-right text-sm font-medium">
-                            {modal.data.currency} {typeof value === 'number' ? formatDecimal(value) : value}
+                            {modal.data.currency} {typeof value === 'number' ? formatDecimal(value) : 0}
                           </td>
                           <td className="p-3 text-sm text-gray-600">{unit}</td>
                         </tr>

@@ -10,17 +10,17 @@ import { parseSpreadsheetFloat, parseSpreadsheetInt } from '@/lib/utils/formatNu
 // Levenshtein distance for fuzzy matching country names
 function levenshteinDistance(a: string, b: string): number {
     const matrix: number[][] = []
-    
+
     // Increment along the first column of each row
     for (let i = 0; i <= b.length; i++) {
         matrix[i] = [i]
     }
-    
+
     // Increment each column in the first row
     for (let j = 0; j <= a.length; j++) {
         matrix[0][j] = j
     }
-    
+
     // Fill in the rest of the matrix
     for (let i = 1; i <= b.length; i++) {
         for (let j = 1; j <= a.length; j++) {
@@ -35,17 +35,17 @@ function levenshteinDistance(a: string, b: string): number {
             }
         }
     }
-    
+
     return matrix[b.length][a.length]
 }
 
 // Find closest country match using fuzzy matching
 function findClosestCountry(
-    input: string, 
+    input: string,
     countries: Array<{ id: string; name: string; country_code: string }>
 ): { country: typeof countries[0] | null; similarity: number; suggestion: string | null } {
     const normalizedInput = input.toLowerCase().trim()
-    
+
     // First try exact match
     const exactMatch = countries.find(
         c => c.name.toLowerCase() === normalizedInput ||
@@ -54,31 +54,31 @@ function findClosestCountry(
     if (exactMatch) {
         return { country: exactMatch, similarity: 1, suggestion: null }
     }
-    
+
     // Try fuzzy matching on country names
     let bestMatch: typeof countries[0] | null = null
     let bestScore = Infinity
-    
+
     for (const country of countries) {
         const nameDistance = levenshteinDistance(normalizedInput, country.name.toLowerCase())
         const codeDistance = levenshteinDistance(normalizedInput, country.country_code.toLowerCase())
         const minDistance = Math.min(nameDistance, codeDistance)
-        
+
         if (minDistance < bestScore) {
             bestScore = minDistance
             bestMatch = country
         }
     }
-    
+
     // Calculate similarity (0-1)
     const maxLen = Math.max(normalizedInput.length, bestMatch?.name.length || 0)
     const similarity = maxLen > 0 ? 1 - (bestScore / maxLen) : 0
-    
+
     // Only suggest if similarity is > 70% (to avoid false positives)
     if (similarity >= 0.7 && bestMatch) {
         return { country: null, similarity, suggestion: bestMatch.name }
     }
-    
+
     return { country: null, similarity: 0, suggestion: null }
 }
 
@@ -416,7 +416,7 @@ export default function NumberFileUpload({
                 if (value !== undefined && value !== null && String(value).trim()) {
                     const countryInput = String(value).trim()
                     const { country, similarity, suggestion } = findClosestCountry(countryInput, countries)
-                    
+
                     if (country) {
                         // Exact match found
                         countryId = country.id
@@ -550,7 +550,7 @@ export default function NumberFileUpload({
                             ['Geographic', 'Mobile', 'Toll-Free', 'Non-Geographic', '2WV'].includes(typeValue)
                         ) {
                             extracted.number_type = typeValue
-                        } 
+                        }
                     }
                 }
             }
@@ -899,36 +899,70 @@ export default function NumberFileUpload({
                 {/* Sample Data Table */}
                 <div className="bg-white rounded-lg p-2 sm:p-3 border border-blue-100 mb-4 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
                     <p className="text-xs font-semibold text-gray-600 mb-2">Sample Data Format:</p>
-                    <table className="w-full text-[10px] sm:text-xs border-collapse min-w-[1100px]">
+                    <table className="w-full text-[10px] sm:text-xs border-collapse min-w-[1500px]">
                         <thead>
+                            {/* TOP ROW: For merged headers and section groupings */}
                             <tr className="bg-[#215F9A] text-white">
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Country</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">SMS/Voice</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Direction</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Available Numbers</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Number Type</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Specification</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">MRC</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">NRC</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer MRC</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer NRC</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier Currency</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Currency</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">MOQ</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Bill Pulse</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Inbound Call</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Outbound Call Fixed</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Outbound Call Mobile</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Inbound SMS</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Outbound SMS</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Other Fees</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Voice</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">SMS</th>
+                                {/* Ungrouped columns stretch down across both header rows */}
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Supplier</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Country</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">SMS/Voice</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Direction</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Number Type</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Specification</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Available Numbers</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">MRC</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">NRC</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Customer MRC</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Customer NRC</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Supplier Currency</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Customer Currency</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">MOQ</th>
+                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Bill Pulse</th>
+
+                                {/* Group 1: Admin / Customer Charges (6 Columns) */}
+                                <th colSpan={6} className="bg-[#781d04] p-1.5 sm:p-2 text-center border whitespace-nowrap font-bold">
+                                    Other charges(Admin only) - Customer Charges
+                                </th>
+
+                                {/* Group 2: Supplier Charges (6 Columns) */}
+                                <th colSpan={6} className="bg-[#590d00] p-1.5 sm:p-2 text-center border whitespace-nowrap font-bold">
+                                    Other charges(Supplier) - Supplier Charges
+                                </th>
+
+                                {/* Group 2:  Features  */}
+                                <th colSpan={4} className="bg-[#545d00] p-1.5 sm:p-2 text-center border whitespace-nowrap font-bold">
+                                    Features
+                                </th>
+                            </tr>
+
+                            {/* BOTTOM ROW: Sub-headers for the grouped elements */}
+                            <tr className="bg-[#3a4d7d] text-white">
+                                {/* Under Customer Charges */}
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Inbound Call</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Outbound Call Fixed</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Outbound Call Mobile</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Inbound SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Outbound SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Other Fees</th>
+
+                                {/* Under Supplier Charges */}
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Inbound Call</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Outbound Call Fixed</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Outbound Call Mobile</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Inbound SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Outbound SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Other Fees</th>
+
+                                {/* Under Features */}
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Voice</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Reach</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Emergency Services</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr className="bg-gray-50">
+                            <tr className="bg-gray-50 text-gray-800">
                                 <td className="p-1.5 sm:p-2 border">Riptec</td>
                                 <td className="p-1.5 sm:p-2 border">Albania</td>
                                 <td className="p-1.5 sm:p-2 border">Voice-Only</td>
@@ -944,12 +978,23 @@ export default function NumberFileUpload({
                                 <td className="p-1.5 sm:p-2 border">USD</td>
                                 <td className="p-1.5 sm:p-2 border">1</td>
                                 <td className="p-1.5 sm:p-2 border"></td>
+                                {/* Customer Metrics */}
                                 <td className="p-1.5 sm:p-2 border">yes</td>
                                 <td className="p-1.5 sm:p-2 border">yes</td>
                                 <td className="p-1.5 sm:p-2 border">yes</td>
                                 <td className="p-1.5 sm:p-2 border">no</td>
                                 <td className="p-1.5 sm:p-2 border">no</td>
                                 <td className="p-1.5 sm:p-2 border">0</td>
+                                {/* Supplier Metrics */}
+                                <td className="p-1.5 sm:p-2 border">yes</td>
+                                <td className="p-1.5 sm:p-2 border">yes</td>
+                                <td className="p-1.5 sm:p-2 border">yes</td>
+                                <td className="p-1.5 sm:p-2 border">no</td>
+                                <td className="p-1.5 sm:p-2 border">no</td>
+                                <td className="p-1.5 sm:p-2 border">0</td>
+                                {/* Additional End Columns */}
+                                <td className="p-1.5 sm:p-2 border">Supported</td>
+                                <td className="p-1.5 sm:p-2 border">Not Supported</td>
                                 <td className="p-1.5 sm:p-2 border">Supported</td>
                                 <td className="p-1.5 sm:p-2 border">Not Supported</td>
                             </tr>
