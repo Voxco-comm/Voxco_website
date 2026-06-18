@@ -654,14 +654,21 @@ export default function NumberFileUpload({
                 extracted.other_charges.outbound_sms = cellNumericOrNull(row[outboundSmsCol])
             }
 
-            const otherFeesCol = columnMap['customer other fees'] ?? columnMap['other fees']
+            console.log('Customer Other Fees:', columnMap['customer other fees'])
+            console.log("column map", columnMap)
+
+            const otherFeesCol = columnMap['customer other fees'] ?? columnMap['customer other fees']
             if (otherFeesCol !== undefined) {
+                console.log('Other Fees Column:', otherFeesCol)
                 const value = row[otherFeesCol]
+                console.log('Value:', value)
                 if (value !== undefined && value !== null && String(value).trim()) {
                     const n = parseSpreadsheetFloat(value)
+                    console.log('Number:', n)
                     if (n !== undefined) extracted.other_charges.other_fees = n
                     else {
                         const s = String(value).trim()
+                        console.log('String:', s)
                         extracted.other_charges.other_fees = /^n\/?a$/i.test(s) ? null : s
                     }
                 } else {
@@ -758,6 +765,8 @@ export default function NumberFileUpload({
             if (extracted.available_numbers === undefined) {
                 extracted.available_numbers = 100
             }
+
+            console.log('Extracted:', extracted)
 
             numbers.push(extracted)
         }

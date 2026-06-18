@@ -1968,7 +1968,9 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Other fees (customer)</p>
-              <p className="font-medium">{otherCharges.other_fees || 'N/A'}</p>
+              <p className="font-medium">
+                {otherCharges.other_fees != null && otherCharges.other_fees !== '' ? String(otherCharges.other_fees) : 'N/A'}
+              </p>
             </div>
           </div>
         </div>
