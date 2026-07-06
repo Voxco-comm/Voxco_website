@@ -80,6 +80,37 @@ export async function POST(request: NextRequest) {
                     })
                     .eq('id', requestId)
 
+                // The auth user already exists. This happens when a previously
+                // deleted/disabled user is being re-approved. Restore (or
+                // re-enable) their customer record so they regain access.
+                try {
+                    const { data: userList } = await supabase.auth.admin.listUsers()
+                    const existingUser = userList?.users?.find(
+                        (u) => u.email?.toLowerCase() === signupRequest.email.toLowerCase()
+                    )
+                    if (existingUser) {
+                        const { data: existingCustomer } = await supabase
+                            .from('customers')
+                            .select('id')
+                            .eq('user_id', existingUser.id)
+                            .maybeSingle()
+                        if (existingCustomer) {
+                            await supabase
+                                .from('customers')
+                                .update({ is_disabled: false, name: signupRequest.name })
+                                .eq('id', existingCustomer.id)
+                        } else {
+                            await supabase.from('customers').insert({
+                                user_id: existingUser.id,
+                                email: signupRequest.email,
+                                name: signupRequest.name,
+                            })
+                        }
+                    }
+                } catch (restoreErr) {
+                    console.warn('Failed to restore customer record for existing user:', restoreErr)
+                }
+
                 return NextResponse.json({
                     success: true,
                     message: 'User already exists. Signup request marked as approved.',

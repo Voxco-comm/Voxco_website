@@ -41,12 +41,24 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         )
       } else if (existing.status === 'approved') {
-        return NextResponse.json(
-          { error: 'This email has already been approved. Please sign in.' },
-          { status: 409 }
-        )
+        // Only block if the user still has an active account. If the account was
+        // deleted or disabled, allow them to request signup again.
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('id, is_disabled')
+          .eq('email', email.trim())
+          .maybeSingle()
+
+        if (customer && !customer.is_disabled) {
+          return NextResponse.json(
+            { error: 'This email has already been approved. Please sign in.' },
+            { status: 409 }
+          )
+        }
+        // Account is deleted or disabled (not active) -> allow re-submission.
       }
-      // If rejected, allow re-submission by deleting the old request
+      // For rejected requests, or approved requests with no active account,
+      // allow re-submission by deleting the old request.
       await supabase
         .from('signup_requests')
         .delete()

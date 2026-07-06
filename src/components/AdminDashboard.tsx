@@ -10,6 +10,7 @@ import Alert from './ui/Alert'
 import Button from './ui/Button'
 import { formatDecimal, formatPricePerUnit } from '@/lib/utils/formatNumber'
 import SelectWithCustom from './ui/SelectWithCustom'
+import DualScrollbar from './ui/DualScrollbar'
 
 // Default options for dropdown fields
 const BILL_PULSE_OPTIONS = [
@@ -42,11 +43,40 @@ const SUPPLIER_OPTIONS = [
   'Alcazar Networks',
 ]
 
+// Currencies available for supplier/customer pricing. Extend this list to add more.
+const CURRENCY_OPTIONS = [
+  'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'CNY', 'INR', 'AED',
+  'SAR', 'SGD', 'HKD', 'NZD', 'SEK', 'NOK', 'DKK', 'ZAR', 'BRL', 'MXN',
+  'RUB', 'TRY', 'PLN', 'THB', 'MYR', 'IDR', 'PHP', 'KRW', 'NGN', 'KES',
+  'EGP', 'QAR', 'KWD', 'BHD', 'OMR', 'JOD', 'ILS', 'CZK', 'HUF', 'RON',
+]
+
 const FEATURE_OPTIONS = {
   voice: ['Supported', 'Not supported', 'N/A'],
   sms: ['Enabled', 'Disabled', 'N/A'],
   reach: ['International', 'Local', 'N/A'],
   emergency_services: ['Supported', 'Not Available', 'Required', 'Optional', 'N/A'],
+}
+
+const DIRECTION_LABELS: Record<string, string> = {
+  'Inbound only': 'Inbound',
+  'Outbound only': 'Outbound',
+  'Both': 'Both',
+}
+
+// Derive per-channel Voice / SMS values from the legacy sms_capability + direction
+// fields. e.g. capability "Voice only" + direction "Inbound only" =>
+// { voice: 'Inbound', sms: 'Not Supported' }.
+function deriveChannels(smsCapability?: string | null, direction?: string | null): { voice: string; sms: string } {
+  const cap = (smsCapability || '').trim()
+  const dir = (direction || '').trim()
+  const dirLabel = DIRECTION_LABELS[dir] || dir || '—'
+  const voiceSupported = cap === 'Voice only' || cap === 'Both'
+  const smsSupported = cap === 'SMS only' || cap === 'Both'
+  return {
+    voice: voiceSupported ? dirLabel : 'Not Supported',
+    sms: smsSupported ? dirLabel : 'Not Supported',
+  }
 }
 
 interface Country {
@@ -1751,7 +1781,7 @@ export default function AdminDashboard() {
         }
       }
 
-      setSuccess(`Order ${status} successfully! Documents have been cleaned up.`)
+      setSuccess(`Order ${status} successfully! Documents have been verified.`)
       await loadOrders()
     } catch (err: any) {
       setError(err.message || `Failed to ${status} order`)
@@ -1882,13 +1912,13 @@ export default function AdminDashboard() {
             <div>
               <p className="text-xs text-gray-600 mb-1">Supplier MRC</p>
               <p className="font-medium">
-                {num.supplier_mrc != null ? `${supCur} ${formatDecimal(num.supplier_mrc, 2)}` : '—'}
+                {num.supplier_mrc != null ? formatDecimal(num.supplier_mrc, 2) : '—'}
               </p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Supplier NRC</p>
               <p className="font-medium">
-                {num.supplier_nrc != null ? `${supCur} ${formatDecimal(num.supplier_nrc, 2)}` : '—'}
+                {num.supplier_nrc != null ? formatDecimal(num.supplier_nrc, 2) : '—'}
               </p>
             </div>
             <div>
@@ -1899,23 +1929,23 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             <div>
               <p className="text-xs text-gray-600 mb-1">Inbound Call (supplier)</p>
-              <p className="font-medium">{formatPricePerUnit(supOther.inbound_call, supCur, '/min')}</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.inbound_call, '', '/min')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Outbound Call Fixed (supplier)</p>
-              <p className="font-medium">{formatPricePerUnit(supOther.outbound_call_fixed, supCur, '/min')}</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.outbound_call_fixed, '', '/min')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Outbound Call Mobile (supplier)</p>
-              <p className="font-medium">{formatPricePerUnit(supOther.outbound_call_mobile, supCur, '/min')}</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.outbound_call_mobile, '', '/min')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Inbound SMS (supplier)</p>
-              <p className="font-medium">{formatPricePerUnit(supOther.inbound_sms, supCur, '/msg')}</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.inbound_sms, '', ' per SMS')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Outbound SMS (supplier)</p>
-              <p className="font-medium">{formatPricePerUnit(supOther.outbound_sms, supCur, '/msg')}</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.outbound_sms, '', ' per SMS')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Other fees (supplier)</p>
@@ -1931,13 +1961,13 @@ export default function AdminDashboard() {
             <div>
               <p className="text-xs text-gray-600 mb-1">Customer MRC</p>
               <p className="font-medium">
-                {num.currency} {formatDecimal(num.mrc, 2)}
+                {formatDecimal(num.mrc, 2)}
               </p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Customer NRC</p>
               <p className="font-medium">
-                {num.currency} {formatDecimal(num.nrc, 2)}
+                {formatDecimal(num.nrc, 2)}
               </p>
             </div>
             <div>
@@ -1948,23 +1978,23 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             <div>
               <p className="text-xs text-gray-600 mb-1">Inbound Call (customer)</p>
-              <p className="font-medium">{formatPricePerUnit(otherCharges.inbound_call, num.currency, '/min')}</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.inbound_call, '', '/min')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Outbound Call (Fixed) (customer)</p>
-              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_call_fixed, num.currency, '/min')}</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_call_fixed, '', '/min')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Outbound Call (Mobile) (customer)</p>
-              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_call_mobile, num.currency, '/min')}</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_call_mobile, '', '/min')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Inbound SMS (customer)</p>
-              <p className="font-medium">{formatPricePerUnit(otherCharges.inbound_sms, num.currency, '/msg')}</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.inbound_sms, '', ' per SMS')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Outbound SMS (customer)</p>
-              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_sms, num.currency, '/msg')}</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_sms, '', ' per SMS')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Other fees (customer)</p>
@@ -2088,7 +2118,7 @@ export default function AdminDashboard() {
                 }`}
             >
               <span className="sm:hidden">Orders</span>
-              <span className="hidden sm:inline">Orders Management</span>
+              <span className="hidden sm:inline">Order Management</span>
               {pendingOrdersCount > 0 && (
                 <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-20 bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center shadow-sm">
                   {pendingOrdersCount > 99 ? '99+' : pendingOrdersCount}
@@ -2305,6 +2335,8 @@ export default function AdminDashboard() {
                         required
                       >
                         <option value="Geographic">Geographic</option>
+                        <option value="National">National</option>
+                        <option value="Local">Local</option>
                         <option value="Mobile">Mobile</option>
                         <option value="Toll-Free">Toll-Free</option>
                         <option value="Non-Geographic">Non-Geographic</option>
@@ -2406,10 +2438,9 @@ export default function AdminDashboard() {
                         className="w-full p-2 border rounded-lg"
                         required
                       >
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                        <option value="GBP">GBP</option>
-                        <option value="CAD">CAD</option>
+                        {CURRENCY_OPTIONS.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -2454,10 +2485,9 @@ export default function AdminDashboard() {
                         className="w-full p-2 border rounded-lg"
                       >
                         <option value="">—</option>
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                        <option value="GBP">GBP</option>
-                        <option value="CAD">CAD</option>
+                        {CURRENCY_OPTIONS.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -2627,7 +2657,7 @@ export default function AdminDashboard() {
                             </td>
                           </tr>
                           <tr className="border-t">
-                            <td className="p-2">Inbound SMS (per msg)</td>
+                            <td className="p-2">Inbound SMS (per SMS)</td>
                             <td className="p-2">
                               <input
                                 type="text"
@@ -2651,7 +2681,7 @@ export default function AdminDashboard() {
                             </td>
                           </tr>
                           <tr className="border-t">
-                            <td className="p-2">Outbound SMS (per msg)</td>
+                            <td className="p-2">Outbound SMS (per SMS)</td>
                             <td className="p-2">
                               <input
                                 type="text"
@@ -2772,41 +2802,6 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          <tr className="border-t">
-                            <td className="p-2">Voice</td>
-                            <td className="p-2">
-                              {/* Make the select with custom dropdown's z-index 1000 */}
-                              <SelectWithCustom
-                                value={formData.features.voice ?? ''}
-                                onChange={(value) => setFormData({
-                                  ...formData,
-                                  features: {
-                                    ...formData.features,
-                                    voice: value || null
-                                  }
-                                })}
-                                options={FEATURE_OPTIONS.voice}
-                                placeholder="Select..."
-                              />
-                            </td>
-                          </tr>
-                          <tr className="border-t">
-                            <td className="p-2">SMS</td>
-                            <td className="p-2">
-                              <SelectWithCustom
-                                value={formData.features.sms ?? ''}
-                                onChange={(value) => setFormData({
-                                  ...formData,
-                                  features: {
-                                    ...formData.features,
-                                    sms: value || null
-                                  }
-                                })}
-                                options={FEATURE_OPTIONS.sms}
-                                placeholder="Select..."
-                              />
-                            </td>
-                          </tr>
                           <tr className="border-t">
                             <td className="p-2">Reach</td>
                             <td className="p-2">
@@ -2936,6 +2931,7 @@ export default function AdminDashboard() {
                     {filteredInventoryNumbers.map((num) => {
                       const isCardExpanded = expandedRows.has(num.id)
                       const supCurM = num.supplier_currency || num.currency || 'USD'
+                      const chM = deriveChannels(num.sms_capability, num.direction)
                       return (
                         <div key={`m-${num.id}`} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
                           <div className="flex justify-between gap-2">
@@ -2943,10 +2939,10 @@ export default function AdminDashboard() {
                               <p className="text-xs text-gray-500 truncate">Supplier: {num.supplier || '—'}</p>
                               <p className="font-semibold text-[#215F9A] truncate">{num.country_name}</p>
                               <p className="text-xs text-gray-600">
-                                {num.number_type} · {num.sms_capability} · {num.direction}
+                                {num.number_type}
                               </p>
                               <p className="text-xs text-gray-500 mt-1">
-                                Voice: {(num.features as any)?.voice || '—'} · SMS: {(num.features as any)?.sms || '—'}
+                                Voice: {chM.voice} · SMS: {chM.sms}
                               </p>
                             </div>
                             <div className="text-right text-sm shrink-0">
@@ -2988,14 +2984,14 @@ export default function AdminDashboard() {
                       )
                     })}
                   </div>
-                  <div className="hidden md:block overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+                  <DualScrollbar className="hidden md:block -mx-2 px-2 sm:mx-0 sm:px-0">
                     <table className="w-full border-collapse min-w-[1200px] text-sm">
                     <thead>
                       <tr className="bg-[#215F9A] text-white text-xs sm:text-sm">
                         <th className="p-2 sm:p-3 text-left max-w-[120px]">Supplier</th>
                         <th className="p-2 sm:p-3 text-left">Country</th>
-                        <th className="p-2 sm:p-3 text-left">SMS/Voice</th>
-                        <th className="p-2 sm:p-3 text-left">In/Out</th>
+                        <th className="p-2 sm:p-3 text-left">Voice</th>
+                        <th className="p-2 sm:p-3 text-left">SMS</th>
                         <th className="p-2 sm:p-3 text-center">Available</th>
                         <th className="p-2 sm:p-3 text-left">Type</th>
                         <th className="p-2 sm:p-3 text-left">Specification</th>
@@ -3004,8 +3000,6 @@ export default function AdminDashboard() {
                         <th className="p-2 sm:p-3 text-left" title="Supplier currency">Curr.</th>
                         <th className="p-2 sm:p-3 text-center">MOQ</th>
                         <th className="p-2 sm:p-3 text-left">Pulse</th>
-                        <th className="p-2 sm:p-3 text-left">Voice</th>
-                        <th className="p-2 sm:p-3 text-left">SMS</th>
                         <th className="p-2 sm:p-3 text-center">Actions</th>
                       </tr>
                     </thead>
@@ -3013,6 +3007,7 @@ export default function AdminDashboard() {
                       {filteredInventoryNumbers.map((num) => {
                         const isExpanded = expandedRows.has(num.id)
                         const supCur = num.supplier_currency || num.currency || 'USD'
+                        const ch = deriveChannels(num.sms_capability, num.direction)
 
                         return (
                           <React.Fragment key={num.id}>
@@ -3023,8 +3018,8 @@ export default function AdminDashboard() {
                               <td className="p-2 sm:p-3">
                                 {num.country_name} ({num.country_code})
                               </td>
-                              <td className="p-2 sm:p-3">{num.sms_capability}</td>
-                              <td className="p-2 sm:p-3">{num.direction}</td>
+                              <td className="p-2 sm:p-3">{ch.voice}</td>
+                              <td className="p-2 sm:p-3">{ch.sms}</td>
                               <td className="p-2 sm:p-3 text-center font-semibold">{num.available_numbers ?? 0}</td>
                               <td className="p-2 sm:p-3">{num.number_type}</td>
                               <td className="p-2 sm:p-3 text-xs sm:text-sm">{num.specification || '-'}</td>
@@ -3037,8 +3032,6 @@ export default function AdminDashboard() {
                               <td className="p-2 sm:p-3">{num.supplier_currency || (num.supplier_mrc != null || num.supplier_nrc != null ? num.currency : '—')}</td>
                               <td className="p-2 sm:p-3 text-center">{num.moq}</td>
                               <td className="p-2 sm:p-3 text-xs">{num.bill_pulse || '-'}</td>
-                              <td className="p-2 sm:p-3 text-xs">{(num.features as any)?.voice || '—'}</td>
-                              <td className="p-2 sm:p-3 text-xs">{(num.features as any)?.sms || '—'}</td>
                               <td className="p-2 sm:p-3 text-center">
                                 <div className="flex flex-wrap gap-1 justify-center">
                                   <button
@@ -3064,7 +3057,7 @@ export default function AdminDashboard() {
                             </tr>
                             {isExpanded && (
                               <tr className="bg-gray-50">
-                                <td colSpan={15} className="p-3 sm:p-4">
+                                <td colSpan={13} className="p-3 sm:p-4">
                                   {inventoryPricingDetailContent(num)}
                                 </td>
                               </tr>
@@ -3074,7 +3067,7 @@ export default function AdminDashboard() {
                       })}
                     </tbody>
                     </table>
-                  </div>
+                  </DualScrollbar>
                   {allNumbers.length === 0 && (
                     <div className="text-center py-8 text-gray-600">
                       No numbers in inventory yet.
@@ -3815,6 +3808,8 @@ export default function AdminDashboard() {
                       className="w-full p-2 border rounded-lg"
                     >
                       <option value="Geographic">Geographic</option>
+                      <option value="National">National</option>
+                      <option value="Local">Local</option>
                       <option value="Mobile">Mobile</option>
                       <option value="Toll-Free">Toll-Free</option>
                       <option value="Non-Geographic">Non-Geographic</option>
@@ -3896,10 +3891,9 @@ export default function AdminDashboard() {
                       onChange={(e) => setEditingNumber({ ...editingNumber, currency: e.target.value })}
                       className="w-full p-2 border rounded-lg"
                     >
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                      <option value="CAD">CAD</option>
+                      {CURRENCY_OPTIONS.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="col-span-2 text-sm font-semibold text-[#215F9A]">Supplier rate (admin only)</div>
@@ -3943,10 +3937,9 @@ export default function AdminDashboard() {
                       className="w-full p-2 border rounded-lg"
                     >
                       <option value="">—</option>
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                      <option value="CAD">CAD</option>
+                      {CURRENCY_OPTIONS.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -4146,7 +4139,7 @@ export default function AdminDashboard() {
                           </td>
                         </tr>
                         <tr className="border-t">
-                          <td className="p-2">Inbound SMS (per msg)</td>
+                          <td className="p-2">Inbound SMS (per SMS)</td>
                           <td className="p-2">
                             <input
                               type="text"
@@ -4170,7 +4163,7 @@ export default function AdminDashboard() {
                           </td>
                         </tr>
                         <tr className="border-t">
-                          <td className="p-2">Outbound SMS (per msg)</td>
+                          <td className="p-2">Outbound SMS (per SMS)</td>
                           <td className="p-2">
                             <input
                               type="text"
@@ -4228,40 +4221,6 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        <tr className="border-t">
-                          <td className="p-2">Voice</td>
-                          <td className="p-2">
-                            <SelectWithCustom
-                              value={((editingNumber as any).features?.voice ?? '') as string}
-                              onChange={(value) => setEditingNumber({
-                                ...editingNumber,
-                                features: {
-                                  ...((editingNumber as any).features || {}),
-                                  voice: value || null
-                                }
-                              })}
-                              options={FEATURE_OPTIONS.voice}
-                              placeholder="Select..."
-                            />
-                          </td>
-                        </tr>
-                        <tr className="border-t">
-                          <td className="p-2">SMS</td>
-                          <td className="p-2">
-                            <SelectWithCustom
-                              value={((editingNumber as any).features?.sms ?? '') as string}
-                              onChange={(value) => setEditingNumber({
-                                ...editingNumber,
-                                features: {
-                                  ...((editingNumber as any).features || {}),
-                                  sms: value || null
-                                }
-                              })}
-                              options={FEATURE_OPTIONS.sms}
-                              placeholder="Select..."
-                            />
-                          </td>
-                        </tr>
                         <tr className="border-t">
                           <td className="p-2">Reach</td>
                           <td className="p-2">
@@ -4604,10 +4563,9 @@ export default function AdminDashboard() {
                     onChange={(e) => setFulfillForm({ ...fulfillForm, currency: e.target.value })}
                     className="w-full p-2 border rounded-lg"
                   >
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                    <option value="CAD">CAD</option>
+                    {CURRENCY_OPTIONS.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -4651,10 +4609,9 @@ export default function AdminDashboard() {
                     className="w-full p-2 border rounded-lg"
                   >
                     <option value="">—</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                    <option value="CAD">CAD</option>
+                    {CURRENCY_OPTIONS.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
               </div>

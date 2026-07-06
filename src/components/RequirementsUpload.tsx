@@ -115,6 +115,7 @@ export default function RequirementsUpload() {
   const [success, setSuccess] = useState<string | null>(null)
   const [uploadingFile, setUploadingFile] = useState<string | null>(null)
   const [draftSaved, setDraftSaved] = useState(false)
+  const [showReviewNote, setShowReviewNote] = useState(false)
 
   // Helper function to split combined document requirements
   const splitDocumentRequirements = (docString: string): string[] => {
@@ -854,9 +855,20 @@ export default function RequirementsUpload() {
     )
   }
 
+  // Gate submission: for a new order with no/missing documents, first show a
+  // pop-up note letting the customer know the order will still be reviewed.
+  const handleSubmitClick = () => {
+    if (!existingOrderId && (!hasAnyDocuments || !allRequiredUploaded)) {
+      setShowReviewNote(true)
+      return
+    }
+    handleSubmitOrder()
+  }
+
   const handleSubmitOrder = async () => {
     if (!orderDetails || !user) return
 
+    setShowReviewNote(false)
     setSubmitting(true)
     setError(null)
 
@@ -2027,7 +2039,7 @@ export default function RequirementsUpload() {
             )}
           </button>
           <button
-            onClick={handleSubmitOrder}
+            onClick={handleSubmitClick}
             disabled={submitting || savingDraft || draftSaved}
             className="sm:flex-1 bg-[#215F9A] text-white py-3 rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
@@ -2063,6 +2075,42 @@ export default function RequirementsUpload() {
           </div>
         )}
       </div>
+
+      {/* Missing documents review note */}
+      {showReviewNote && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setShowReviewNote(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl p-6 max-w-md w-full">
+            <div className="flex items-start gap-3 mb-4">
+              <svg className="h-6 w-6 text-[#215F9A] mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <h3 className="text-lg font-semibold text-[#215F9A] mb-1">Some documents are missing</h3>
+                <p className="text-sm text-gray-600">
+                  Your order will be reviewed, subject to submission of any necessary documents.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleSubmitOrder}
+                disabled={submitting}
+                className="flex-1 bg-[#215F9A] text-white py-2.5 rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Submitting...' : 'Proceed with order'}
+              </button>
+              <button
+                onClick={() => setShowReviewNote(false)}
+                disabled={submitting}
+                className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+              >
+                Upload documents
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Document Preview Modal */}
       {previewUrl && (

@@ -87,7 +87,10 @@ export function formatPricePerUnit(
     return 'N/A'
   }
 
-  return `${currency} ${formatDecimal(num, 0, 4)}${unit}`
+  // Currency is optional: when omitted, only the amount and unit are shown
+  // (the currency is displayed once via the Supplier/Customer currency field).
+  const prefix = currency && currency.trim() ? `${currency} ` : ''
+  return `${prefix}${formatDecimal(num, 0, 4)}${unit}`
 }
 
 const NA_LIKE = /^(n\/?a|—|-|–|\.\.\.)$/i

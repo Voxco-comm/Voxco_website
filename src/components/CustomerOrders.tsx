@@ -83,6 +83,8 @@ export default function CustomerOrders() {
   const [editQuantity, setEditQuantity] = useState<string>('')
   const [editError, setEditError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [cancelTarget, setCancelTarget] = useState<{ type: 'order' | 'request'; id: string } | null>(null)
+  const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     loadOrders()
@@ -239,6 +241,8 @@ export default function CustomerOrders() {
         return 'bg-green-100 text-green-800'
       case 'rejected':
         return 'bg-red-100 text-red-800'
+      case 'cancelled':
+        return 'bg-gray-200 text-gray-700'
       case 'documentation_review':
         return 'bg-blue-100 text-blue-800'
       case 'pending':
@@ -256,6 +260,8 @@ export default function CustomerOrders() {
         return 'Approved'
       case 'rejected':
         return 'Rejected'
+      case 'cancelled':
+        return 'Cancelled'
       case 'pending':
         return 'Pending'
       default:
@@ -266,6 +272,40 @@ export default function CustomerOrders() {
   const canEditOrder = (status: string) => {
     // Only allow editing for pending or documentation_review orders
     return status === 'pending' || status === 'documentation_review'
+  }
+
+  // Orders / requests can be cancelled by the customer while they are still open
+  // (not yet granted/approved, rejected, or already cancelled).
+  const canCancelOrder = (status: string) =>
+    status === 'pending' || status === 'documentation_review'
+  const canCancelRequest = (status: string) => status === 'pending'
+
+  const handleConfirmCancel = async () => {
+    if (!cancelTarget) return
+    setCancelling(true)
+    setError(null)
+    try {
+      if (cancelTarget.type === 'order') {
+        const { error: cancelError } = await supabase
+          .from('orders')
+          .update({ status: 'cancelled' })
+          .eq('id', cancelTarget.id)
+        if (cancelError) throw cancelError
+        setOrders((prev) => prev.map((o) => (o.id === cancelTarget.id ? { ...o, status: 'cancelled' } : o)))
+      } else {
+        const { error: cancelError } = await supabase
+          .from('custom_number_requests')
+          .update({ status: 'cancelled' })
+          .eq('id', cancelTarget.id)
+        if (cancelError) throw cancelError
+        setCustomRequests((prev) => prev.map((r) => (r.id === cancelTarget.id ? { ...r, status: 'cancelled' } : r)))
+      }
+      setCancelTarget(null)
+    } catch (err: any) {
+      setError(err.message || 'Failed to cancel. Please try again.')
+    } finally {
+      setCancelling(false)
+    }
   }
 
   const handleEditClick = (order: Order) => {
@@ -497,7 +537,7 @@ export default function CustomerOrders() {
                       </td>
                       <td className="p-2 text-center">
                         {canEditOrder(order.status) && (
-                          <div className="flex gap-1 justify-center">
+                          <div className="flex flex-wrap gap-1 justify-center items-center">
                             <button
                               onClick={() => handleEditClick(order)}
                               className="p-1 text-[#215F9A] hover:bg-blue-50 rounded transition-colors"
@@ -511,6 +551,13 @@ export default function CustomerOrders() {
                               title="Update documents"
                             >
                               Docs
+                            </button>
+                            <button
+                              onClick={() => setCancelTarget({ type: 'order', id: order.id })}
+                              className="text-xs text-red-600 hover:text-red-800 underline"
+                              title="Cancel this order"
+                            >
+                              Cancel
                             </button>
                           </div>
                         )}
@@ -563,6 +610,7 @@ export default function CustomerOrders() {
                         <th className="p-2 text-right">NRC</th>
                         <th className="p-2 text-center">Status</th>
                         <th className="p-2 text-left">Admin notes</th>
+                        <th className="p-2 text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -582,12 +630,26 @@ export default function CustomerOrders() {
                             <span className={`px-2 py-1 rounded text-xs ${
                               req.status === 'approved' ? 'bg-green-100 text-green-800' :
                               req.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              req.status === 'cancelled' ? 'bg-gray-200 text-gray-700' :
                               'bg-yellow-100 text-yellow-800'
                             }`}>
-                              {req.status === 'approved' ? 'Approved' : req.status === 'rejected' ? 'Rejected' : 'Pending'}
+                              {req.status === 'approved' ? 'Approved' : req.status === 'rejected' ? 'Rejected' : req.status === 'cancelled' ? 'Cancelled' : 'Pending'}
                             </span>
                           </td>
                           <td className="p-2 text-xs text-gray-600">{req.admin_notes ?? '—'}</td>
+                          <td className="p-2 text-center">
+                            {canCancelRequest(req.status) ? (
+                              <button
+                                onClick={() => setCancelTarget({ type: 'request', id: req.id })}
+                                className="text-xs text-red-600 hover:text-red-800 underline"
+                                title="Cancel this request"
+                              >
+                                Cancel
+                              </button>
+                            ) : (
+                              <span className="text-gray-300 text-xs">—</span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -611,6 +673,37 @@ export default function CustomerOrders() {
           orderId={selectedOrder.id}
           isAdmin={false}
         />
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {cancelTarget && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-[#215F9A] mb-3">
+              Cancel {cancelTarget.type === 'order' ? 'order' : 'request'}?
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you sure you want to cancel this {cancelTarget.type === 'order' ? 'order' : 'custom number request'}?
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleConfirmCancel}
+                disabled={cancelling}
+                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {cancelling ? 'Cancelling...' : `Yes, cancel ${cancelTarget.type === 'order' ? 'order' : 'request'}`}
+              </button>
+              <button
+                onClick={() => setCancelTarget(null)}
+                disabled={cancelling}
+                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+              >
+                Keep it
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Edit Order Modal */}

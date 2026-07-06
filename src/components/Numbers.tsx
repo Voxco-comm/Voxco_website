@@ -4,6 +4,7 @@ import React, { useState, ChangeEvent, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import BackButton from './BackButton'
+import DualScrollbar from './ui/DualScrollbar'
 import { formatDecimal } from '@/lib/utils/formatNumber'
 
 interface FormState {
@@ -76,7 +77,7 @@ export default function Numbers() {
   const [showCustomRequestModal, setShowCustomRequestModal] = useState(false)
   const [customRequestForm, setCustomRequestForm] = useState({
     country_id: '',
-    number_type: 'Geographic' as 'Geographic' | 'Mobile' | 'Toll-Free' | 'Non-Geographic' | '2WV',
+    number_type: 'Geographic' as 'Geographic' | 'National' | 'Local' | 'Mobile' | 'Toll-Free' | 'Non-Geographic' | '2WV',
     sms_capability: 'Both' as 'SMS only' | 'Voice only' | 'Both',
     direction: 'Both' as 'Inbound only' | 'Outbound only' | 'Both',
   })
@@ -598,7 +599,7 @@ export default function Numbers() {
                       const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
                       let unit = ''
                       if (key.includes('call') || key.includes('voice')) unit = '/min'
-                      else if (key.includes('sms')) unit = '/msg'
+                      else if (key.includes('sms')) unit = 'per SMS'
                       else if (key.includes('fee')) unit = 'one-time'
 
                       return (
@@ -873,20 +874,9 @@ export default function Numbers() {
             </div>
 
             {/* Request a custom number */}
-            <div className="sm:col-span-2 md:col-span-4 flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 gap-3 border-t border-gray-100 sm:border-0 mt-1 sm:mt-0">
-              <p className="text-sm text-gray-600 text-center sm:text-left">
-                Can&apos;t find it on the list?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCustomRequestModal(true)
-                    setCustomRequestError(null)
-                    setCustomRequestSuccess(null)
-                  }}
-                  className="text-[#215F9A] font-semibold hover:underline"
-                >
-                  Click here.
-                </button>
+            <div className="sm:col-span-2 md:col-span-4 flex flex-col sm:flex-row sm:items-center sm:justify-end pt-2 gap-3 border-t border-gray-100 sm:border-0 mt-1 sm:mt-0">
+              <p className="text-sm text-gray-600 text-center sm:text-right">
+                Can&apos;t find it on the list? Click here.
               </p>
               <button
                 type="button"
@@ -1054,7 +1044,7 @@ export default function Numbers() {
                   )
                 })}
               </div>
-              <div className="hidden lg:block overflow-x-auto -mx-1 px-1">
+              <DualScrollbar className="hidden lg:block -mx-1 px-1">
                 <table className="w-full border-collapse min-w-[960px]">
                   <thead>
                     <tr className="bg-[#215F9A] text-white text-xs sm:text-sm">
@@ -1173,7 +1163,7 @@ export default function Numbers() {
                     })}
                   </tbody>
                 </table>
-              </div>
+              </DualScrollbar>
             </>
           )}
         </section>
@@ -1262,10 +1252,12 @@ export default function Numbers() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Number type *</label>
                       <select
                         value={customRequestForm.number_type}
-                        onChange={(e) => setCustomRequestForm({ ...customRequestForm, number_type: e.target.value as 'Geographic' | 'Mobile' | 'Toll-Free' | 'Non-Geographic' | '2WV' })}
+                        onChange={(e) => setCustomRequestForm({ ...customRequestForm, number_type: e.target.value as 'Geographic' | 'National' | 'Local' | 'Mobile' | 'Toll-Free' | 'Non-Geographic' | '2WV' })}
                         className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#215F9A] focus:border-[#215F9A]"
                       >
                         <option value="Geographic">Geographic</option>
+                        <option value="National">National</option>
+                        <option value="Local">Local</option>
                         <option value="Mobile">Mobile</option>
                         <option value="Toll-Free">Toll-Free</option>
                         <option value="Non-Geographic">Non-Geographic</option>
