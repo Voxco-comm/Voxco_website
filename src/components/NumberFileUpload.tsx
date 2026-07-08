@@ -1078,7 +1078,7 @@ export default function NumberFileUpload({
                     </table>
                 </div>
                 <p className="text-[10px] sm:text-xs text-gray-600 mt-3">
-                    <strong>Note:</strong> Only Country is required. Empty Available Numbers defaults to 100. SMS/Voice and Direction default to &quot;Both&quot;. Number Type defaults to &quot;Geographic&quot;.
+                    <strong>Note:</strong> Only Country is required. Any empty entry/column is left blank (not &quot;N/A&quot;).
                 </p>
             </div>
 
@@ -1204,23 +1204,19 @@ export default function NumberFileUpload({
                                     <th className="text-left p-2 whitespace-nowrap">Direction</th>
                                     <th className="text-left p-2 whitespace-nowrap">Available</th>
                                     <th className="text-left p-2 whitespace-nowrap">Type</th>
-                                    <th className="text-left p-2 whitespace-nowrap">Voice</th>
-                                    <th className="text-left p-2 whitespace-nowrap">SMS</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {extractedNumbers.slice(0, 10).map((num, idx) => (
                                     <tr key={idx} className="border-b">
-                                        <td className="p-2">{num.supplier || '—'}</td>
+                                        <td className="p-2">{num.supplier || ''}</td>
                                         <td className="p-2">
-                                            {countries.find(c => c.id === num.country_id)?.name || 'N/A'}
+                                            {countries.find(c => c.id === num.country_id)?.name || ''}
                                         </td>
-                                        <td className="p-2">{num.sms_capability || 'Both'}</td>
-                                        <td className="p-2">{num.direction || 'Both'}</td>
-                                        <td className="p-2">{num.available_numbers ?? 100}</td>
-                                        <td className="p-2">{num.number_type || 'Geographic'}</td>
-                                        <td className="p-2">{num.features?.voice || '—'}</td>
-                                        <td className="p-2">{num.features?.sms || '—'}</td>
+                                        <td className="p-2">{num.sms_capability || ''}</td>
+                                        <td className="p-2">{num.direction || ''}</td>
+                                        <td className="p-2">{num.available_numbers ?? ''}</td>
+                                        <td className="p-2">{num.number_type || ''}</td>
                                     </tr>
                                 ))}
                             </tbody>

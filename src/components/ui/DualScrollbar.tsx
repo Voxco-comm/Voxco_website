@@ -73,13 +73,13 @@ export default function DualScrollbar({ children, className = '', bodyClassName 
           ref={topRef}
           onScroll={onTopScroll}
           aria-hidden="true"
-          className="overflow-x-auto overflow-y-hidden"
+          className="dual-scrollbar overflow-x-scroll overflow-y-hidden"
           style={{ height: 14 }}
         >
           <div style={{ width: scrollWidth, height: 1 }} />
         </div>
       )}
-      <div ref={bodyRef} onScroll={onBodyScroll} className={`overflow-x-auto ${bodyClassName}`}>
+      <div ref={bodyRef} onScroll={onBodyScroll} className={`dual-scrollbar overflow-x-auto ${bodyClassName}`}>
         {children}
       </div>
     </div>

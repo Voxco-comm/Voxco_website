@@ -28,21 +28,6 @@ const BILL_PULSE_OPTIONS = [
   'None',
 ]
 
-const SUPPLIER_OPTIONS = [
-  'Globe Teleservices',
-  'BICS',
-  'Tata Communications',
-  'Bandwidth',
-  'Sinch',
-  'Vonage',
-  'Twilio',
-  'Plivo',
-  'Nexmo',
-  'Telnyx',
-  'IDT',
-  'Alcazar Networks',
-]
-
 // Currencies available for supplier/customer pricing. Extend this list to add more.
 const CURRENCY_OPTIONS = [
   'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'CNY', 'INR', 'AED',
@@ -57,6 +42,12 @@ const FEATURE_OPTIONS = {
   reach: ['International', 'Local', 'N/A'],
   emergency_services: ['Supported', 'Not Available', 'Required', 'Optional', 'N/A'],
 }
+
+// Base options for the inventory dropdowns. Custom values can be added on top
+// of these via SelectWithCustom.
+const NUMBER_TYPE_OPTIONS = ['Geographic', 'National', 'Local', 'Mobile', 'Toll-Free', 'Non-Geographic', '2WV']
+const SMS_VOICE_OPTIONS = ['SMS only', 'Voice only', 'Both']
+const DIRECTION_OPTIONS = ['Inbound only', 'Outbound only', 'Both']
 
 const DIRECTION_LABELS: Record<string, string> = {
   'Inbound only': 'Inbound',
@@ -1523,19 +1514,19 @@ export default function AdminDashboard() {
           throw new Error(`Row ${index + 1}: Country is required.`)
         }
 
-        // Default sms_capability to "Both" if not provided or invalid
+        // Leave sms_capability blank if not provided or invalid (no forced default)
         let smsCapability = num.sms_capability
         if (!smsCapability || !validSmsCapabilities.includes(smsCapability)) {
           smsCapability = ''
         }
 
-        // Default direction to "Both" if not provided or invalid
+        // Leave direction blank if not provided or invalid (no forced default)
         let direction = num.direction
         if (!direction || !validDirections.includes(direction)) {
           direction = ''
         }
 
-        // Default number_type to "Geographic" if not provided or invalid
+        // Leave number_type blank if not provided or invalid (no forced default)
         let numberType = num.number_type
         if (!validNumberTypes.includes(numberType)) {
           numberType = ''
@@ -1896,6 +1887,17 @@ export default function AdminDashboard() {
     return list
   }, [allNumbers, inventoryFilters])
 
+  // Distinct supplier names already present in the inventory, for the supplier
+  // dropdown. Custom entries can still be added via SelectWithCustom.
+  const existingSuppliers = useMemo(() => {
+    const set = new Set<string>()
+    allNumbers.forEach((n) => {
+      const s = (n.supplier || '').trim()
+      if (s) set.add(s)
+    })
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [allNumbers])
+
   const inventoryPricingDetailContent = (num: Number) => {
     const otherCharges =
       typeof num.other_charges === 'object' && num.other_charges !== null ? (num.other_charges as any) : {}
@@ -1950,7 +1952,7 @@ export default function AdminDashboard() {
             <div>
               <p className="text-xs text-gray-600 mb-1">Other fees (supplier)</p>
               <p className="font-medium">
-                {supOther.other_fees != null && supOther.other_fees !== '' ? String(supOther.other_fees) : 'N/A'}
+                {supOther.other_fees != null && supOther.other_fees !== '' ? String(supOther.other_fees) : ''}
               </p>
             </div>
           </div>
@@ -1999,7 +2001,7 @@ export default function AdminDashboard() {
             <div>
               <p className="text-xs text-gray-600 mb-1">Other fees (customer)</p>
               <p className="font-medium">
-                {otherCharges.other_fees != null && otherCharges.other_fees !== '' ? String(otherCharges.other_fees) : 'N/A'}
+                {otherCharges.other_fees != null && otherCharges.other_fees !== '' ? String(otherCharges.other_fees) : ''}
               </p>
             </div>
           </div>
@@ -2007,14 +2009,6 @@ export default function AdminDashboard() {
         <div>
           <h4 className="font-semibold text-[#215F9A] mb-3">Features</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div>
-              <p className="text-xs text-gray-600 mb-1">Voice</p>
-              <p className="font-medium">{(num.features as any)?.voice || '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600 mb-1">SMS</p>
-              <p className="font-medium">{(num.features as any)?.sms || '—'}</p>
-            </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Reach</p>
               <p className="font-medium">{(num.features as any)?.reach || '—'}</p>
@@ -2323,67 +2317,39 @@ export default function AdminDashboard() {
                       <label className="block text-sm font-medium mb-2">
                         Number Type *
                       </label>
-                      <select
+                      <SelectWithCustom
                         value={formData.number_type}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            number_type: e.target.value as NumberFormData['number_type'],
-                          })
-                        }
-                        className="w-full p-2 border rounded-lg"
-                        required
-                      >
-                        <option value="Geographic">Geographic</option>
-                        <option value="National">National</option>
-                        <option value="Local">Local</option>
-                        <option value="Mobile">Mobile</option>
-                        <option value="Toll-Free">Toll-Free</option>
-                        <option value="Non-Geographic">Non-Geographic</option>
-                        <option value="2WV">2WV</option>
-                      </select>
+                        onChange={(value) => setFormData({ ...formData, number_type: value })}
+                        options={NUMBER_TYPE_OPTIONS}
+                        placeholder="Select number type..."
+                        customPlaceholder="Enter number type..."
+                      />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium mb-2">
                         SMS/Voice Capability *
                       </label>
-                      <select
-                        value={formData.sms_capability}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            sms_capability: e.target.value as NumberFormData['sms_capability'],
-                          })
-                        }
-                        className="w-full p-2 border rounded-lg"
-                        required
-                      >
-                        <option value="SMS only">SMS only</option>
-                        <option value="Voice only">Voice only</option>
-                        <option value="Both">Both</option>
-                      </select>
+                      <SelectWithCustom
+                        value={formData.sms_capability.trim()}
+                        onChange={(value) => setFormData({ ...formData, sms_capability: value })}
+                        options={SMS_VOICE_OPTIONS}
+                        placeholder="Select capability..."
+                        customPlaceholder="Enter capability..."
+                      />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium mb-2">
                         Inbound/Outbound *
                       </label>
-                      <select
-                        value={formData.direction}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            direction: e.target.value as NumberFormData['direction'],
-                          })
-                        }
-                        className="w-full p-2 border rounded-lg"
-                        required
-                      >
-                        <option value="Inbound only">Inbound only</option>
-                        <option value="Outbound only">Outbound only</option>
-                        <option value="Both">Both</option>
-                      </select>
+                      <SelectWithCustom
+                        value={formData.direction.trim()}
+                        onChange={(value) => setFormData({ ...formData, direction: value })}
+                        options={DIRECTION_OPTIONS}
+                        placeholder="Select direction..."
+                        customPlaceholder="Enter direction..."
+                      />
                     </div>
 
                     <div>
@@ -2430,18 +2396,13 @@ export default function AdminDashboard() {
                       <label className="block text-sm font-medium mb-2">
                         Customer currency *
                       </label>
-                      <select
+                      <SelectWithCustom
                         value={formData.currency}
-                        onChange={(e) =>
-                          setFormData({ ...formData, currency: e.target.value })
-                        }
-                        className="w-full p-2 border rounded-lg"
-                        required
-                      >
-                        {CURRENCY_OPTIONS.map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
+                        onChange={(value) => setFormData({ ...formData, currency: value })}
+                        options={CURRENCY_OPTIONS}
+                        placeholder="Select currency..."
+                        customPlaceholder="Enter currency code..."
+                      />
                     </div>
 
                     <div className="col-span-1 md:col-span-2 text-sm font-semibold text-[#215F9A] mt-2">Supplier rate (admin only)</div>
@@ -2479,16 +2440,13 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">Supplier Currency</label>
-                      <select
+                      <SelectWithCustom
                         value={formData.supplier_currency ?? ''}
-                        onChange={(e) => setFormData({ ...formData, supplier_currency: e.target.value })}
-                        className="w-full p-2 border rounded-lg"
-                      >
-                        <option value="">—</option>
-                        {CURRENCY_OPTIONS.map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
+                        onChange={(value) => setFormData({ ...formData, supplier_currency: value })}
+                        options={CURRENCY_OPTIONS}
+                        placeholder="Select currency..."
+                        customPlaceholder="Enter currency code..."
+                      />
                     </div>
 
                     <div>
@@ -2519,7 +2477,7 @@ export default function AdminDashboard() {
                         onChange={(value) =>
                           setFormData({ ...formData, supplier: value })
                         }
-                        options={SUPPLIER_OPTIONS}
+                        options={existingSuppliers}
                         placeholder="Select supplier..."
                         customPlaceholder="Enter supplier name..."
                       />
@@ -2793,8 +2751,8 @@ export default function AdminDashboard() {
                   {/* Features Table */}
                   <div className="mt-4">
                     <label className="block text-sm font-medium mb-2">Features</label>
-                    <div className="border rounded-lg overflow-x-auto">
-                      <table className="w-full text-sm min-w-[500px] md:min-w-0">
+                    <div className="border rounded-lg overflow-visible">
+                      <table className="w-full text-sm">
                         <thead className="bg-gray-100">
                           <tr>
                             <th className="p-2 text-left">Feature</th>
@@ -2948,12 +2906,13 @@ export default function AdminDashboard() {
                             <div className="text-right text-sm shrink-0">
                               <p className="text-xs text-gray-500">Supplier MRC</p>
                               <p className="font-medium">
-                                {num.supplier_mrc != null ? `${supCurM} ${formatDecimal(num.supplier_mrc, 2)}` : '—'}
+                                {num.supplier_mrc != null ? formatDecimal(num.supplier_mrc, 2) : '—'}
                               </p>
                               <p className="text-xs text-gray-500 mt-1">NRC</p>
                               <p className="font-medium">
-                                {num.supplier_nrc != null ? `${supCurM} ${formatDecimal(num.supplier_nrc, 2)}` : '—'}
+                                {num.supplier_nrc != null ? formatDecimal(num.supplier_nrc, 2) : '—'}
                               </p>
+                              <p className="text-xs text-gray-500 mt-1">Currency: {supCurM}</p>
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2">
@@ -3024,10 +2983,10 @@ export default function AdminDashboard() {
                               <td className="p-2 sm:p-3">{num.number_type}</td>
                               <td className="p-2 sm:p-3 text-xs sm:text-sm">{num.specification || '-'}</td>
                               <td className="p-2 sm:p-3 text-right whitespace-nowrap">
-                                {num.supplier_mrc != null ? `${supCur} ${formatDecimal(num.supplier_mrc, 2)}` : '—'}
+                                {num.supplier_mrc != null ? formatDecimal(num.supplier_mrc, 2) : '—'}
                               </td>
                               <td className="p-2 sm:p-3 text-right whitespace-nowrap">
-                                {num.supplier_nrc != null ? `${supCur} ${formatDecimal(num.supplier_nrc, 2)}` : '—'}
+                                {num.supplier_nrc != null ? formatDecimal(num.supplier_nrc, 2) : '—'}
                               </td>
                               <td className="p-2 sm:p-3">{num.supplier_currency || (num.supplier_mrc != null || num.supplier_nrc != null ? num.currency : '—')}</td>
                               <td className="p-2 sm:p-3 text-center">{num.moq}</td>
@@ -3342,6 +3301,7 @@ export default function AdminDashboard() {
                       <th className="p-2 text-left">Direction</th>
                       <th className="p-2 text-right">MRC</th>
                       <th className="p-2 text-right">NRC</th>
+                      <th className="p-2 text-left">Currency</th>
                       <th className="p-2 text-center">MOQ</th>
                       <th className="p-2 text-left">Requirements</th>
                       <th className="p-2 text-center">Status</th>
@@ -3360,8 +3320,9 @@ export default function AdminDashboard() {
                         <td className="p-2 text-xs">{req.number_type}</td>
                         <td className="p-2 text-xs">{req.sms_capability}</td>
                         <td className="p-2 text-xs">{req.direction}</td>
-                        <td className="p-2 text-right text-xs">{req.currency} {formatDecimal(req.mrc, 2)}</td>
-                        <td className="p-2 text-right text-xs">{req.currency} {formatDecimal(req.nrc, 2)}</td>
+                        <td className="p-2 text-right text-xs">{formatDecimal(req.mrc, 2)}</td>
+                        <td className="p-2 text-right text-xs">{formatDecimal(req.nrc, 2)}</td>
+                        <td className="p-2 text-xs">{req.currency}</td>
                         <td className="p-2 text-center text-xs">{req.moq}</td>
                         <td className="p-2 text-xs max-w-[150px]" title={req.requirements_text || undefined}>
                           {req.requirements_text ? (req.requirements_text.length > 50 ? `${req.requirements_text.slice(0, 50)}…` : req.requirements_text) : '—'}
@@ -3696,8 +3657,9 @@ export default function AdminDashboard() {
                             <div className="text-sm text-gray-600 grid grid-cols-2 gap-2">
                               <div>Quantity: {order.quantity}</div>
                               <div>Created: {new Date(order.created_at).toLocaleDateString()}</div>
-                              <div>MRC: {order.currency_at_order} {order.mrc_at_order}</div>
-                              <div>NRC: {order.currency_at_order} {order.nrc_at_order}</div>
+                              <div>MRC: {order.mrc_at_order}</div>
+                              <div>NRC: {order.nrc_at_order}</div>
+                              <div>Currency: {order.currency_at_order}</div>
                             </div>
                           </div>
                         ))}
@@ -3802,50 +3764,40 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">Number Type</label>
-                    <select
+                    <SelectWithCustom
                       value={editingNumber.number_type}
-                      onChange={(e) => setEditingNumber({ ...editingNumber, number_type: e.target.value })}
-                      className="w-full p-2 border rounded-lg"
-                    >
-                      <option value="Geographic">Geographic</option>
-                      <option value="National">National</option>
-                      <option value="Local">Local</option>
-                      <option value="Mobile">Mobile</option>
-                      <option value="Toll-Free">Toll-Free</option>
-                      <option value="Non-Geographic">Non-Geographic</option>
-                      <option value="2WV">2WV</option>
-                    </select>
+                      onChange={(value) => setEditingNumber({ ...editingNumber, number_type: value })}
+                      options={NUMBER_TYPE_OPTIONS}
+                      placeholder="Select number type..."
+                      customPlaceholder="Enter number type..."
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">SMS/Voice</label>
-                    <select
-                      value={editingNumber.sms_capability}
-                      onChange={(e) => setEditingNumber({ ...editingNumber, sms_capability: e.target.value })}
-                      className="w-full p-2 border rounded-lg"
-                    >
-                      <option value="SMS only">SMS only</option>
-                      <option value="Voice only">Voice only</option>
-                      <option value="Both">Both</option>
-                    </select>
+                    <SelectWithCustom
+                      value={(editingNumber.sms_capability || '').trim()}
+                      onChange={(value) => setEditingNumber({ ...editingNumber, sms_capability: value })}
+                      options={SMS_VOICE_OPTIONS}
+                      placeholder="Select capability..."
+                      customPlaceholder="Enter capability..."
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">Inbound/Outbound</label>
-                    <select
-                      value={editingNumber.direction}
-                      onChange={(e) => setEditingNumber({ ...editingNumber, direction: e.target.value })}
-                      className="w-full p-2 border rounded-lg"
-                    >
-                      <option value="Inbound only">Inbound only</option>
-                      <option value="Outbound only">Outbound only</option>
-                      <option value="Both">Both</option>
-                    </select>
+                    <SelectWithCustom
+                      value={(editingNumber.direction || '').trim()}
+                      onChange={(value) => setEditingNumber({ ...editingNumber, direction: value })}
+                      options={DIRECTION_OPTIONS}
+                      placeholder="Select direction..."
+                      customPlaceholder="Enter direction..."
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">Supplier name</label>
                     <SelectWithCustom
                       value={editingNumber.supplier || ''}
                       onChange={(value) => setEditingNumber({ ...editingNumber, supplier: value })}
-                      options={SUPPLIER_OPTIONS}
+                      options={existingSuppliers}
                       placeholder="Select supplier..."
                       customPlaceholder="Enter supplier name..."
                     />
@@ -3886,15 +3838,13 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">Customer currency</label>
-                    <select
+                    <SelectWithCustom
                       value={editingNumber.currency}
-                      onChange={(e) => setEditingNumber({ ...editingNumber, currency: e.target.value })}
-                      className="w-full p-2 border rounded-lg"
-                    >
-                      {CURRENCY_OPTIONS.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => setEditingNumber({ ...editingNumber, currency: value })}
+                      options={CURRENCY_OPTIONS}
+                      placeholder="Select currency..."
+                      customPlaceholder="Enter currency code..."
+                    />
                   </div>
                   <div className="col-span-2 text-sm font-semibold text-[#215F9A]">Supplier rate (admin only)</div>
                   <div>
@@ -3931,16 +3881,13 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">Supplier Currency</label>
-                    <select
+                    <SelectWithCustom
                       value={((editingNumber as any).supplier_currency ?? '') as string}
-                      onChange={(e) => setEditingNumber({ ...editingNumber, supplier_currency: e.target.value as any })}
-                      className="w-full p-2 border rounded-lg"
-                    >
-                      <option value="">—</option>
-                      {CURRENCY_OPTIONS.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => setEditingNumber({ ...editingNumber, supplier_currency: value as any })}
+                      options={CURRENCY_OPTIONS}
+                      placeholder="Select currency..."
+                      customPlaceholder="Enter currency code..."
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">MOQ</label>
@@ -4404,7 +4351,7 @@ export default function AdminDashboard() {
             <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
               <h4 className="font-semibold text-[#215F9A] mb-2">Customer rate (view)</h4>
               <p className="text-sm text-gray-700">
-                MRC: {orderForRequirementsModal.currency_at_order} {formatDecimal(orderForRequirementsModal.mrc_at_order, 2) ?? '0'} &nbsp;|&nbsp; NRC: {orderForRequirementsModal.currency_at_order} {formatDecimal(orderForRequirementsModal.nrc_at_order, 2) ?? '0'}
+                MRC: {formatDecimal(orderForRequirementsModal.mrc_at_order, 2) ?? '0'} &nbsp;|&nbsp; NRC: {formatDecimal(orderForRequirementsModal.nrc_at_order, 2) ?? '0'} &nbsp;|&nbsp; Currency: {orderForRequirementsModal.currency_at_order}
               </p>
             </div>
             {loadingOrderRequirements ? (
@@ -4558,15 +4505,13 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Currency *</label>
-                  <select
+                  <SelectWithCustom
                     value={fulfillForm.currency}
-                    onChange={(e) => setFulfillForm({ ...fulfillForm, currency: e.target.value })}
-                    className="w-full p-2 border rounded-lg"
-                  >
-                    {CURRENCY_OPTIONS.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setFulfillForm({ ...fulfillForm, currency: value })}
+                    options={CURRENCY_OPTIONS}
+                    placeholder="Select currency..."
+                    customPlaceholder="Enter currency code..."
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">MOQ *</label>
@@ -4603,16 +4548,13 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Supplier Currency</label>
-                  <select
+                  <SelectWithCustom
                     value={fulfillForm.supplier_currency}
-                    onChange={(e) => setFulfillForm({ ...fulfillForm, supplier_currency: e.target.value })}
-                    className="w-full p-2 border rounded-lg"
-                  >
-                    <option value="">—</option>
-                    {CURRENCY_OPTIONS.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setFulfillForm({ ...fulfillForm, supplier_currency: value })}
+                    options={CURRENCY_OPTIONS}
+                    placeholder="Select currency..."
+                    customPlaceholder="Enter currency code..."
+                  />
                 </div>
               </div>
               <div>

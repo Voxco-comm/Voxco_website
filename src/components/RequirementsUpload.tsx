@@ -1592,17 +1592,21 @@ export default function RequirementsUpload() {
               <p className="font-medium">{orderDetails.quantity}</p>
             </div>
             <div>
+              <p className="text-sm text-gray-500">Currency</p>
+              <p className="font-medium">{orderDetails.currency}</p>
+            </div>
+            <div>
               <p className="text-sm text-gray-500">MRC</p>
-              <p className="font-medium">{orderDetails.currency} {formatDecimal(orderDetails.mrc, 2)}</p>
+              <p className="font-medium">{formatDecimal(orderDetails.mrc, 2)}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">NRC</p>
-              <p className="font-medium">{orderDetails.currency} {formatDecimal(orderDetails.nrc, 2)}</p>
+              <p className="font-medium">{formatDecimal(orderDetails.nrc, 2)}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Total MRC</p>
               <p className="font-semibold text-[#215F9A]">
-                {orderDetails.currency} {formatDecimal(orderDetails.mrc * orderDetails.quantity, 2)}
+                {formatDecimal(orderDetails.mrc * orderDetails.quantity, 2)}
               </p>
             </div>
           </div>

@@ -440,6 +440,7 @@ export default function CustomerOrders() {
                     <th className="p-2 text-center">MOQ</th>
                     <th className="p-2 text-right">MRC</th>
                     <th className="p-2 text-right">NRC</th>
+                    <th className="p-2 text-left">Currency</th>
                     <th className="p-2 text-center">Documents</th>
                     <th className="p-2 text-center">Status</th>
                     <th className="p-2 text-left">Notes</th>
@@ -459,11 +460,12 @@ export default function CustomerOrders() {
                       <td className="p-2 text-center text-xs">{order.quantity}</td>
                       <td className="p-2 text-center text-xs">{order.moq}</td>
                       <td className="p-2 text-right text-xs">
-                        {order.currency_at_order} {formatDecimal(order.mrc_at_order, 2) || '0'}
+                        {formatDecimal(order.mrc_at_order, 2) || '0'}
                       </td>
                       <td className="p-2 text-right text-xs">
-                        {order.currency_at_order} {formatDecimal(order.nrc_at_order, 2) || '0'}
+                        {formatDecimal(order.nrc_at_order, 2) || '0'}
                       </td>
+                      <td className="p-2 text-xs">{order.currency_at_order}</td>
                       <td className="p-2 text-center">
                         {(() => {
                           const docs = order.uploaded_documents?.documents ?? []
@@ -608,6 +610,7 @@ export default function CustomerOrders() {
                         <th className="p-2 text-center">MOQ</th>
                         <th className="p-2 text-right">MRC</th>
                         <th className="p-2 text-right">NRC</th>
+                        <th className="p-2 text-left">Currency</th>
                         <th className="p-2 text-center">Status</th>
                         <th className="p-2 text-left">Admin notes</th>
                         <th className="p-2 text-center">Actions</th>
@@ -624,8 +627,9 @@ export default function CustomerOrders() {
                           <td className="p-2 text-xs">{req.sms_capability}</td>
                           <td className="p-2 text-xs">{req.direction}</td>
                           <td className="p-2 text-center text-xs">{req.moq}</td>
-                          <td className="p-2 text-right text-xs">{req.currency} {formatDecimal(req.mrc, 2)}</td>
-                          <td className="p-2 text-right text-xs">{req.currency} {formatDecimal(req.nrc, 2)}</td>
+                          <td className="p-2 text-right text-xs">{formatDecimal(req.mrc, 2)}</td>
+                          <td className="p-2 text-right text-xs">{formatDecimal(req.nrc, 2)}</td>
+                          <td className="p-2 text-xs">{req.currency}</td>
                           <td className="p-2 text-center">
                             <span className={`px-2 py-1 rounded text-xs ${
                               req.status === 'approved' ? 'bg-green-100 text-green-800' :

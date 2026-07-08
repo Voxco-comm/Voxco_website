@@ -77,14 +77,15 @@ export function formatPricePerUnit(
   currency: string,
   unit: string
 ): string {
+  // Empty entries are shown blank (not "N/A").
   if (value === null || value === undefined || value === '') {
-    return 'N/A'
+    return ''
   }
 
   const num = typeof value === 'string' ? parseFloat(value) : value
 
   if (isNaN(num)) {
-    return 'N/A'
+    return ''
   }
 
   // Currency is optional: when omitted, only the amount and unit are shown

@@ -604,6 +604,28 @@ body {
   background: #94a3b8;
 }
 
+/* High-contrast, always-visible horizontal scrollbar for wide tables (DualScrollbar) */
+.dual-scrollbar {
+  scrollbar-width: auto; /* Firefox */
+  scrollbar-color: #215f9a #e2e8f0; /* thumb, track (Firefox) */
+}
+.dual-scrollbar::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+.dual-scrollbar::-webkit-scrollbar-track {
+  background: #e2e8f0;
+  border-radius: 6px;
+}
+.dual-scrollbar::-webkit-scrollbar-thumb {
+  background: #215f9a;
+  border-radius: 6px;
+  border: 2px solid #e2e8f0;
+}
+.dual-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #17436e;
+}
+
 /* ===================================
    Focus Ring Styles
    =================================== */

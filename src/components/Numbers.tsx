@@ -718,11 +718,15 @@ export default function Numbers() {
           </div>
         )
         break
-      case 'features':
+      case 'features': {
         title = 'Features'
+        // Voice and SMS are represented by the dedicated columns, not features.
+        const featureEntries = Object.entries(modal.data.features || {}).filter(
+          ([key]) => key !== 'voice' && key !== 'sms'
+        )
         content = (
           <div>
-            {modal.data.features && Object.keys(modal.data.features).length > 0 ? (
+            {featureEntries.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
@@ -732,7 +736,7 @@ export default function Numbers() {
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(modal.data.features).map(([key, value]: [string, any], idx: number) => (
+                    {featureEntries.map(([key, value]: [string, any], idx: number) => (
                       <tr key={`feature-${key}-${idx}`} className="border-b hover:bg-gray-50">
                         <td className="p-3 text-sm">{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
                         <td className="p-3 text-center">
@@ -755,6 +759,7 @@ export default function Numbers() {
           </div>
         )
         break
+      }
     }
 
     return (
@@ -947,13 +952,13 @@ export default function Numbers() {
                         <div>
                           <dt className="text-gray-500">MRC</dt>
                           <dd className="font-medium">
-                            {num.currency} {formatDecimal(num.mrc, 2)}
+                            {formatDecimal(num.mrc, 2)}
                           </dd>
                         </div>
                         <div>
                           <dt className="text-gray-500">NRC</dt>
                           <dd className="font-medium">
-                            {num.currency} {formatDecimal(num.nrc, 2)}
+                            {formatDecimal(num.nrc, 2)}
                           </dd>
                         </div>
                         <div>
@@ -1077,10 +1082,10 @@ export default function Numbers() {
                           <td className="p-3">{num.sms_capability}</td>
                           <td className="p-3">{num.direction}</td>
                           <td className="p-3 text-right">
-                            {num.currency} {formatDecimal(num.mrc, 2)}
+                            {formatDecimal(num.mrc, 2)}
                           </td>
                           <td className="p-3 text-right">
-                            {num.currency} {formatDecimal(num.nrc, 2)}
+                            {formatDecimal(num.nrc, 2)}
                           </td>
                           <td className="p-3">{num.currency}</td>
                           <td className="p-3 text-center">{num.moq}</td>
