@@ -902,7 +902,7 @@ export default function NumberFileUpload({
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
                 <h4 className="font-semibold text-[#215F9A] mb-2 sm:mb-3 text-sm sm:text-base">Expected File Format</h4>
                 <p className="text-xs sm:text-sm text-gray-700 mb-3">
-                    Your file should match the <strong>Rates</strong> sheet layout: <strong>Supplier</strong> and <strong>Country</strong> first, then SMS/Voice, Direction, pricing columns, and optional <strong>Features</strong> (Voice, SMS). SMS/Voice and Direction default to <strong>&quot;Both&quot;</strong> when omitted. Empty Available Numbers defaults to <strong>100</strong>. Bare <strong>MRC</strong>/<strong>NRC</strong> columns are treated as supplier rates; <strong>Customer MRC</strong>/<strong>Customer NRC</strong> are customer rates.
+                    Use a <strong>single header row</strong> matching the columns below: <strong>Supplier</strong> and <strong>Country</strong> first, then SMS/Voice, Direction, pricing columns, and optional <strong>Features</strong> (Voice, SMS, Reach, Emergency). Only <strong>Country</strong> is required; any empty entry is left blank. Bare <strong>MRC</strong>/<strong>NRC</strong> columns are treated as supplier rates; <strong>Customer MRC</strong>/<strong>Customer NRC</strong> are customer rates.
                 </p>
 
                 {/* Sample Data Table */}
@@ -910,75 +910,49 @@ export default function NumberFileUpload({
                     <p className="text-xs font-semibold text-gray-600 mb-2">Sample Data Format:</p>
                     <table className="w-full text-[10px] sm:text-xs border-collapse min-w-[1500px]">
                         <thead>
-                            {/* TOP ROW: For merged headers and section groupings */}
                             <tr className="bg-[#215F9A] text-white">
-                                {/* Ungrouped columns stretch down across both header rows */}
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Supplier</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Country</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">SMS/Voice</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Direction</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Number Type</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Specification</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Available Numbers</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">MRC</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">NRC</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Customer MRC</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Customer NRC</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Supplier Currency</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Customer Currency</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">MOQ</th>
-                                <th rowSpan={2} className="p-1.5 sm:p-2 text-left border whitespace-nowrap align-middle">Bill Pulse</th>
-
-                                {/* Group 1: Admin / Customer Charges (6 Columns) */}
-                                <th colSpan={6} className="bg-[#781d04] p-1.5 sm:p-2 text-center border whitespace-nowrap font-bold">
-                                    Other charges(Admin only) - Customer Charges
-                                </th>
-
-                                {/* Group 2: Supplier Charges (6 Columns) */}
-                                <th colSpan={6} className="bg-[#590d00] p-1.5 sm:p-2 text-center border whitespace-nowrap font-bold">
-                                    Other charges(Supplier) - Supplier Charges
-                                </th>
-
-                                {/* Group 2:  Features  */}
-                                <th colSpan={4} className="bg-[#545d00] p-1.5 sm:p-2 text-center border whitespace-nowrap font-bold">
-                                    Features
-                                </th>
-                            </tr>
-
-                            {/* BOTTOM ROW: Sub-headers for the grouped elements */}
-                            <tr className="bg-[#3a4d7d] text-white">
-                                {/* Under Customer Charges */}
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Inbound Call</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Outbound Call Fixed</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Outbound Call Mobile</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Inbound SMS</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Outbound SMS</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Other Fees</th>
-
-                                {/* Under Supplier Charges */}
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Inbound Call</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Outbound Call Fixed</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Outbound Call Mobile</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Inbound SMS</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Outbound SMS</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Supplier Other Fees</th>
-
-                                {/* Under Features */}
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Voice</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">SMS</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Reach</th>
-                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap font-medium">Emergency Services</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Country</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">SMS/Voice</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Direction</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Number Type</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Specification</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Available Numbers</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">MRC</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">NRC</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer MRC</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer NRC</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier Currency</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer Currency</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">MOQ</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Bill Pulse</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier Inbound Call</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier Outbound Call Fixed</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier Outbound Call Mobile</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier Inbound SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier Outbound SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Supplier Other Fees</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer Inbound Call</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer Outbound Call Fixed</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer Outbound Call Mobile</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer Inbound SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer Outbound SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Customer Other Fees</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Voice</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">SMS</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Reach</th>
+                                <th className="p-1.5 sm:p-2 text-left border whitespace-nowrap">Emergency</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr className="bg-gray-50 text-gray-800">
-                                <td className="p-1.5 sm:p-2 border">Riptec</td>
+                                <td className="p-1.5 sm:p-2 border">AABCDee</td>
                                 <td className="p-1.5 sm:p-2 border">Albania</td>
                                 <td className="p-1.5 sm:p-2 border">Voice-Only</td>
                                 <td className="p-1.5 sm:p-2 border">Both</td>
-                                <td className="p-1.5 sm:p-2 border">100</td>
                                 <td className="p-1.5 sm:p-2 border">local</td>
                                 <td className="p-1.5 sm:p-2 border"></td>
+                                <td className="p-1.5 sm:p-2 border">1000</td>
                                 <td className="p-1.5 sm:p-2 border">17.16</td>
                                 <td className="p-1.5 sm:p-2 border">17.16</td>
                                 <td className="p-1.5 sm:p-2 border">25</td>
@@ -987,29 +961,26 @@ export default function NumberFileUpload({
                                 <td className="p-1.5 sm:p-2 border">USD</td>
                                 <td className="p-1.5 sm:p-2 border">1</td>
                                 <td className="p-1.5 sm:p-2 border"></td>
-                                {/* Customer Metrics */}
-                                <td className="p-1.5 sm:p-2 border">yes</td>
-                                <td className="p-1.5 sm:p-2 border">yes</td>
-                                <td className="p-1.5 sm:p-2 border">yes</td>
-                                <td className="p-1.5 sm:p-2 border">no</td>
-                                <td className="p-1.5 sm:p-2 border">no</td>
+                                <td className="p-1.5 sm:p-2 border">0.02</td>
                                 <td className="p-1.5 sm:p-2 border">0</td>
-                                {/* Supplier Metrics */}
-                                <td className="p-1.5 sm:p-2 border">yes</td>
-                                <td className="p-1.5 sm:p-2 border">yes</td>
-                                <td className="p-1.5 sm:p-2 border">yes</td>
-                                <td className="p-1.5 sm:p-2 border">no</td>
-                                <td className="p-1.5 sm:p-2 border">no</td>
+                                <td className="p-1.5 sm:p-2 border">0.23</td>
+                                <td className="p-1.5 sm:p-2 border">0.001</td>
+                                <td className="p-1.5 sm:p-2 border">0.023</td>
                                 <td className="p-1.5 sm:p-2 border">0</td>
-                                {/* Additional End Columns */}
+                                <td className="p-1.5 sm:p-2 border">0.03</td>
+                                <td className="p-1.5 sm:p-2 border">0.001</td>
+                                <td className="p-1.5 sm:p-2 border">0.3</td>
+                                <td className="p-1.5 sm:p-2 border">0.015</td>
+                                <td className="p-1.5 sm:p-2 border">0.035</td>
+                                <td className="p-1.5 sm:p-2 border">0</td>
                                 <td className="p-1.5 sm:p-2 border">Supported</td>
                                 <td className="p-1.5 sm:p-2 border">Not Supported</td>
-                                <td className="p-1.5 sm:p-2 border">Supported</td>
-                                <td className="p-1.5 sm:p-2 border">Not Supported</td>
+                                <td className="p-1.5 sm:p-2 border">International</td>
+                                <td className="p-1.5 sm:p-2 border">Not Available</td>
                             </tr>
                         </tbody>
                     </table>
-                    <p className="text-[10px] sm:text-xs text-gray-500 mt-2">Swipe horizontally on mobile to see all columns.</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500 mt-2">Swipe horizontally on mobile to see all columns. Use a single header row (as above) — do not include a merged group-header row above it.</p>
                 </div>
 
                 {/* Column Reference */}
@@ -1036,18 +1007,18 @@ export default function NumberFileUpload({
                             </tr>
                             <tr className="border-b">
                                 <td className="p-1.5 sm:p-2">SMS/Voice</td>
-                                <td className="p-1.5 sm:p-2 text-gray-500">Optional (default: Both)</td>
+                                <td className="p-1.5 sm:p-2 text-gray-500">Optional</td>
                                 <td className="p-1.5 sm:p-2">SMS only, Voice only, Both, Voice-Only, etc.</td>
                             </tr>
                             <tr className="border-b">
                                 <td className="p-1.5 sm:p-2">Direction</td>
-                                <td className="p-1.5 sm:p-2 text-gray-500">Optional (default: Both)</td>
+                                <td className="p-1.5 sm:p-2 text-gray-500">Optional</td>
                                 <td className="p-1.5 sm:p-2">Inbound only, Outbound only, Both, Inbound-only, etc.</td>
                             </tr>
                             <tr className="border-b">
                                 <td className="p-1.5 sm:p-2">Available Numbers</td>
                                 <td className="p-1.5 sm:p-2 text-gray-500">Optional</td>
-                                <td className="p-1.5 sm:p-2">Number of available units (default: 100)</td>
+                                <td className="p-1.5 sm:p-2">Number of available units</td>
                             </tr>
                             <tr className="border-b">
                                 <td className="p-1.5 sm:p-2">Number Type</td>

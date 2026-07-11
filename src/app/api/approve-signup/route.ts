@@ -18,6 +18,23 @@ function createServiceRoleClient() {
     })
 }
 
+// Find an existing auth user by email (paginates through all users).
+async function findAuthUserByEmail(
+    supabase: ReturnType<typeof createServiceRoleClient>,
+    email: string
+) {
+    const target = email.trim().toLowerCase()
+    const perPage = 1000
+    for (let page = 1; page <= 50; page++) {
+        const { data, error } = await supabase.auth.admin.listUsers({ page, perPage })
+        if (error || !data) return null
+        const found = data.users.find((u) => (u.email || '').toLowerCase() === target)
+        if (found) return found
+        if (data.users.length < perPage) return null
+    }
+    return null
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
@@ -53,6 +70,87 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // If an auth user already exists for this email, this is a re-approval of a
+        // previously deleted/disabled user. Reset their password to the newly
+        // submitted one and confirm their email so they can sign in immediately.
+        const existingUser = await findAuthUserByEmail(supabase, signupRequest.email)
+        if (existingUser) {
+            const { error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
+                password: signupRequest.password_hash,
+                email_confirm: true,
+                user_metadata: {
+                    name: signupRequest.name,
+                    message: signupRequest.message,
+                },
+            })
+
+            if (updateUserError) {
+                console.error('Error reactivating auth user:', updateUserError)
+                return NextResponse.json(
+                    { error: updateUserError.message || 'Failed to reactivate account' },
+                    { status: 500 }
+                )
+            }
+
+            // Mark the request approved
+            await supabase
+                .from('signup_requests')
+                .update({
+                    status: 'approved',
+                    approved_by: adminUserId,
+                    approved_at: new Date().toISOString(),
+                })
+                .eq('id', requestId)
+
+            // Restore (or re-enable / create) their customer record
+            try {
+                const { data: existingCustomer } = await supabase
+                    .from('customers')
+                    .select('id')
+                    .eq('user_id', existingUser.id)
+                    .maybeSingle()
+                if (existingCustomer) {
+                    await supabase
+                        .from('customers')
+                        .update({ is_disabled: false, name: signupRequest.name, email: signupRequest.email })
+                        .eq('id', existingCustomer.id)
+                } else {
+                    await supabase.from('customers').insert({
+                        user_id: existingUser.id,
+                        email: signupRequest.email,
+                        name: signupRequest.name,
+                    })
+                }
+            } catch (restoreErr) {
+                console.warn('Failed to restore customer record for existing user:', restoreErr)
+            }
+
+            // Notify the customer their account is active again (email already confirmed)
+            try {
+                const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+                await fetch(`${siteUrl}/api/send-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'signup_approved',
+                        data: {
+                            email: signupRequest.email,
+                            name: signupRequest.name,
+                            signInUrl: `${siteUrl}/sign-in`,
+                        },
+                    }),
+                })
+            } catch (emailErr) {
+                console.warn('Failed to send approval email:', emailErr)
+            }
+
+            return NextResponse.json({
+                success: true,
+                message: 'Account reactivated with the new password.',
+                userAlreadyExists: true,
+            })
+        }
+
         // Create auth user using signUp - this properly triggers the confirmation email
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
             email: signupRequest.email,
@@ -67,57 +165,6 @@ export async function POST(request: NextRequest) {
 
         if (signUpError) {
             console.error('Error creating auth user:', signUpError)
-
-            // Check if user already exists
-            if (signUpError.message?.includes('already been registered') || signUpError.message?.includes('already registered')) {
-                // Update signup request status anyway
-                await supabase
-                    .from('signup_requests')
-                    .update({
-                        status: 'approved',
-                        approved_by: adminUserId,
-                        approved_at: new Date().toISOString(),
-                    })
-                    .eq('id', requestId)
-
-                // The auth user already exists. This happens when a previously
-                // deleted/disabled user is being re-approved. Restore (or
-                // re-enable) their customer record so they regain access.
-                try {
-                    const { data: userList } = await supabase.auth.admin.listUsers()
-                    const existingUser = userList?.users?.find(
-                        (u) => u.email?.toLowerCase() === signupRequest.email.toLowerCase()
-                    )
-                    if (existingUser) {
-                        const { data: existingCustomer } = await supabase
-                            .from('customers')
-                            .select('id')
-                            .eq('user_id', existingUser.id)
-                            .maybeSingle()
-                        if (existingCustomer) {
-                            await supabase
-                                .from('customers')
-                                .update({ is_disabled: false, name: signupRequest.name })
-                                .eq('id', existingCustomer.id)
-                        } else {
-                            await supabase.from('customers').insert({
-                                user_id: existingUser.id,
-                                email: signupRequest.email,
-                                name: signupRequest.name,
-                            })
-                        }
-                    }
-                } catch (restoreErr) {
-                    console.warn('Failed to restore customer record for existing user:', restoreErr)
-                }
-
-                return NextResponse.json({
-                    success: true,
-                    message: 'User already exists. Signup request marked as approved.',
-                    userAlreadyExists: true,
-                })
-            }
-
             return NextResponse.json(
                 { error: signUpError.message || 'Failed to create user account' },
                 { status: 500 }

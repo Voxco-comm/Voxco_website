@@ -49,27 +49,6 @@ const NUMBER_TYPE_OPTIONS = ['Geographic', 'National', 'Local', 'Mobile', 'Toll-
 const SMS_VOICE_OPTIONS = ['SMS only', 'Voice only', 'Both']
 const DIRECTION_OPTIONS = ['Inbound only', 'Outbound only', 'Both']
 
-const DIRECTION_LABELS: Record<string, string> = {
-  'Inbound only': 'Inbound',
-  'Outbound only': 'Outbound',
-  'Both': 'Both',
-}
-
-// Derive per-channel Voice / SMS values from the legacy sms_capability + direction
-// fields. e.g. capability "Voice only" + direction "Inbound only" =>
-// { voice: 'Inbound', sms: 'Not Supported' }.
-function deriveChannels(smsCapability?: string | null, direction?: string | null): { voice: string; sms: string } {
-  const cap = (smsCapability || '').trim()
-  const dir = (direction || '').trim()
-  const dirLabel = DIRECTION_LABELS[dir] || dir || '—'
-  const voiceSupported = cap === 'Voice only' || cap === 'Both'
-  const smsSupported = cap === 'SMS only' || cap === 'Both'
-  return {
-    voice: voiceSupported ? dirLabel : 'Not Supported',
-    sms: smsSupported ? dirLabel : 'Not Supported',
-  }
-}
-
 interface Country {
   id: string
   name: string
@@ -304,6 +283,7 @@ export default function AdminDashboard() {
     country: '',
     smsVoice: '',
     inboundOutbound: '',
+    supplier: '',
   })
   const [orders, setOrders] = useState<Order[]>([])
   const [selectedOrderForDocs, setSelectedOrderForDocs] = useState<Order | null>(null)
@@ -575,7 +555,7 @@ export default function AdminDashboard() {
       }
 
       if (result.userAlreadyExists) {
-        setSuccess(`User ${request.email} already exists. Signup request marked as approved.`)
+        setSuccess(`Account for ${request.email} has been reactivated with the new password. They can sign in now.`)
       } else {
         setSuccess(`User ${request.email} has been created! A confirmation email has been sent to verify their account.`)
       }
@@ -1884,6 +1864,9 @@ export default function AdminDashboard() {
     if (inventoryFilters.inboundOutbound) {
       list = list.filter((n) => n.direction === inventoryFilters.inboundOutbound)
     }
+    if (inventoryFilters.supplier) {
+      list = list.filter((n) => (n.supplier || '') === inventoryFilters.supplier)
+    }
     return list
   }, [allNumbers, inventoryFilters])
 
@@ -2821,7 +2804,7 @@ export default function AdminDashboard() {
               </h2>
 
               <section className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 mb-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                   <div>
                     <label className="block text-xs sm:text-sm font-medium mb-1">Filter by Country</label>
                     <select
@@ -2863,10 +2846,23 @@ export default function AdminDashboard() {
                       <option>Both</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium mb-1">Filter by Supplier</label>
+                    <select
+                      className="w-full p-2 border rounded-lg text-sm"
+                      value={inventoryFilters.supplier}
+                      onChange={(e) => setInventoryFilters({ ...inventoryFilters, supplier: e.target.value })}
+                    >
+                      <option value="">All Suppliers</option>
+                      {existingSuppliers.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="flex items-end">
                     <button
                       type="button"
-                      onClick={() => setInventoryFilters({ country: '', smsVoice: '', inboundOutbound: '' })}
+                      onClick={() => setInventoryFilters({ country: '', smsVoice: '', inboundOutbound: '', supplier: '' })}
                       disabled={loadingNumbers}
                       className="w-full bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 text-sm disabled:opacity-50"
                     >
@@ -2874,7 +2870,7 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </div>
-                {(inventoryFilters.country || inventoryFilters.smsVoice || inventoryFilters.inboundOutbound) && (
+                {(inventoryFilters.country || inventoryFilters.smsVoice || inventoryFilters.inboundOutbound || inventoryFilters.supplier) && (
                   <p className="text-xs text-gray-500 mt-2">Filters narrow the list below; totals show matched rows.</p>
                 )}
               </section>
@@ -2889,7 +2885,6 @@ export default function AdminDashboard() {
                     {filteredInventoryNumbers.map((num) => {
                       const isCardExpanded = expandedRows.has(num.id)
                       const supCurM = num.supplier_currency || num.currency || 'USD'
-                      const chM = deriveChannels(num.sms_capability, num.direction)
                       return (
                         <div key={`m-${num.id}`} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
                           <div className="flex justify-between gap-2">
@@ -2900,7 +2895,7 @@ export default function AdminDashboard() {
                                 {num.number_type}
                               </p>
                               <p className="text-xs text-gray-500 mt-1">
-                                Voice: {chM.voice} · SMS: {chM.sms}
+                                SMS/Voice: {num.sms_capability || '-'} · Direction: {num.direction || '-'}
                               </p>
                             </div>
                             <div className="text-right text-sm shrink-0">
@@ -2949,8 +2944,8 @@ export default function AdminDashboard() {
                       <tr className="bg-[#215F9A] text-white text-xs sm:text-sm">
                         <th className="p-2 sm:p-3 text-left max-w-[120px]">Supplier</th>
                         <th className="p-2 sm:p-3 text-left">Country</th>
-                        <th className="p-2 sm:p-3 text-left">Voice</th>
-                        <th className="p-2 sm:p-3 text-left">SMS</th>
+                        <th className="p-2 sm:p-3 text-left">SMS/Voice</th>
+                        <th className="p-2 sm:p-3 text-left">Direction</th>
                         <th className="p-2 sm:p-3 text-center">Available</th>
                         <th className="p-2 sm:p-3 text-left">Type</th>
                         <th className="p-2 sm:p-3 text-left">Specification</th>
@@ -2966,7 +2961,6 @@ export default function AdminDashboard() {
                       {filteredInventoryNumbers.map((num) => {
                         const isExpanded = expandedRows.has(num.id)
                         const supCur = num.supplier_currency || num.currency || 'USD'
-                        const ch = deriveChannels(num.sms_capability, num.direction)
 
                         return (
                           <React.Fragment key={num.id}>
@@ -2977,8 +2971,8 @@ export default function AdminDashboard() {
                               <td className="p-2 sm:p-3">
                                 {num.country_name} ({num.country_code})
                               </td>
-                              <td className="p-2 sm:p-3">{ch.voice}</td>
-                              <td className="p-2 sm:p-3">{ch.sms}</td>
+                              <td className="p-2 sm:p-3">{num.sms_capability || '-'}</td>
+                              <td className="p-2 sm:p-3">{num.direction || '-'}</td>
                               <td className="p-2 sm:p-3 text-center font-semibold">{num.available_numbers ?? 0}</td>
                               <td className="p-2 sm:p-3">{num.number_type}</td>
                               <td className="p-2 sm:p-3 text-xs sm:text-sm">{num.specification || '-'}</td>
