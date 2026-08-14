@@ -114,7 +114,9 @@ export const emailTemplates = {
           <p>Dear ${orderDetails.customerName}${orderDetails.companyName ? ` (${orderDetails.companyName})` : ''},</p>
           ${orderDetails.status === 'granted'
         ? `<p style="color: #22c55e; font-size: 18px;"><strong>Great news! Your order has been approved.</strong></p>`
-        : `<p style="color: #ef4444; font-size: 18px;"><strong>Your order has been ${orderDetails.status}.</strong></p>`
+        : orderDetails.status === 'rejected'
+          ? `<p style="color: #ef4444; font-size: 18px;"><strong>We regret to inform you that your order has been rejected due to the below reasons:</strong></p>`
+          : `<p style="color: #ef4444; font-size: 18px;"><strong>Your order has been ${orderDetails.status}.</strong></p>`
       }
           <h3 style="color: #215F9A;">Order Details</h3>
           <table style="width: 100%; border-collapse: collapse;">
@@ -279,7 +281,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 
   try {
     const fromEmail = options.from || process.env.EMAIL_FROM || process.env.SMTP_USER || 'noreply@voxco.com'
-    
+
     const info = await mailTransporter.sendMail({
       from: fromEmail,
       to: options.to,

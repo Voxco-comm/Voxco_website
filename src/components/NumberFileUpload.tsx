@@ -762,10 +762,6 @@ export default function NumberFileUpload({
                 delete extracted.features
             }
 
-            if (extracted.available_numbers === undefined) {
-                extracted.available_numbers = 100
-            }
-
             console.log('Extracted:', extracted)
 
             numbers.push(extracted)

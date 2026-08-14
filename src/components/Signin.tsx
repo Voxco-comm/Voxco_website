@@ -14,7 +14,9 @@ export default function Signin() {
   const [email, setEmail] = useState<string>('')
   const [password, setPassword] = useState<string>('')
   const [error, setError] = useState<string>('')
+  const [success, setSuccess] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(false)
+  const [resetLoading, setResetLoading] = useState<boolean>(false)
   const [showPassword, setShowPassword] = useState<boolean>(false)
   const supabase = createClient()
 
@@ -80,6 +82,37 @@ export default function Signin() {
     if (error) {
       setError('')
     }
+    if (success) {
+      setSuccess('')
+    }
+  }
+
+  const handleResetPassword = async () => {
+    const normalizedEmail = email.trim()
+
+    if (!normalizedEmail) {
+      setError('Please enter your email address to receive a password reset link.')
+      return
+    }
+
+    setResetLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      if (resetError) throw resetError
+
+      setSuccess('Password reset link sent. Please check your email inbox and spam folder.')
+    } catch (err: any) {
+      console.error('Password reset error:', err)
+      setError(err?.message || 'Failed to send password reset email. Please try again.')
+    } finally {
+      setResetLoading(false)
+    }
   }
 
   const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -136,6 +169,17 @@ export default function Signin() {
                 message={error}
                 dismissible
                 onDismiss={() => setError('')}
+              />
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-6">
+              <Alert
+                type="success"
+                message={success}
+                dismissible
+                onDismiss={() => setSuccess('')}
               />
             </div>
           )}
@@ -212,8 +256,19 @@ export default function Signin() {
               </div>
             </div>
 
+            <div className="flex justify-end animate-fade-in" style={{ animationDelay: '500ms' }}>
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={resetLoading}
+                className="text-sm font-medium text-[#215F9A] hover:text-[#2c78c0] disabled:opacity-60"
+              >
+                {resetLoading ? 'Sending reset link...' : 'Forgot password?'}
+              </button>
+            </div>
+
             {/* Sign In Button */}
-            <div className="animate-fade-in" style={{ animationDelay: '500ms' }}>
+            <div className="animate-fade-in" style={{ animationDelay: '550ms' }}>
               <Button
                 onClick={handleClick}
                 loading={loading}

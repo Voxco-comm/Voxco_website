@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
                 email_confirm: true,
                 user_metadata: {
                     name: signupRequest.name,
+                    company_name: signupRequest.company_name || null,
                     message: signupRequest.message,
                 },
             })
@@ -88,6 +89,19 @@ export async function POST(request: NextRequest) {
                 console.error('Error reactivating auth user:', updateUserError)
                 return NextResponse.json(
                     { error: updateUserError.message || 'Failed to reactivate account' },
+                    { status: 500 }
+                )
+            }
+
+            const { error: signInCheckError } = await supabase.auth.signInWithPassword({
+                email: signupRequest.email,
+                password: signupRequest.password_hash,
+            })
+
+            if (signInCheckError) {
+                console.error('Reactivated user could not sign in with new password:', signInCheckError)
+                return NextResponse.json(
+                    { error: 'Reactivation completed but the password could not be validated. Please retry the sign-in flow.' },
                     { status: 500 }
                 )
             }
@@ -102,24 +116,33 @@ export async function POST(request: NextRequest) {
                 })
                 .eq('id', requestId)
 
-            // Restore (or re-enable / create) their customer record
+            // Restore (or re-enable / create) their customer record and ensure the profile data matches
             try {
                 const { data: existingCustomer } = await supabase
                     .from('customers')
                     .select('id')
                     .eq('user_id', existingUser.id)
                     .maybeSingle()
+
                 if (existingCustomer) {
                     await supabase
                         .from('customers')
-                        .update({ is_disabled: false, name: signupRequest.name, email: signupRequest.email })
-                        .eq('id', existingCustomer.id)
+                        .upsert({
+                            id: existingCustomer.id,
+                            user_id: existingUser.id,
+                            is_disabled: false,
+                            name: signupRequest.name,
+                            email: signupRequest.email,
+                            company_name: signupRequest.company_name || null,
+                        }, { onConflict: 'id' })
                 } else {
-                    await supabase.from('customers').insert({
+                    await supabase.from('customers').upsert({
                         user_id: existingUser.id,
                         email: signupRequest.email,
                         name: signupRequest.name,
-                    })
+                        company_name: signupRequest.company_name || null,
+                        is_disabled: false,
+                    }, { onConflict: 'user_id' })
                 }
             } catch (restoreErr) {
                 console.warn('Failed to restore customer record for existing user:', restoreErr)
@@ -158,6 +181,7 @@ export async function POST(request: NextRequest) {
             options: {
                 data: {
                     name: signupRequest.name,
+                    company_name: signupRequest.company_name || null,
                     message: signupRequest.message,
                 },
             },
@@ -200,6 +224,7 @@ export async function POST(request: NextRequest) {
                 user_id: authData.user.id,
                 email: signupRequest.email,
                 name: signupRequest.name,
+                company_name: signupRequest.company_name || null,
             })
 
         if (customerError) {

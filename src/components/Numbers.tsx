@@ -899,7 +899,7 @@ export default function Numbers() {
         </section>
 
         {/* Results Table */}
-        <section className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-3 sm:p-6">
+        <section className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-3 sm:p-6 overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
             <h2 className="text-lg sm:text-xl font-semibold text-[#215F9A]">
               Available Numbers ({availableNumbers.length})

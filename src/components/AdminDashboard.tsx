@@ -2291,7 +2291,7 @@ export default function AdminDashboard() {
                             setFormData({ ...formData, available_numbers: value })
                           }
                         }}
-                        placeholder="100"
+                        placeholder="Available numbers"
                         className="w-full p-2 border rounded-lg"
                       />
                     </div>
