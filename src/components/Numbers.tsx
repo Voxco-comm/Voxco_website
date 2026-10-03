@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import BackButton from './BackButton'
 import DualScrollbar from './ui/DualScrollbar'
 import { formatDecimal } from '@/lib/utils/formatNumber'
+import { getCountryFlagEmoji } from '@/lib/utils/countryFlag'
+import { DetailCaption, DetailPill, RateList, RateRow, detailIconFor } from './ui/NumberDetails'
 import {
   Globe,
   MessageSquare,
@@ -78,26 +80,11 @@ interface ModalState {
   }
 }
 
-// Presentation-only helpers below (flags, badges, shared control styling).
-// None of these read or write component state, fetch data, or alter any value —
-// they only decide how existing data is displayed.
-
-// A small number of real country_code values in the data are not valid ISO
-// 3166-1 alpha-2 codes (e.g. the seeded "UK" row). This maps those known
-// exceptions to the correct ISO code for flag rendering only; it never
-// touches the underlying country_code value used for filtering/orders.
-const ISO_CODE_OVERRIDES: Record<string, string> = {
-  UK: 'GB',
-}
-
-function getCountryFlagEmoji(code?: string | null): string | null {
-  if (!code) return null
-  const normalized = code.trim().toUpperCase()
-  const iso = ISO_CODE_OVERRIDES[normalized] || normalized
-  if (!/^[A-Z]{2}$/.test(iso)) return null
-  const codePoints = Array.from(iso).map((ch) => 127397 + ch.charCodeAt(0))
-  return String.fromCodePoint(...codePoints)
-}
+// Presentation-only helpers below (badges, shared control styling). None of
+// these read or write component state, fetch data, or alter any value —
+// they only decide how existing data is displayed. The country flag helper
+// itself lives in @/lib/utils/countryFlag so it stays identical across
+// Numbers, My Orders, and Complete Your Order.
 
 const BADGE_CLASS =
   'inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600'
@@ -750,32 +737,34 @@ export default function Numbers() {
 
         content = chargeEntries.length > 0 ? (
           <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Pricing breakdown
-            </p>
-            <div className="divide-y divide-slate-100">
-              {chargeEntries.map(([key, value]: [string, any], idx: number) => {
-                const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-                let unit = ''
-                if (key.includes('call') || key.includes('voice')) unit = 'Per minute'
-                else if (key.includes('sms')) unit = 'Per SMS'
-                else if (key.includes('fee')) unit = 'One-time'
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <DetailCaption>Pricing breakdown</DetailCaption>
+              {modal.data.currency && <DetailPill tone="customer">{modal.data.currency}</DetailPill>}
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white px-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+              <RateList>
+                {chargeEntries.map(([key, value]: [string, any], idx: number) => {
+                  const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                  let unit = ''
+                  if (key.includes('call') || key.includes('voice')) unit = 'Per minute'
+                  else if (key.includes('sms')) unit = 'Per SMS'
+                  else if (key.includes('fee')) unit = 'One-time'
 
-                return (
-                  <div
-                    key={`other-charge-${key}-${idx}`}
-                    className="-mx-2 flex items-baseline justify-between gap-4 rounded-lg px-2 py-3 transition-colors hover:bg-slate-50"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-800">{formattedKey}</p>
-                      {unit && <p className="mt-0.5 text-xs text-slate-400">{unit}</p>}
-                    </div>
-                    <p className="shrink-0 whitespace-nowrap tabular-nums text-[15px] font-semibold text-slate-900">
-                      {modal.data.currency} {typeof value === 'number' ? formatDecimal(value) : 0}
-                    </p>
-                  </div>
-                )
-              })}
+                  return (
+                    <RateRow
+                      key={`other-charge-${key}-${idx}`}
+                      icon={detailIconFor(key)}
+                      label={<span className="font-medium text-slate-800">{formattedKey}</span>}
+                      sublabel={unit || undefined}
+                      value={
+                        <span className="whitespace-nowrap text-[15px]">
+                          {modal.data.currency} {typeof value === 'number' ? formatDecimal(value) : 0}
+                        </span>
+                      }
+                    />
+                  )
+                })}
+              </RateList>
             </div>
           </div>
         ) : (
@@ -926,21 +915,22 @@ export default function Numbers() {
 
         content = featureEntries.length > 0 ? (
           <div>
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Available capabilities
-            </p>
+            <div className="mb-3">
+              <DetailCaption>Available capabilities</DetailCaption>
+            </div>
             <div className={featureEntries.length <= 1 ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-1 gap-2.5 sm:grid-cols-2'}>
               {featureEntries.map(([key, value]: [string, any], idx: number) => {
                 const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
                 const isBoolean = typeof value === 'boolean'
                 const supported = isBoolean ? value : true
+                const FeatureIcon = detailIconFor(key)
                 return (
                   <div
                     key={`feature-${key}-${idx}`}
-                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${supported ? 'border-slate-200 bg-white hover:border-[#215F9A]/30 hover:bg-blue-50/30' : 'border-slate-100 bg-slate-50/60'}`}
+                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors ${supported ? 'border-slate-200 bg-white hover:border-[#215F9A]/30 hover:bg-[#215F9A]/[0.03]' : 'border-slate-100 bg-slate-50/60 shadow-none'}`}
                   >
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${supported ? 'bg-[#215F9A]/10 text-[#215F9A]' : 'bg-slate-100 text-slate-400'}`}>
-                      <Zap className="h-4 w-4" />
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${supported ? 'bg-[#215F9A]/10 text-[#215F9A] ring-[#215F9A]/15' : 'bg-slate-100 text-slate-400 ring-slate-200/70'}`}>
+                      <FeatureIcon className="h-4 w-4" />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className={`truncate text-sm font-medium ${supported ? 'text-slate-900' : 'text-slate-500'}`}>{label}</p>
@@ -949,7 +939,7 @@ export default function Numbers() {
                           {value ? 'Supported' : 'Not supported'}
                         </p>
                       ) : (
-                        <p className="text-xs font-medium text-slate-500">{value}</p>
+                        <p className="break-words text-xs font-semibold text-[#1C4F80]">{value}</p>
                       )}
                     </div>
                     {isBoolean && (
@@ -1138,7 +1128,7 @@ export default function Numbers() {
                     Need a custom number?
                     <span aria-hidden="true" className="inline-block h-1 w-1 shrink-0 rounded-full bg-[#F97316]" />
                   </span>
-                  <span className="block text-[11px] leading-snug text-slate-500">We&apos;ll help you source it.</span>
+                  <span className="block text-[11px] leading-snug text-slate-500">Can't find it on the list? Click here.</span>
                 </span>
                 <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[#215F9A] transition-transform group-hover:translate-x-0.5" />
               </button>
@@ -1581,7 +1571,7 @@ export default function Numbers() {
                 <div className="mb-6 flex items-center gap-2 text-xs font-medium text-slate-400">
                   <span className="flex items-center gap-1.5 text-[#215F9A]">
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#215F9A] text-[10px] font-bold text-white">1</span>
-                    Requirements
+                    Submit
                   </span>
                   <span className="h-px w-6 bg-slate-200" />
                   <span className="flex items-center gap-1.5">

@@ -6,6 +6,56 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from './AuthContext'
 import BackButton from './BackButton'
 import { formatDecimal } from '@/lib/utils/formatNumber'
+import { getCountryFlagEmoji } from '@/lib/utils/countryFlag'
+import {
+  Upload,
+  Trash2,
+  Eye,
+  FileText,
+  FileImage,
+  Loader2,
+  AlertTriangle,
+  Info,
+  CheckCircle2,
+  CircleDashed,
+  ClipboardCheck,
+  FolderOpen,
+  Building2,
+  User,
+  Hash,
+  X,
+  ArrowRight,
+} from 'lucide-react'
+
+// Purely presentational card wrapper shared by every section of the order
+// workflow below — holds no state, forwards nothing but the children/props
+// it is given.
+function SectionCard({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  title: React.ReactNode
+  description?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+      <div className="mb-5 flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#215F9A]/10 text-[#215F9A]">
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+          {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
+        </div>
+      </div>
+      {children}
+    </section>
+  )
+}
 
 interface OrderDetails {
   numberId: string
@@ -835,24 +885,12 @@ export default function RequirementsUpload() {
 
   const getFileIcon = (fileType: string) => {
     if (fileType === 'application/pdf') {
-      return (
-        <svg className="h-6 w-6 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10.92,12.31C10.68,11.54 10.15,9.08 11.55,9.04C12.95,9 12.03,12.16 12.03,12.16C12.42,13.65 14.05,14.72 14.05,14.72C14.55,14.57 17.4,14.24 17,15.72C16.57,17.2 13.5,15.81 13.5,15.81C11.55,15.95 10.09,16.47 10.09,16.47C8.96,18.58 7.64,19.5 7.1,18.61C6.43,17.5 9.23,16.07 9.23,16.07C10.68,13.72 10.9,12.35 10.92,12.31Z" />
-        </svg>
-      )
+      return <FileText className="h-5 w-5 shrink-0 text-red-500" />
     }
     if (fileType.startsWith('image/')) {
-      return (
-        <svg className="h-6 w-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      )
+      return <FileImage className="h-5 w-5 shrink-0 text-blue-500" />
     }
-    return (
-      <svg className="h-6 w-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    )
+    return <FileText className="h-5 w-5 shrink-0 text-slate-400" />
   }
 
   // Gate submission: for a new order with no/missing documents, first show a
@@ -1536,578 +1574,591 @@ export default function RequirementsUpload() {
 
   if (!orderDetails) {
     return (
-      <main className="bg-gray-50 min-h-screen py-12 px-8">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-gray-600">Loading order details...</p>
+      <main className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#215F9A]/10">
+            <Loader2 className="h-5 w-5 animate-spin text-[#215F9A]" />
+          </div>
+          <p className="text-sm font-medium text-slate-600">Loading order details…</p>
         </div>
       </main>
     )
   }
 
+  const flag = getCountryFlagEmoji(orderDetails.countryCode)
+
+  // Shared primary/secondary/tertiary action set — rendered once for the desktop
+  // sticky sidebar and once for the mobile sticky bar. Both call the exact same
+  // unmodified handlers; only sizing/labels differ slightly for the smaller bar.
+  const renderActions = (compact: boolean) => (
+    <div className={compact ? 'flex items-center gap-2' : 'space-y-2.5'}>
+      {compact && (
+        <button
+          onClick={() => router.push('/numbers')}
+          disabled={submitting || savingDraft}
+          className="shrink-0 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      )}
+      <button
+        onClick={handleSaveDraft}
+        disabled={submitting || savingDraft || draftSaved}
+        className={`flex items-center justify-center gap-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 ${compact ? 'flex-1 px-4 py-2.5' : 'w-full px-4 py-3'}`}
+      >
+        {savingDraft ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Saving…
+          </>
+        ) : (
+          'Save as draft'
+        )}
+      </button>
+      <button
+        onClick={handleSubmitClick}
+        disabled={submitting || savingDraft || draftSaved}
+        className={`flex items-center justify-center gap-2 rounded-lg bg-[#215F9A] text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#1b4e80] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 ${compact ? 'flex-[1.4] px-4 py-2.5' : 'w-full px-4 py-3'}`}
+      >
+        {submitting ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {existingOrderId ? 'Uploading…' : 'Submitting…'}
+          </>
+        ) : (
+          <>
+            {existingOrderId ? 'Upload additional documents' : 'Submit order'}
+            {!existingOrderId && !compact && <ArrowRight className="h-4 w-4" />}
+          </>
+        )}
+      </button>
+      {!compact && (
+        <button
+          onClick={() => router.push('/numbers')}
+          disabled={submitting || savingDraft}
+          className="flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      )}
+    </div>
+  )
+
   return (
-    <main className="bg-gray-50 min-h-screen py-12 px-8">
-      <div className="max-w-4xl mx-auto">
+    <main className="min-h-screen bg-slate-50 pb-28 pt-6 lg:pb-12">
+      <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
         <BackButton href="/numbers" label="Back to Numbers" />
 
-        <section className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-[#215F9A] mb-2">Complete Your Order</h2>
-          <p className="text-gray-600">Upload required documents to proceed with your order</p>
-        </section>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-            <button onClick={() => setError(null)} className="float-right font-bold">×</button>
+        <div className="mb-6 sm:mb-8">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#F97316]" />
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#215F9A]">
+              Voxco Number Portal
+            </span>
           </div>
-        )}
-
-        {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            {success}
-          </div>
-        )}
-
-        {/* Order Summary */}
-        <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
-          <h3 className="text-xl font-semibold text-[#215F9A] mb-4">Order Summary</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Country</p>
-              <p className="font-medium">{orderDetails.countryName} ({orderDetails.countryCode})</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Number Type</p>
-              <p className="font-medium">{orderDetails.numberType}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">SMS/Voice</p>
-              <p className="font-medium">{orderDetails.smsCapability}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Direction</p>
-              <p className="font-medium">{orderDetails.direction}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Quantity</p>
-              <p className="font-medium">{orderDetails.quantity}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Currency</p>
-              <p className="font-medium">{orderDetails.currency}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">MRC</p>
-              <p className="font-medium">{formatDecimal(orderDetails.mrc, 2)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">NRC</p>
-              <p className="font-medium">{formatDecimal(orderDetails.nrc, 2)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Total MRC</p>
-              <p className="font-semibold text-[#215F9A]">
-                {formatDecimal(orderDetails.mrc * orderDetails.quantity, 2)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Customer Type Selection */}
-        <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
-          <h3 className="text-xl font-semibold text-[#215F9A] mb-4">Customer Type</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Please select your customer type to see the relevant document requirements.
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Complete Your Order</h1>
+          <p className="mt-1.5 max-w-2xl text-sm text-slate-600">
+            Upload required documents to proceed with your order.
           </p>
-          <div className="flex gap-4">
-            <button
-              onClick={() => {
-                setCustomerType('individual')
-                setUploadedDocuments([]) // Clear uploads when changing type
-              }}
-              className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${customerType === 'individual'
-                ? 'border-[#215F9A] bg-blue-50 text-[#215F9A]'
-                : 'border-gray-300 hover:border-gray-400'
-                }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span className="font-medium">Individual</span>
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                setCustomerType('business')
-                setUploadedDocuments([]) // Clear uploads when changing type
-              }}
-              className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${customerType === 'business'
-                ? 'border-[#215F9A] bg-blue-50 text-[#215F9A]'
-                : 'border-gray-300 hover:border-gray-400'
-                }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                <span className="font-medium">Business</span>
-              </div>
-            </button>
-          </div>
         </div>
 
-        {/* Required Documents */}
-        <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
-          <h3 className="text-xl font-semibold text-[#215F9A] mb-4">
-            Required Documents for {orderDetails.countryName}
-          </h3>
-
-          {loadingRequirements ? (
-            <div className="flex items-center justify-center py-8">
-              <svg className="animate-spin h-8 w-8 text-[#215F9A]" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <span className="ml-2 text-gray-600">Loading requirements...</span>
-            </div>
-          ) : requiredDocuments.length > 0 ? (
-            <div className="space-y-4">
-              {/* Address Requirements Notice */}
-              {requirements?.number_allocation?.address_requirements && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                  <div className="flex items-start gap-2">
-                    <svg className="h-5 w-5 text-yellow-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <div>
-                      <p className="font-medium text-yellow-800">Address Requirements</p>
-                      <p className="text-sm text-yellow-700">{requirements.number_allocation.address_requirements}</p>
-                    </div>
-                  </div>
+        {(error || success || draftSaved) && (
+          <div className="mb-6 space-y-3">
+            {error && (
+              <div className="flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <span>{error}</span>
+                <button onClick={() => setError(null)} aria-label="Dismiss" className="shrink-0 text-red-400 transition-colors hover:text-red-600">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            {success && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {success}
+              </div>
+            )}
+            {draftSaved && (
+              <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+                <div>
+                  <p className="text-sm font-medium text-emerald-800">Draft saved successfully!</p>
+                  <p className="text-xs text-emerald-600">Redirecting to dashboard…</p>
                 </div>
-              )}
+              </div>
+            )}
+          </div>
+        )}
 
-              {/* Document Upload Slots */}
-              <p className="text-sm text-gray-600 mb-4">
-                Please upload the following documents. Accepted formats: PDF, JPG, PNG, DOC.
-                {customerDocuments.length > 0 && (
-                  <span className="text-blue-600 ml-1">
-                    You can also choose from your previously uploaded documents.
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+          {/* Main workflow column */}
+          <div className="space-y-6">
+            {/* Customer Type Selection */}
+            <SectionCard
+              icon={User}
+              title="Customer type"
+              description="Select your customer type to see the relevant document requirements."
+            >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  onClick={() => {
+                    setCustomerType('individual')
+                    setUploadedDocuments([]) // Clear uploads when changing type
+                  }}
+                  aria-pressed={customerType === 'individual'}
+                  className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/30 ${customerType === 'individual'
+                    ? 'border-[#215F9A] bg-[#215F9A]/5'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                >
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${customerType === 'individual' ? 'bg-[#215F9A] text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    <User className="h-4 w-4" />
                   </span>
-                )}
-              </p>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-sm font-semibold ${customerType === 'individual' ? 'text-[#215F9A]' : 'text-slate-700'}`}>Individual</span>
+                    <span className="block text-xs text-slate-500">Personal documentation</span>
+                  </span>
+                  {customerType === 'individual' && <CheckCircle2 className="h-4 w-4 shrink-0 text-[#215F9A]" />}
+                </button>
+                <button
+                  onClick={() => {
+                    setCustomerType('business')
+                    setUploadedDocuments([]) // Clear uploads when changing type
+                  }}
+                  aria-pressed={customerType === 'business'}
+                  className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/30 ${customerType === 'business'
+                    ? 'border-[#215F9A] bg-[#215F9A]/5'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                >
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${customerType === 'business' ? 'bg-[#215F9A] text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    <Building2 className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-sm font-semibold ${customerType === 'business' ? 'text-[#215F9A]' : 'text-slate-700'}`}>Business</span>
+                    <span className="block text-xs text-slate-500">Company documentation</span>
+                  </span>
+                  {customerType === 'business' && <CheckCircle2 className="h-4 w-4 shrink-0 text-[#215F9A]" />}
+                </button>
+              </div>
+            </SectionCard>
 
-              {requiredDocuments.map((requirement) => {
-                const uploadedDoc = uploadedDocuments.find(doc => doc.requirementKey === requirement.key)
-                const savedDoc = savedDocuments.find(doc => doc.requirement_key === requirement.key)
-                const hasDocument = uploadedDoc || savedDoc
-                const isUploading = uploadingFile === requirement.key
-
-                return (
-                  <div
-                    key={requirement.key}
-                    className={`border-2 rounded-lg p-4 transition-all ${hasDocument
-                      ? 'border-green-300 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          {hasDocument ? (
-                            <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : (
-                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          )}
-                          <span className="font-medium text-gray-800 break-words">{requirement.title}</span>
-                          {requirement.required && (
-                            <span className="text-red-500 text-sm">*</span>
-                          )}
-                        </div>
-
-                        {uploadedDoc && (
-                          <div className="mt-2 flex items-center gap-3 ml-7 min-w-0">
-                            {getFileIcon(uploadedDoc.fileType)}
-                            <div>
-                              <p className="text-sm font-medium text-gray-700 break-all">{uploadedDoc.fileName}</p>
-                              <p className="text-xs text-gray-500">{formatFileSize(uploadedDoc.fileSize)}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {!uploadedDoc && savedDoc && (
-                          <div className="mt-2 flex items-center gap-3 ml-7 min-w-0">
-                            {getFileIcon(savedDoc.file_type)}
-                            <div>
-                              <p className="text-sm font-medium text-gray-700 break-all">{savedDoc.file_name}</p>
-                              <p className="text-xs text-gray-500">
-                                {formatFileSize(savedDoc.file_size)}
-                                <span className="text-blue-600 ml-2">(saved from draft)</span>
-                              </p>
-                            </div>
-                          </div>
-                        )}
+            {/* Required Documents */}
+            <SectionCard icon={ClipboardCheck} title={`Required documents for ${orderDetails.countryName}`}>
+              {loadingRequirements ? (
+                <div className="flex items-center justify-center gap-3 py-10">
+                  <Loader2 className="h-5 w-5 animate-spin text-[#215F9A]" />
+                  <span className="text-sm font-medium text-slate-600">Loading requirements…</span>
+                </div>
+              ) : requiredDocuments.length > 0 ? (
+                <div>
+                  {/* Address Requirements Notice */}
+                  {requirements?.number_allocation?.address_requirements && (
+                    <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-100 bg-amber-50/60 px-3.5 py-3">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">Address requirements</p>
+                        <p className="mt-0.5 text-sm text-amber-700">{requirements.number_allocation.address_requirements}</p>
                       </div>
+                    </div>
+                  )}
 
-                      <div className="flex items-center gap-2 relative w-full sm:w-auto">
-                        {isUploading ? (
-                          <div className="flex items-center gap-2 text-blue-600">
-                            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            <span className="text-sm">Uploading...</span>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
-                              {/* Upload new file button */}
-                              <input
-                                type="file"
-                                id={`file-${requirement.key}`}
-                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                onChange={(e) => handleFileUpload(e, requirement)}
-                                className="hidden"
-                              />
-                              <label
-                                htmlFor={`file-${requirement.key}`}
-                                className={`cursor-pointer px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${hasDocument
-                                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                  : 'bg-[#215F9A] text-white hover:bg-blue-700'
-                                  }`}
-                              >
-                                {hasDocument ? 'Replace' : 'Upload'}
-                              </label>
+                  {/* Document Upload Slots */}
+                  <p className="mb-4 text-sm text-slate-500">
+                    Please upload the following documents. Accepted formats: PDF, JPG, PNG, DOC.
+                    {customerDocuments.length > 0 && (
+                      <span className="ml-1 text-[#215F9A]">
+                        You can also choose from your previously uploaded documents.
+                      </span>
+                    )}
+                  </p>
 
-                              {/* Choose from existing button - show if customer has existing docs */}
-                              {customerDocuments.length > 0 && (
-                                <button
-                                  onClick={() => setShowDocPicker(requirement.key)}
-                                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${hasDocument
-                                    ? 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                                    : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
-                                    }`}
-                                >
-                                  {hasDocument ? 'Use Other' : 'Use Existing'}
-                                </button>
+                  <div className="space-y-3">
+                    {requiredDocuments.map((requirement) => {
+                      const uploadedDoc = uploadedDocuments.find(doc => doc.requirementKey === requirement.key)
+                      const savedDoc = savedDocuments.find(doc => doc.requirement_key === requirement.key)
+                      const hasDocument = uploadedDoc || savedDoc
+                      const isUploading = uploadingFile === requirement.key
+
+                      return (
+                        <div
+                          key={requirement.key}
+                          className={`rounded-xl border p-4 transition-colors ${hasDocument
+                            ? 'border-emerald-200 bg-emerald-50/30'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                            }`}
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="flex min-w-0 flex-1 gap-2.5">
+                              {hasDocument ? (
+                                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+                              ) : (
+                                <CircleDashed className="mt-0.5 h-5 w-5 shrink-0 text-slate-300" />
                               )}
+                              <div className="min-w-0">
+                                <span className="font-medium text-slate-800 break-words">{requirement.title}</span>
 
-                              {uploadedDoc && (
-                                <button
-                                  onClick={() => removeDocument(requirement.key)}
-                                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                                  title="Remove file"
-                                >
-                                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                              )}
-                              {!uploadedDoc && savedDoc && (
+                                {uploadedDoc && (
+                                  <div className="mt-2 flex items-center gap-2.5 min-w-0">
+                                    {getFileIcon(uploadedDoc.fileType)}
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-slate-700 break-all">{uploadedDoc.fileName}</p>
+                                      <p className="text-xs text-slate-500">{formatFileSize(uploadedDoc.fileSize)}</p>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {!uploadedDoc && savedDoc && (
+                                  <div className="mt-2 flex items-center gap-2.5 min-w-0">
+                                    {getFileIcon(savedDoc.file_type)}
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-slate-700 break-all">{savedDoc.file_name}</p>
+                                      <p className="text-xs text-slate-500">
+                                        {formatFileSize(savedDoc.file_size)}
+                                        <span className="ml-2 text-[#215F9A]">(saved from draft)</span>
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {!hasDocument && (
+                                  <p className="mt-1 text-xs font-medium text-amber-600">Missing</p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="relative flex w-full items-center gap-2 sm:w-auto">
+                              {isUploading ? (
+                                <div className="flex items-center gap-2 text-[#215F9A]">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <span className="text-sm">Uploading…</span>
+                                </div>
+                              ) : (
                                 <>
-                                  <button
-                                    onClick={() => viewSavedDocument(savedDoc)}
-                                    disabled={loadingPreview === savedDoc.requirement_key}
-                                    className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-                                    title="View file"
-                                  >
-                                    {loadingPreview === savedDoc.requirement_key ? (
-                                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                      </svg>
-                                    ) : (
-                                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                      </svg>
+                                  <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:flex-nowrap sm:justify-end">
+                                    {/* Upload new file button */}
+                                    <input
+                                      type="file"
+                                      id={`file-${requirement.key}`}
+                                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                      onChange={(e) => handleFileUpload(e, requirement)}
+                                      className="hidden"
+                                    />
+                                    <label
+                                      htmlFor={`file-${requirement.key}`}
+                                      className={`inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${hasDocument
+                                        ? 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                        : 'bg-[#215F9A] text-white hover:bg-[#1b4e80]'
+                                        }`}
+                                    >
+                                      <Upload className="h-3.5 w-3.5" />
+                                      {hasDocument ? 'Replace' : 'Upload'}
+                                    </label>
+
+                                    {/* Choose from existing button - show if customer has existing docs */}
+                                    {customerDocuments.length > 0 && (
+                                      <button
+                                        onClick={() => setShowDocPicker(requirement.key)}
+                                        className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${hasDocument
+                                          ? 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                          : 'border border-[#215F9A]/30 bg-[#215F9A]/5 text-[#215F9A] hover:bg-[#215F9A]/10'
+                                          }`}
+                                      >
+                                        {hasDocument ? 'Use Other' : 'Use Existing'}
+                                      </button>
                                     )}
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setSavedDocuments(prev => prev.filter(doc => doc.requirement_key !== requirement.key))
-                                    }}
-                                    className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Remove saved file"
-                                  >
-                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                  </button>
+
+                                    {uploadedDoc && (
+                                      <button
+                                        onClick={() => removeDocument(requirement.key)}
+                                        className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                        title="Remove file"
+                                        aria-label="Remove file"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                    {!uploadedDoc && savedDoc && (
+                                      <>
+                                        <button
+                                          onClick={() => viewSavedDocument(savedDoc)}
+                                          disabled={loadingPreview === savedDoc.requirement_key}
+                                          className="rounded-lg p-2 text-[#215F9A] transition-colors hover:bg-blue-50 disabled:opacity-50"
+                                          title="View file"
+                                          aria-label="View file"
+                                        >
+                                          {loadingPreview === savedDoc.requirement_key ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <Eye className="h-4 w-4" />
+                                          )}
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setSavedDocuments(prev => prev.filter(doc => doc.requirement_key !== requirement.key))
+                                          }}
+                                          className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                          title="Remove saved file"
+                                          aria-label="Remove saved file"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {/* Document Picker Dropdown */}
+                                  {showDocPicker === requirement.key && (
+                                    <div className="absolute left-0 top-full z-10 mt-2 w-full max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-lg sm:left-auto sm:right-0 sm:w-80">
+                                      <div className="flex items-center justify-between border-b border-slate-100 p-3">
+                                        <span className="text-sm font-medium text-slate-700">Select from your documents</span>
+                                        <button
+                                          onClick={() => setShowDocPicker(null)}
+                                          className="text-slate-400 hover:text-slate-600"
+                                          aria-label="Close"
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </button>
+                                      </div>
+                                      <div className="max-h-64 overflow-y-auto">
+                                        {customerDocuments.length === 0 ? (
+                                          <p className="p-4 text-center text-sm text-slate-500">No documents available</p>
+                                        ) : (
+                                          <div className="p-2">
+                                            {customerDocuments.map((doc) => (
+                                              <button
+                                                key={doc.id}
+                                                onClick={() => selectExistingDocument(doc, requirement.key, requirement.title)}
+                                                className="flex w-full items-center gap-3 rounded-lg p-2.5 text-left transition-colors hover:bg-slate-50"
+                                              >
+                                                {getFileIcon(doc.file_type)}
+                                                <div className="min-w-0 flex-1">
+                                                  <p className="truncate text-sm font-medium text-slate-800">{doc.file_name}</p>
+                                                  <p className="text-xs text-slate-500">
+                                                    {doc.title} • {formatFileSize(doc.file_size)}
+                                                    {doc.is_verified && (
+                                                      <span className="ml-2 text-emerald-600">✓ Verified</span>
+                                                    )}
+                                                  </p>
+                                                </div>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </>
                               )}
                             </div>
-
-                            {/* Document Picker Dropdown */}
-                            {showDocPicker === requirement.key && (
-                              <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-full sm:w-80 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                                <div className="p-3 border-b border-gray-200 flex justify-between items-center">
-                                  <span className="font-medium text-gray-700">Select from your documents</span>
-                                  <button
-                                    onClick={() => setShowDocPicker(null)}
-                                    className="text-gray-400 hover:text-gray-600"
-                                  >
-                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                  </button>
-                                </div>
-                                <div className="max-h-64 overflow-y-auto">
-                                  {customerDocuments.length === 0 ? (
-                                    <p className="p-4 text-sm text-gray-500 text-center">No documents available</p>
-                                  ) : (
-                                    <div className="p-2">
-                                      {customerDocuments.map((doc) => (
-                                        <button
-                                          key={doc.id}
-                                          onClick={() => selectExistingDocument(doc, requirement.key, requirement.title)}
-                                          className="w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-3"
-                                        >
-                                          {getFileIcon(doc.file_type)}
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-gray-800 truncate">{doc.file_name}</p>
-                                            <p className="text-xs text-gray-500">
-                                              {doc.title} • {formatFileSize(doc.file_size)}
-                                              {doc.is_verified && (
-                                                <span className="ml-2 text-green-600">✓ Verified</span>
-                                              )}
-                                            </p>
-                                          </div>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                )
-              })}
 
-              {/* Upload Progress Summary */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">
-                    Documents uploaded: {uploadedDocuments.length} / {requiredDocuments.length}
-                  </span>
-                  {allRequiredUploaded ? (
-                    <span className="text-green-600 flex items-center gap-1">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                      All required documents uploaded
-                    </span>
-                  ) : (
-                    <span className="text-amber-600 flex items-center gap-1">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      Missing required documents
-                    </span>
+                  {/* Document Status Info */}
+                  {requiredDocuments.length > 0 && !allRequiredUploaded && (
+                    <p className="mt-4 flex items-start gap-1.5 text-xs leading-relaxed text-slate-500">
+                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      <span>
+                        Documents are optional — you can submit your order without uploading all documents, but your order may take longer to process. Alternatively, save as a draft and upload documents later.
+                      </span>
+                    </p>
                   )}
                 </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-6">
-              <svg className="h-12 w-12 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-gray-600">No specific document requirements for {orderDetails.countryName}.</p>
-              <p className="text-sm text-gray-500 mt-1">You can proceed with your order.</p>
-            </div>
-          )}
-        </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3 py-8 text-center">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-500">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm text-slate-600">No specific document requirements for {orderDetails.countryName}.</p>
+                  <p className="text-xs text-slate-500">You can proceed with your order.</p>
+                </div>
+              )}
 
-        {/* Other documents (optional, up to 10) */}
-        <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
-          <h3 className="text-xl font-semibold text-[#215F9A] mb-4">Other documents (optional, up to {MAX_OTHER_DOCS})</h3>
-          <p className="text-sm text-gray-600 mb-4">Add any additional documents beyond the required list above.</p>
-          {otherDocuments.length > 0 && (
-            <ul className="space-y-2 mb-4">
-              {otherDocuments.map((doc, index) => (
-                <li key={index} className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {getFileIcon('file_path' in doc ? doc.file_type : (doc as UploadedDocument).fileType)}
-                    <span className="text-sm font-medium truncate">
-                      {'file_name' in doc ? (doc as SavedDocument).file_name : (doc as UploadedDocument).fileName}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {formatFileSize('file_size' in doc ? (doc as SavedDocument).file_size : (doc as UploadedDocument).fileSize)}
+              {/* Other documents (optional, up to 10) — integrated as a continuation of the same workflow */}
+              <div className="mt-6 border-t border-slate-100 pt-6">
+                <div className="mb-1 flex items-center gap-2">
+                  <FolderOpen className="h-4 w-4 text-slate-400" />
+                  <h4 className="text-sm font-semibold text-slate-700">
+                    Other documents <span className="font-normal text-slate-400">(optional, up to {MAX_OTHER_DOCS})</span>
+                  </h4>
+                </div>
+                <p className="mb-4 text-sm text-slate-500">Add any additional documents beyond the required list above.</p>
+                {otherDocuments.length > 0 && (
+                  <ul className="mb-4 space-y-2">
+                    {otherDocuments.map((doc, index) => (
+                      <li key={index} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          {getFileIcon('file_path' in doc ? doc.file_type : (doc as UploadedDocument).fileType)}
+                          <span className="truncate text-sm font-medium text-slate-700">
+                            {'file_name' in doc ? (doc as SavedDocument).file_name : (doc as UploadedDocument).fileName}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {formatFileSize('file_size' in doc ? (doc as SavedDocument).file_size : (doc as UploadedDocument).fileSize)}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeOtherDocument(index)}
+                          className="shrink-0 rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                          title="Remove"
+                          aria-label="Remove"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {otherDocuments.length < MAX_OTHER_DOCS && (
+                  <div>
+                    <input
+                      type="file"
+                      id="other-doc-upload"
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      onChange={handleOtherFileUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="other-doc-upload"
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      {uploadingOtherFile ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Uploading…
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-3.5 w-3.5" />
+                          Add other document
+                        </>
+                      )}
+                    </label>
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+
+            {/* Additional Notes */}
+            <SectionCard icon={FileText} title="Additional notes" description="Optional — add any special requests or context for our team.">
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any additional information or special requests..."
+                className="h-28 w-full resize-none rounded-lg border border-slate-300 p-3 text-sm text-slate-900 transition-colors focus:border-[#215F9A] focus:outline-none focus:ring-2 focus:ring-[#215F9A]/20"
+              />
+            </SectionCard>
+          </div>
+
+          {/* Sticky sidebar: order summary, progress, actions */}
+          <div className="space-y-5 lg:sticky lg:top-6">
+            <SectionCard icon={Hash} title="Order summary">
+              <div className="space-y-5">
+                <div>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Number</p>
+                  <p className="text-sm font-semibold text-slate-900">{orderDetails.numberType}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{orderDetails.smsCapability} · {orderDetails.direction}</p>
+                </div>
+                <div>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Location</p>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                    {flag && <span aria-hidden="true">{flag}</span>}
+                    {orderDetails.countryName} <span className="font-normal text-slate-400">({orderDetails.countryCode})</span>
+                  </p>
+                </div>
+                <div>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Quantity</p>
+                  <p className="text-sm font-semibold tabular-nums text-slate-900">{orderDetails.quantity}</p>
+                </div>
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Pricing</p>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">MRC</span>
+                      <span className="tabular-nums font-medium text-slate-700">{orderDetails.currency} {formatDecimal(orderDetails.mrc, 2)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">NRC</span>
+                      <span className="tabular-nums font-medium text-slate-700">{orderDetails.currency} {formatDecimal(orderDetails.nrc, 2)}</span>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+                    <span className="text-sm font-medium text-slate-700">Total recurring</span>
+                    <span className="text-base font-bold tabular-nums text-[#215F9A]">
+                      {orderDetails.currency} {formatDecimal(orderDetails.mrc * orderDetails.quantity, 2)}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeOtherDocument(index)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg shrink-0"
-                    title="Remove"
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {otherDocuments.length < MAX_OTHER_DOCS && (
-            <div>
-              <input
-                type="file"
-                id="other-doc-upload"
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                onChange={handleOtherFileUpload}
-                className="hidden"
-              />
-              <label
-                htmlFor="other-doc-upload"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#215F9A] text-white hover:bg-blue-700 cursor-pointer disabled:opacity-50"
-              >
-                {uploadingOtherFile ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Uploading...
-                  </>
-                ) : (
-                  <>Add other document</>
-                )}
-              </label>
-            </div>
-          )}
-        </div>
-
-        {/* Additional Notes */}
-        <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
-          <h3 className="text-xl font-semibold text-[#215F9A] mb-4">Additional Notes (Optional)</h3>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add any additional information or special requests..."
-            className="w-full p-3 border rounded-lg h-24 resize-none focus:border-[#215F9A] focus:outline-none focus:ring-1 focus:ring-[#215F9A]"
-          />
-        </div>
-
-        {/* Draft Saved Success Message */}
-        {draftSaved && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 flex items-center gap-3">
-            <svg className="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-            </svg>
-            <div>
-              <p className="font-medium text-green-800">Draft saved successfully!</p>
-              <p className="text-sm text-green-600">Redirecting to dashboard...</p>
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            onClick={() => router.push('/numbers')}
-            disabled={submitting || savingDraft}
-            className="sm:flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 font-semibold transition-colors disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSaveDraft}
-            disabled={submitting || savingDraft || draftSaved}
-            className="sm:flex-1 bg-yellow-500 text-white py-3 rounded-lg hover:bg-yellow-600 font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-          >
-            {savingDraft ? (
-              <>
-                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Saving...
-              </>
-            ) : (
-              <>
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                </svg>
-                Save as Draft
-              </>
-            )}
-          </button>
-          <button
-            onClick={handleSubmitClick}
-            disabled={submitting || savingDraft || draftSaved}
-            className="sm:flex-1 bg-[#215F9A] text-white py-3 rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {submitting ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                {existingOrderId ? 'Uploading...' : 'Submitting Order...'}
-              </span>
-            ) : (
-              existingOrderId ? 'Upload additional documents' : 'Submit Order'
-            )}
-          </button>
-        </div>
-
-        {/* Document Status Info */}
-        {requiredDocuments.length > 0 && !allRequiredUploaded && (
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-            <div className="flex items-start gap-3">
-              <svg className="h-5 w-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <p className="font-medium text-blue-800">Documents are optional</p>
-                <p className="text-sm text-blue-600 mt-1">
-                  You can submit your order without uploading all documents, but your order may take longer to process.
-                  Alternatively, save as a draft and upload documents later.
-                </p>
+                </div>
               </div>
+            </SectionCard>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+              {!loadingRequirements && requiredDocuments.length > 0 && (
+                <div className="mb-5">
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="font-medium text-slate-700">Requirements</span>
+                    <span className="font-semibold text-slate-900">{uploadedDocuments.length} of {requiredDocuments.length} completed</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className={`h-full rounded-full transition-all ${allRequiredUploaded ? 'bg-emerald-500' : 'bg-[#215F9A]'}`}
+                      style={{ width: `${requiredDocuments.length > 0 ? Math.min(100, (uploadedDocuments.length / requiredDocuments.length) * 100) : 100}%` }}
+                    />
+                  </div>
+                  <p className={`mt-2 flex items-center gap-1.5 text-xs font-medium ${allRequiredUploaded ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {allRequiredUploaded ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                    {allRequiredUploaded ? 'All required documents uploaded' : 'Missing required documents'}
+                  </p>
+                </div>
+              )}
+              <div className="hidden lg:block">{renderActions(false)}</div>
             </div>
           </div>
-        )}
+        </div>
+      </div>
+
+      {/* Mobile sticky action bar */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-4px_16px_rgba(15,23,42,0.06)] lg:hidden">
+        {renderActions(true)}
       </div>
 
       {/* Missing documents review note */}
       {showReviewNote && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setShowReviewNote(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl p-6 max-w-md w-full">
-            <div className="flex items-start gap-3 mb-4">
-              <svg className="h-6 w-6 text-[#215F9A] mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+          <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-[2px]" onClick={() => setShowReviewNote(false)} />
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl ring-1 ring-black/5">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
               <div>
-                <h3 className="text-lg font-semibold text-[#215F9A] mb-1">Some documents are missing</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="text-base font-semibold text-slate-900">Some documents are missing</h3>
+                <p className="mt-1 text-sm text-slate-600">
                   Your order will be reviewed, subject to submission of any necessary documents.
                 </p>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-2.5 sm:flex-row">
               <button
                 onClick={handleSubmitOrder}
                 disabled={submitting}
-                className="flex-1 bg-[#215F9A] text-white py-2.5 rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#215F9A] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1b4e80] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {submitting ? 'Submitting...' : 'Proceed with order'}
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Submitting…
+                  </>
+                ) : (
+                  'Proceed with order'
+                )}
               </button>
               <button
                 onClick={() => setShowReviewNote(false)}
                 disabled={submitting}
-                className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
               >
                 Upload documents
               </button>
@@ -2122,23 +2173,22 @@ export default function RequirementsUpload() {
           <div className="flex min-h-screen items-center justify-center p-4">
             {/* Backdrop */}
             <div
-              className="fixed inset-0 bg-black bg-opacity-75 transition-opacity"
+              className="fixed inset-0 bg-slate-900/75 transition-opacity"
               onClick={closePreview}
             />
 
             {/* Preview Content */}
-            <div className="relative max-w-5xl w-full h-[90vh]">
+            <div className="relative h-[90vh] w-full max-w-5xl">
               <button
                 onClick={closePreview}
-                className="absolute -top-12 right-0 p-2 text-white hover:text-gray-300 transition-colors z-10"
+                aria-label="Close preview"
+                className="absolute -top-12 right-0 z-10 rounded-lg p-2 text-white transition-colors hover:text-slate-300"
               >
-                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="h-6 w-6" />
               </button>
 
               {previewName && (
-                <p className="absolute -top-12 left-0 text-white text-sm truncate max-w-[70%]">
+                <p className="absolute -top-12 left-0 max-w-[70%] truncate text-sm text-white">
                   {previewName}
                 </p>
               )}
@@ -2147,7 +2197,7 @@ export default function RequirementsUpload() {
                 <iframe
                   src={previewUrl}
                   title={previewName || 'Document Preview'}
-                  className="w-full h-full rounded-lg shadow-2xl bg-white"
+                  className="h-full w-full rounded-lg bg-white shadow-2xl"
                   style={{ minHeight: '80vh' }}
                   allowFullScreen
                 />
@@ -2155,13 +2205,13 @@ export default function RequirementsUpload() {
                 <img
                   src={previewUrl}
                   alt={previewName || 'Preview'}
-                  className="max-h-[80vh] w-auto mx-auto rounded-lg shadow-2xl"
+                  className="mx-auto max-h-[80vh] w-auto rounded-lg shadow-2xl"
                 />
               ) : (
                 <iframe
                   src={previewUrl}
                   title={previewName || 'Document Preview'}
-                  className="w-full h-full rounded-lg shadow-2xl bg-white"
+                  className="h-full w-full rounded-lg bg-white shadow-2xl"
                   style={{ minHeight: '80vh' }}
                   allowFullScreen
                 />

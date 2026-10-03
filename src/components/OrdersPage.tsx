@@ -10,6 +10,7 @@ import {
   Zap,
   Upload,
   CheckCircle,
+  Check,
   ArrowRight,
   FileText,
 } from 'lucide-react'
@@ -62,83 +63,21 @@ const STEPS = [
 
 const HIGHLIGHTS = ['No setup fees', '24/7 Support', 'Fast Approval']
 
-const NETWORK_NODES = [
-  { x: 50, y: 8 },
-  { x: 85, y: 29 },
-  { x: 85, y: 71 },
-  { x: 50, y: 92 },
-  { x: 15, y: 71 },
-  { x: 15, y: 29 },
-]
-
-const ACCENT_NODE_INDEX = 2
-
-function nodePath(x: number, y: number) {
-  const dx = x - 50
-  const dy = y - 50
-  const len = Math.hypot(dx, dy) || 1
-  const px = -dy / len
-  const py = dx / len
-  const cx = 50 + dx / 2 + px * 6
-  const cy = 50 + dy / 2 + py * 6
-  return `M 50 50 Q ${cx.toFixed(2)} ${cy.toFixed(2)} ${x} ${y}`
-}
-
-function NetworkVisual() {
+// Hero background: a premium network/node photo (public/Hero-background.png)
+// as a full-bleed cover image, biased toward showing its glowing node
+// cluster on the right, with a dark navy gradient layered on top so the
+// left-side text keeps strong contrast. Purely decorative — no state,
+// behavior, or content of its own.
+function HeroNetworkMap() {
   return (
-    <div className="relative rounded-xl border border-slate-200 bg-slate-50/60 p-8 sm:p-10">
-      <div className="relative mx-auto aspect-square w-full max-w-md">
-        <svg
-          viewBox="0 0 100 100"
-          className="absolute inset-0 h-full w-full"
-          fill="none"
-          aria-hidden="true"
-        >
-          <circle cx="50" cy="50" r="46" stroke="#E2E8F0" strokeWidth="0.4" />
-          <circle cx="50" cy="50" r="26" stroke="#CBD5E1" strokeWidth="0.5" strokeDasharray="1 4" />
-          {NETWORK_NODES.map((n, i) => (
-            <path key={`path-${i}`} d={nodePath(n.x, n.y)} stroke="#BFDBFE" strokeWidth="0.5" />
-          ))}
-          {NETWORK_NODES.map((n, i) =>
-            i === ACCENT_NODE_INDEX ? (
-              <circle
-                key={`halo-${i}`}
-                cx={n.x}
-                cy={n.y}
-                r="6"
-                fill="#F97316"
-                opacity="0.15"
-                className="motion-safe:animate-pulse"
-              />
-            ) : null
-          )}
-          {NETWORK_NODES.map((n, i) => (
-            <circle
-              key={`node-${i}`}
-              cx={n.x}
-              cy={n.y}
-              r={i === ACCENT_NODE_INDEX ? 3.6 : 3}
-              fill="white"
-              stroke={i === ACCENT_NODE_INDEX ? '#F97316' : '#215F9A'}
-              strokeWidth="1.4"
-            />
-          ))}
-          {NETWORK_NODES.map((n, i) => (
-            <circle
-              key={`dot-${i}`}
-              cx={n.x}
-              cy={n.y}
-              r={i === ACCENT_NODE_INDEX ? 1.4 : 1}
-              fill={i === ACCENT_NODE_INDEX ? '#F97316' : '#215F9A'}
-            />
-          ))}
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#215F9A] shadow-sm ring-4 ring-blue-50">
-            <Globe className="h-9 w-9 text-white" strokeWidth={1.5} />
-          </div>
-        </div>
-      </div>
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-no-repeat"
+        style={{
+          backgroundImage: 'url(/Hero-background.png)',
+          backgroundPosition: '75% 42%',
+        }}
+      />
     </div>
   )
 }
@@ -162,29 +101,43 @@ export default function OrdersPage() {
   const userName = (user?.user_metadata as { name?: string })?.name || user?.email
 
   return (
-    <main className="min-h-screen bg-white">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="pt-6">
-          <DraftOrdersBanner />
-        </div>
+    <main className="min-h-screen bg-slate-50">
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-[#050B18]">
+        <HeroNetworkMap />
 
-        {/* Hero */}
-        <section className="grid items-center gap-8 pt-10 pb-8 sm:gap-10 sm:pt-12 sm:pb-10 lg:grid-cols-2 lg:gap-14 lg:pt-16 lg:pb-12">
-          <div>
+        {/* Dark navy gradient over the photo, strongest on the left so the
+            headline/body copy stays highly readable, easing off toward the
+            node cluster on the right. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-r from-[#050B18] via-[#050B18]/88 to-[#050B18]/25 sm:via-[#050B18]/78 sm:to-[#050B18]/10"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-b from-[#050B18]/40 via-transparent to-transparent"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#050B18] to-transparent"
+        />
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-xl pt-12 sm:max-w-2xl sm:pt-16 lg:pt-20">
             <div className="mb-5 flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#F97316]" />
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#215F9A]">
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#F97316]">
                 Voxco Number Portal
               </span>
             </div>
 
-            <h1 className="text-[2.25rem] font-bold leading-[1.15] tracking-tight text-slate-900 sm:text-4xl lg:text-[2.75rem]">
+            <h1 className="text-[2.25rem] font-bold leading-[1.15] tracking-tight text-white sm:text-4xl lg:text-[2.75rem]">
               Welcome back,
               <br />
-              <span className="text-[#215F9A]">{userName}</span>
+              <span className="text-[#4FA0F0]">{userName}</span>
             </h1>
 
-            <p className="mt-4 max-w-md text-base leading-relaxed text-slate-600 sm:max-w-lg sm:text-lg">
+            <p className="mt-4 max-w-md text-base leading-relaxed text-slate-300 sm:max-w-lg sm:text-lg">
               Search and order phone numbers across multiple countries, then track
               everything in one streamlined place.
             </p>
@@ -193,8 +146,17 @@ export default function OrdersPage() {
               <button
                 onClick={handleNumbersClick}
                 disabled={loadingNumbers}
-                className="group inline-flex items-center justify-center gap-2.5 rounded-lg bg-[#215F9A] px-6 py-3 text-[15px] font-semibold text-white shadow-sm transition-all hover:bg-[#1b4e80] hover:shadow-md active:scale-[0.98] active:bg-[#163f68] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70 disabled:active:scale-100"
+                className="group relative inline-flex items-center justify-center gap-2.5 overflow-hidden rounded-lg bg-gradient-to-b from-[#2C74B3] to-[#1C4F80] px-6 py-3 text-[15px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_14px_-4px_rgba(8,22,42,0.65)] transition-all duration-300 ease-out motion-safe:hover:-translate-y-0.5 hover:from-[#3A87CE] hover:to-[#215F9A] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_12px_30px_-8px_rgba(79,160,240,0.6)] motion-safe:active:translate-y-0 active:scale-[0.98] active:from-[#245D93] active:to-[#163f68] active:shadow-[inset_0_1px_2px_rgba(0,0,0,0.25),0_2px_8px_-3px_rgba(8,22,42,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4FA0F0] focus-visible:ring-offset-2 focus-visible:ring-offset-[#050B18] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:active:scale-100"
               >
+                {/* Soft one-shot light sweep on hover */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 motion-safe:group-hover:animate-[shimmer_1.15s_ease]"
+                  style={{
+                    backgroundImage: 'linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.32) 50%, transparent 65%)',
+                    backgroundSize: '250% 100%',
+                  }}
+                />
                 {loadingNumbers ? (
                   <>
                     <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -207,7 +169,7 @@ export default function OrdersPage() {
                   <>
                     <Hash className="h-[18px] w-[18px]" strokeWidth={2} />
                     Search &amp; Order Numbers
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 ease-out motion-safe:group-hover:translate-x-1" />
                   </>
                 )}
               </button>
@@ -215,7 +177,7 @@ export default function OrdersPage() {
               <button
                 onClick={handleViewOrdersClick}
                 disabled={loadingOrders}
-                className="inline-flex items-center justify-center gap-2.5 rounded-lg px-6 py-3 text-[15px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 active:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+                className="group inline-flex items-center justify-center gap-2.5 rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-[15px] font-semibold text-white backdrop-blur-sm transition-all duration-300 ease-out motion-safe:hover:-translate-y-0.5 hover:border-white/35 hover:bg-white/[0.12] hover:shadow-[0_10px_28px_-10px_rgba(79,160,240,0.45)] motion-safe:active:translate-y-0 active:scale-[0.98] active:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050B18] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:active:scale-100"
               >
                 {loadingOrders ? (
                   <>
@@ -227,7 +189,7 @@ export default function OrdersPage() {
                   </>
                 ) : (
                   <>
-                    <FileText className="h-[18px] w-[18px]" strokeWidth={2} />
+                    <FileText className="h-[18px] w-[18px] text-white/90 transition-all duration-300 ease-out group-hover:text-white group-hover:drop-shadow-[0_0_6px_rgba(126,178,255,0.65)]" strokeWidth={2} />
                     View My Orders
                   </>
                 )}
@@ -235,55 +197,38 @@ export default function OrdersPage() {
             </div>
           </div>
 
-          <div>
-            <NetworkVisual />
-          </div>
-        </section>
-      </div>
-
-      {/* Benefits */}
-      <div className="border-y border-slate-100 bg-slate-50/50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <section className="pt-10 pb-14 sm:pt-12 sm:pb-16">
-            <div className="mb-8 max-w-2xl">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#215F9A]">
-                Why Voxco
-              </p>
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[1.75rem]">
-                Designed for global number provisioning
-              </h2>
-            </div>
-
-            <div className="grid gap-10 sm:grid-cols-3 sm:gap-8">
-              {BENEFITS.map((benefit, i) => (
-                <div
-                  key={benefit.title}
-                  className={`group flex flex-col gap-3 border-slate-200/70 sm:pl-8 ${i > 0 ? 'sm:border-l' : ''}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#215F9A] transition-colors group-hover:border-[#215F9A]/40">
-                      <benefit.icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+          {/* Glass feature strip */}
+          <div className="relative mt-12 pb-10 sm:mt-14 sm:pb-12 lg:mt-16 lg:pb-14">
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] shadow-[0_8px_40px_rgba(0,0,0,0.35)] backdrop-blur-md">
+              <div className="grid divide-y divide-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                {BENEFITS.map((benefit) => (
+                  <div key={benefit.title} className="flex items-start gap-4 p-6 sm:p-7">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#7EB2FF]">
+                      <benefit.icon className="h-5 w-5" strokeWidth={1.75} />
                     </div>
-                    <span className="font-mono text-[11px] tracking-wider text-slate-300">
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
+                    <div>
+                      <h3 className="font-semibold text-white">{benefit.title}</h3>
+                      <p className="mt-1 text-sm leading-relaxed text-slate-300">
+                        {benefit.description}
+                      </p>
+                    </div>
                   </div>
-                  <h3 className="text-base font-semibold text-slate-900">{benefit.title}</h3>
-                  <p className="max-w-xs text-sm leading-relaxed text-slate-600">
-                    {benefit.description}
-                  </p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </section>
+          </div>
         </div>
-      </div>
+      </section>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="pt-8">
+          <DraftOrdersBanner />
+        </div>
+
         {/* Get started */}
         <section className="py-14 sm:py-16">
-          <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-8 sm:p-10 lg:p-12">
-            <div className="mb-8 max-w-2xl">
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10 lg:p-12">
+            <div className="mb-10 max-w-2xl">
               <h2 className="mb-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-[1.75rem]">
                 Get started in minutes
               </h2>
@@ -345,7 +290,9 @@ export default function OrdersPage() {
             <div className="flex flex-wrap gap-x-8 gap-y-3 border-t border-slate-200 pt-6">
               {HIGHLIGHTS.map((highlight) => (
                 <div key={highlight} className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <CheckCircle className="h-4 w-4 text-[#215F9A]" />
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#215F9A]">
+                    <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+                  </span>
                   {highlight}
                 </div>
               ))}

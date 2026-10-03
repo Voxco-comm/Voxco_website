@@ -2,6 +2,16 @@
 
 import React, { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import {
+  Files,
+  FileText,
+  FileImage,
+  Eye,
+  Download,
+  Loader2,
+  StickyNote,
+  X,
+} from 'lucide-react'
 
 interface UploadedDocumentInfo {
   requirement_key: string
@@ -59,24 +69,12 @@ export default function DocumentsModal({
 
   const getFileIcon = (fileType: string) => {
     if (fileType === 'application/pdf') {
-      return (
-        <svg className="h-8 w-8 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10.92,12.31C10.68,11.54 10.15,9.08 11.55,9.04C12.95,9 12.03,12.16 12.03,12.16C12.42,13.65 14.05,14.72 14.05,14.72C14.55,14.57 17.4,14.24 17,15.72C16.57,17.2 13.5,15.81 13.5,15.81C11.55,15.95 10.09,16.47 10.09,16.47C8.96,18.58 7.64,19.5 7.1,18.61C6.43,17.5 9.23,16.07 9.23,16.07C10.68,13.72 10.9,12.35 10.92,12.31Z" />
-        </svg>
-      )
+      return <FileText className="h-6 w-6 shrink-0 text-red-500" />
     }
     if (fileType.startsWith('image/')) {
-      return (
-        <svg className="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      )
+      return <FileImage className="h-6 w-6 shrink-0 text-blue-500" />
     }
-    return (
-      <svg className="h-8 w-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    )
+    return <FileText className="h-6 w-6 shrink-0 text-slate-400" />
   }
 
   const handleViewFile = async (doc: UploadedDocumentInfo) => {
@@ -174,6 +172,52 @@ export default function DocumentsModal({
     setPreviewName(null)
   }
 
+  const totalCount = uploadedDocuments.documents.length + (uploadedDocuments.other_documents?.length ?? 0)
+
+  const fileRow = (doc: UploadedDocumentInfo, label: string) => (
+    <div
+      key={doc.requirement_key + doc.file_path}
+      className="flex items-start gap-3.5 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-slate-300 hover:bg-slate-50"
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+        {getFileIcon(doc.file_type)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-slate-800">{label}</p>
+        <p className="truncate text-xs text-slate-500">{doc.file_name}</p>
+        <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
+          <span>{formatFileSize(doc.file_size)}</span>
+          <span>·</span>
+          <span>{formatDate(doc.uploaded_at)}</span>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          onClick={() => handleViewFile(doc)}
+          disabled={loadingFile === doc.requirement_key}
+          className="rounded-lg p-2 text-[#215F9A] transition-colors hover:bg-blue-50 disabled:opacity-50"
+          title="View file"
+          aria-label="View file"
+        >
+          {loadingFile === doc.requirement_key ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+        </button>
+        <button
+          onClick={() => handleDownloadFile(doc)}
+          disabled={loadingFile === doc.requirement_key}
+          className="rounded-lg p-2 text-emerald-600 transition-colors hover:bg-emerald-50 disabled:opacity-50"
+          title="Download file"
+          aria-label="Download file"
+        >
+          <Download className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+
   return (
     <>
       {/* Main Modal */}
@@ -181,186 +225,89 @@ export default function DocumentsModal({
         <div className="flex min-h-screen items-center justify-center p-4">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            className="fixed inset-0 bg-slate-900/45 backdrop-blur-[2px] transition-opacity motion-safe:animate-[fadeIn_150ms_ease-out]"
             onClick={onClose}
           />
 
           {/* Modal Content */}
-          <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+          <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-black/5 motion-safe:animate-[scaleIn_150ms_ease-out]">
             {/* Header */}
-            <div className="bg-[#215F9A] text-white px-6 py-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">
-                  {isAdmin ? 'Customer Documents' : 'Your Uploaded Documents'}
-                </h3>
-                {isAdmin && customerName && (
-                  <p className="text-sm text-blue-100">Customer: {customerName}</p>
-                )}
-                <p className="text-xs text-blue-200">Order ID: {orderId.substring(0, 8)}...</p>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#215F9A]/10 text-[#215F9A]">
+                  <Files className="h-[19px] w-[19px]" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-semibold text-slate-900 sm:text-[17px]">
+                    {isAdmin ? 'Customer Documents' : 'Your Uploaded Documents'}
+                  </h3>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">
+                    {isAdmin && customerName && <span className="mr-2">{customerName} ·</span>}
+                    Order {orderId.substring(0, 8)}…
+                  </p>
+                </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                aria-label="Close"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
               >
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Body */}
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              {/* Customer Type Badge */}
-              <div className="mb-4 flex items-center gap-2">
-                <span className="text-sm text-gray-600">Customer Type:</span>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${uploadedDocuments.customer_type === 'business'
-                    ? 'bg-purple-100 text-purple-800'
-                    : 'bg-green-100 text-green-800'
-                  }`}>
-                  {uploadedDocuments.customer_type === 'business' ? 'Business' : 'Individual'}
+            <div className="overflow-y-auto px-5 py-5 sm:px-6">
+              {/* Customer Type + count */}
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {uploadedDocuments.customer_type === 'business' ? 'Business customer' : 'Individual customer'}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#215F9A]/10 px-2.5 py-1 text-xs font-semibold text-[#215F9A]">
+                  <Files className="h-3.5 w-3.5" />
+                  {totalCount} file{totalCount !== 1 ? 's' : ''}
                 </span>
               </div>
 
               {/* Documents List */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-gray-700 mb-2">
-                  Uploaded Files ({uploadedDocuments.documents.length})
-                </h4>
-
-                {(uploadedDocuments.documents || []).map((doc) => (
-                  <div
-                    key={doc.requirement_key}
-                    className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* File Icon */}
-                      <div className="flex-shrink-0">
-                        {getFileIcon(doc.file_type)}
-                      </div>
-
-                      {/* File Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{doc.title}</p>
-                        <p className="text-sm text-gray-600 truncate">{doc.file_name}</p>
-                        <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                          <span>{formatFileSize(doc.file_size)}</span>
-                          <span>•</span>
-                          <span>{formatDate(doc.uploaded_at)}</span>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex-shrink-0 flex items-center gap-2">
-                        <button
-                          onClick={() => handleViewFile(doc)}
-                          disabled={loadingFile === doc.requirement_key}
-                          className="p-2 text-[#215F9A] hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-                          title="View file"
-                        >
-                          {loadingFile === doc.requirement_key ? (
-                            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                          ) : (
-                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleDownloadFile(doc)}
-                          disabled={loadingFile === doc.requirement_key}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                          title="Download file"
-                        >
-                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div>
+                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  Uploaded files ({uploadedDocuments.documents.length})
+                </p>
+                <div className="space-y-2.5">
+                  {(uploadedDocuments.documents || []).map((doc) => fileRow(doc, doc.title))}
+                </div>
               </div>
 
               {/* Other documents */}
               {uploadedDocuments.other_documents && uploadedDocuments.other_documents.length > 0 && (
-                <div className="space-y-3 mt-6">
-                  <h4 className="font-medium text-gray-700 mb-2">
+                <div className="mt-6">
+                  <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                     Other documents ({uploadedDocuments.other_documents.length})
-                  </h4>
-                  {uploadedDocuments.other_documents.map((doc) => (
-                    <div
-                      key={doc.requirement_key + doc.file_path}
-                      className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0">{getFileIcon(doc.file_type)}</div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{doc.title || doc.file_name}</p>
-                          <p className="text-sm text-gray-600 truncate">{doc.file_name}</p>
-                          <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                            <span>{formatFileSize(doc.file_size)}</span>
-                            <span>{formatDate(doc.uploaded_at)}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 shrink-0">
-                          <button
-                            onClick={() => handleViewFile(doc)}
-                            disabled={loadingFile === doc.requirement_key}
-                            className="p-2 text-[#215F9A] hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-                            title="View file"
-                          >
-                            {loadingFile === doc.requirement_key ? (
-                              <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                              </svg>
-                            ) : (
-                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              </svg>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleDownloadFile(doc)}
-                            disabled={loadingFile === doc.requirement_key}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                            title="Download file"
-                          >
-                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                  </p>
+                  <div className="space-y-2.5">
+                    {uploadedDocuments.other_documents.map((doc) => fileRow(doc, doc.title || doc.file_name))}
+                  </div>
                 </div>
               )}
 
               {/* Customer Notes */}
               {uploadedDocuments.notes && (
-                <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-2">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                    </svg>
+                <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <h4 className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <StickyNote className="h-4 w-4 text-slate-400" />
                     {isAdmin ? 'Customer Notes' : 'Your Notes'}
                   </h4>
-                  <p className="text-sm text-yellow-700 whitespace-pre-wrap">{uploadedDocuments.notes}</p>
+                  <p className="whitespace-pre-wrap text-sm text-slate-600">{uploadedDocuments.notes}</p>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="border-t px-6 py-4 bg-gray-50 flex justify-end">
+            <div className="flex justify-end border-t border-slate-100 px-5 py-3 sm:px-6">
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/30"
               >
                 Close
               </button>
@@ -375,23 +322,22 @@ export default function DocumentsModal({
           <div className="flex min-h-screen items-center justify-center p-4">
             {/* Backdrop */}
             <div
-              className="fixed inset-0 bg-black bg-opacity-75 transition-opacity"
+              className="fixed inset-0 bg-slate-900/75 transition-opacity"
               onClick={closePreview}
             />
 
             {/* Preview Content */}
-            <div className="relative max-w-5xl w-full h-[90vh]">
+            <div className="relative h-[90vh] w-full max-w-5xl">
               <button
                 onClick={closePreview}
-                className="absolute -top-12 right-0 p-2 text-white hover:text-gray-300 transition-colors z-10"
+                aria-label="Close preview"
+                className="absolute -top-12 right-0 z-10 rounded-lg p-2 text-white transition-colors hover:text-slate-300"
               >
-                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="h-6 w-6" />
               </button>
 
               {previewName && (
-                <p className="absolute -top-12 left-0 text-white text-sm truncate max-w-[70%]">
+                <p className="absolute -top-12 left-0 max-w-[70%] truncate text-sm text-white">
                   {previewName}
                 </p>
               )}
@@ -400,7 +346,7 @@ export default function DocumentsModal({
                 <iframe
                   src={previewUrl}
                   title={previewName || 'Document Preview'}
-                  className="w-full h-full rounded-lg shadow-2xl bg-white"
+                  className="h-full w-full rounded-lg bg-white shadow-2xl"
                   style={{ minHeight: '80vh' }}
                   allowFullScreen
                 />
@@ -408,13 +354,13 @@ export default function DocumentsModal({
                 <img
                   src={previewUrl}
                   alt={previewName || 'Preview'}
-                  className="max-h-[80vh] w-auto mx-auto rounded-lg shadow-2xl"
+                  className="mx-auto max-h-[80vh] w-auto rounded-lg shadow-2xl"
                 />
               ) : (
                 <iframe
                   src={previewUrl}
                   title={previewName || 'Document Preview'}
-                  className="w-full h-full rounded-lg shadow-2xl bg-white"
+                  className="h-full w-full rounded-lg bg-white shadow-2xl"
                   style={{ minHeight: '80vh' }}
                   allowFullScreen
                 />
