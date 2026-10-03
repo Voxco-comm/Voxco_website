@@ -6,34 +6,6 @@ import { createClient } from '@/lib/supabase/client'
 import BackButton from './BackButton'
 import DualScrollbar from './ui/DualScrollbar'
 import { formatDecimal } from '@/lib/utils/formatNumber'
-import { getCountryFlagEmoji } from '@/lib/utils/countryFlag'
-import { DetailCaption, DetailPill, RateList, RateRow, detailIconFor } from './ui/NumberDetails'
-import {
-  Globe,
-  MessageSquare,
-  ArrowLeftRight,
-  RotateCcw,
-  Sparkles,
-  Receipt,
-  ClipboardList,
-  ListChecks,
-  Loader2,
-  X,
-  AlertTriangle,
-  ArrowRight,
-  Info,
-  SearchX,
-  ChevronDown,
-  Check,
-  CheckCircle2,
-  XCircle,
-  User,
-  Building2,
-  Hash,
-  Minus,
-  Plus,
-  Zap,
-} from 'lucide-react'
 
 interface FormState {
   country: string
@@ -78,101 +50,6 @@ interface ModalState {
     data: any
     type: string
   }
-}
-
-// Presentation-only helpers below (badges, shared control styling). None of
-// these read or write component state, fetch data, or alter any value —
-// they only decide how existing data is displayed. The country flag helper
-// itself lives in @/lib/utils/countryFlag so it stays identical across
-// Numbers, My Orders, and Complete Your Order.
-
-const BADGE_CLASS =
-  'inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600'
-
-const DETAIL_BUTTON_CLASS =
-  'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-[#215F9A]/40 hover:bg-[#215F9A]/5 hover:text-[#215F9A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/30'
-
-const SELECT_CLASS =
-  'w-full appearance-none rounded-lg border border-slate-300 bg-white py-3.5 pl-11 pr-10 text-[15px] text-slate-900 shadow-sm transition-colors hover:border-slate-400 focus:border-[#215F9A] focus:outline-none focus:ring-2 focus:ring-[#215F9A]/20 disabled:cursor-not-allowed disabled:opacity-60'
-
-// Purely presentational wrapper: forwards every prop straight to a native
-// <select>, only adding a leading icon and custom chevron around it.
-function IconSelect({
-  icon: Icon,
-  children,
-  ...selectProps
-}: { icon: React.ComponentType<{ className?: string }> } & React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <div className="relative">
-      <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-      <select {...selectProps} className={SELECT_CLASS}>
-        {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-    </div>
-  )
-}
-
-// Shared chrome for the three detail modals (Other Charges / Requirements / Features):
-// backdrop, panel, header (icon + title + optional subtitle + close), scrollable body,
-// and an optional compact footer. Every prop below is passed in by the caller — this
-// component holds no state and calls nothing but the `onClose` callback it is given,
-// so modal open/close behavior is entirely controlled by the caller (renderModal).
-function ModalShell({
-  icon: Icon,
-  title,
-  subtitle,
-  onClose,
-  widthClassName,
-  footer,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  title: string
-  subtitle?: React.ReactNode
-  onClose: () => void
-  widthClassName: string
-  footer?: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] motion-safe:animate-[fadeIn_150ms_ease-out] sm:p-6"
-      onClick={onClose}
-    >
-      <div
-        className={`flex max-h-[min(88vh,100dvh)] w-full ${widthClassName} flex-col overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-black/5 motion-safe:animate-[scaleIn_150ms_ease-out]`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#215F9A]/10 text-[#215F9A]">
-              <Icon className="h-[19px] w-[19px]" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="truncate text-base font-semibold text-slate-900 sm:text-[17px]">{title}</h3>
-              {subtitle}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/30"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="scroll-smooth overflow-y-auto px-5 py-5 sm:px-6">
-          {children}
-        </div>
-        {footer && (
-          <div className="flex justify-end border-t border-slate-100 px-5 py-3 sm:px-6">
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>
-  )
 }
 
 export default function Numbers() {
@@ -699,267 +576,186 @@ export default function Numbers() {
   const renderModal = (numberId: string, modal: { open: boolean; data: any; type: string }) => {
     if (!modal.open) return null
 
-    const ModalIcon = modal.type === 'other_charges' ? Receipt : modal.type === 'requirements' ? ClipboardList : ListChecks
-    const flag = getCountryFlagEmoji(modal.data?.country_code)
-    // Compact flag+country line shown under the title for other_charges/features.
-    // Requirements renders its own richer context strip inside the body instead
-    // (see below), so it's skipped here to avoid showing the same info twice.
-    const headerSubtitle =
-      modal.type !== 'requirements' && modal.data?.country_name ? (
-        <p className="mt-0.5 truncate text-xs text-slate-500">
-          {flag && <span aria-hidden="true" className="mr-1">{flag}</span>}
-          {modal.data.country_name} ({modal.data.country_code}) · {modal.data.number_type}
-        </p>
-      ) : undefined
-
-    // Every close affordance in this modal (X, backdrop click, footer button) calls
-    // this one unchanged handler — none of them do anything else.
-    const handleClose = () => closeModal(numberId)
-
-    const footer = (
-      <button
-        onClick={handleClose}
-        className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/30"
-      >
-        Close
-      </button>
-    )
-
     let title = ''
-    let widthClassName = 'max-w-xl'
     let content: any = null
 
     switch (modal.type) {
-      case 'other_charges': {
+      case 'other_charges':
         title = 'Other Charges'
-        widthClassName = 'max-w-xl'
-        const chargeEntries = modal.data.other_charges ? Object.entries(modal.data.other_charges) : []
-
-        content = chargeEntries.length > 0 ? (
+        content = (
           <div>
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <DetailCaption>Pricing breakdown</DetailCaption>
-              {modal.data.currency && <DetailPill tone="customer">{modal.data.currency}</DetailPill>}
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-              <RateList>
-                {chargeEntries.map(([key, value]: [string, any], idx: number) => {
-                  const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-                  let unit = ''
-                  if (key.includes('call') || key.includes('voice')) unit = 'Per minute'
-                  else if (key.includes('sms')) unit = 'Per SMS'
-                  else if (key.includes('fee')) unit = 'One-time'
+            {modal.data.other_charges && Object.keys(modal.data.other_charges).length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-[#215F9A] text-white text-sm">
+                      <th className="p-3 text-left">Charge Type</th>
+                      <th className="p-3 text-right">Amount</th>
+                      <th className="p-3 text-left">Unit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(modal.data.other_charges).map(([key, value]: [string, any], idx: number) => {
+                      const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                      let unit = ''
+                      if (key.includes('call') || key.includes('voice')) unit = '/min'
+                      else if (key.includes('sms')) unit = 'per SMS'
+                      else if (key.includes('fee')) unit = 'one-time'
 
-                  return (
-                    <RateRow
-                      key={`other-charge-${key}-${idx}`}
-                      icon={detailIconFor(key)}
-                      label={<span className="font-medium text-slate-800">{formattedKey}</span>}
-                      sublabel={unit || undefined}
-                      value={
-                        <span className="whitespace-nowrap text-[15px]">
-                          {modal.data.currency} {typeof value === 'number' ? formatDecimal(value) : 0}
-                        </span>
-                      }
-                    />
-                  )
-                })}
-              </RateList>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-              <Receipt className="h-5 w-5" />
-            </div>
-            <p className="max-w-xs text-sm text-slate-500">No additional charges apply for this number.</p>
+                      return (
+                        <tr key={`other-charge-${key}-${idx}`} className="border-b hover:bg-gray-50">
+                          <td className="p-3 text-sm">{formattedKey}</td>
+                          <td className="p-3 text-right text-sm font-medium">
+                            {modal.data.currency} {typeof value === 'number' ? formatDecimal(value) : 0}
+                          </td>
+                          <td className="p-3 text-sm text-gray-600">{unit}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-gray-600">No additional charges apply.</p>
+            )}
           </div>
         )
         break
-      }
-      case 'requirements': {
-        title = 'Requirements'
-        widthClassName = 'max-w-3xl'
+      case 'requirements':
+        title = `Requirements - ${modal.data.country_name}`
         // Use combination key for cache lookup
         const reqCacheKey = `${modal.data.country_id}_${modal.data.number_type}_${modal.data.direction}_${modal.data.sms_capability}`
         const isLoading = loadingRequirements[reqCacheKey]
         const requirements = countryRequirements[reqCacheKey]
 
-        const docList = (docs: string[] | undefined) => (
-          <ul className="space-y-1.5">
-            {docs?.map((doc: string, idx: number) => (
-              <li key={idx} className="flex items-start gap-2.5 text-sm text-slate-700">
-                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                  <Check className="h-2.5 w-2.5" strokeWidth={3} />
-                </span>
-                <span>{doc}</span>
-              </li>
-            ))}
-          </ul>
-        )
-
-        const sectionHeading = (num: string, label: string) => (
-          <div className="mb-3 flex items-center gap-2.5">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#215F9A]/10 text-[10px] font-bold text-[#215F9A]">
-              {num}
-            </span>
-            <h4 className="text-sm font-semibold text-slate-900">{label}</h4>
-          </div>
-        )
-
         content = (
           <div>
-            {/* Compact context strip: the exact combination these requirements apply to */}
-            <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-5">
-              {modal.data.country_name && (
-                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-                  {flag && <span aria-hidden="true">{flag}</span>}
-                  {modal.data.country_name}
-                </span>
-              )}
-              <span className={BADGE_CLASS}>{modal.data.number_type}</span>
-              <span className={BADGE_CLASS}>{modal.data.direction}</span>
-              <span className={BADGE_CLASS}>{modal.data.sms_capability}</span>
+            {/* Show the specific combination these requirements apply to */}
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm">
+              <p className="text-gray-700">
+                <strong>Number Type:</strong> {modal.data.number_type} |
+                <strong> Direction:</strong> {modal.data.direction} |
+                <strong> SMS/Voice:</strong> {modal.data.sms_capability}
+              </p>
             </div>
-
             {isLoading ? (
-              <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#215F9A]/10">
-                  <Loader2 className="h-5 w-5 animate-spin text-[#215F9A]" />
-                </div>
-                <span className="text-sm font-medium text-slate-600">Loading requirements…</span>
+              <div className="text-center py-4">
+                <div className="text-gray-600">Loading requirements...</div>
               </div>
             ) : requirements ? (
-              <div className="space-y-7">
+              <div className="space-y-4 max-h-96 overflow-y-auto">
                 <div>
-                  {sectionHeading('01', 'Number Allocation')}
-                  <div className="ml-3 space-y-5 border-l-2 border-slate-100 pl-5">
+                  <h4 className="font-semibold mb-2">Number Allocation</h4>
+                  <div className="ml-4 space-y-2">
                     <div>
-                      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        <User className="h-3.5 w-3.5" />
-                        Individual documentation
-                      </p>
-                      {docList(requirements.number_allocation?.end_user_documentation?.individual)}
+                      <p className="font-medium text-sm">Individual Documentation:</p>
+                      <ul className="list-disc list-inside ml-2 text-sm text-gray-600">
+                        {requirements.number_allocation?.end_user_documentation?.individual?.map((doc: string, idx: number) => (
+                          <li key={idx}>{doc}</li>
+                        ))}
+                      </ul>
                     </div>
                     <div>
-                      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        <Building2 className="h-3.5 w-3.5" />
-                        Business documentation
-                      </p>
-                      {docList(requirements.number_allocation?.end_user_documentation?.business)}
+                      <p className="font-medium text-sm">Business Documentation:</p>
+                      <ul className="list-disc list-inside ml-2 text-sm text-gray-600">
+                        {requirements.number_allocation?.end_user_documentation?.business?.map((doc: string, idx: number) => (
+                          <li key={idx}>{doc}</li>
+                        ))}
+                      </ul>
                     </div>
                     {requirements.number_allocation?.address_requirements && (
-                      <div>
-                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Address requirement</p>
-                        <p className="text-sm text-slate-600">{requirements.number_allocation.address_requirements}</p>
-                      </div>
+                      <p className="text-sm text-gray-600">
+                        <strong>Address Requirements:</strong> {requirements.number_allocation.address_requirements}
+                      </p>
                     )}
                   </div>
                 </div>
 
-                <div className="border-t border-slate-100 pt-7">
-                  {sectionHeading('02', 'Sub-Allocation')}
-                  <div className="ml-3 space-y-3 border-l-2 border-slate-100 pl-5">
-                    <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
-                      <span className="text-sm font-medium text-slate-700">Status</span>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${requirements.sub_allocation?.allowed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                        {requirements.sub_allocation?.allowed ? 'Allowed' : 'Not allowed'}
-                      </span>
-                    </div>
+                <div>
+                  <h4 className="font-semibold mb-2">Sub-Allocation</h4>
+                  <div className="ml-4">
+                    <p className="text-sm text-gray-600">
+                      <strong>Allowed:</strong> {requirements.sub_allocation?.allowed ? 'Yes' : 'No'}
+                    </p>
                     {requirements.sub_allocation?.rules && (
-                      <p className="text-sm text-slate-600">{requirements.sub_allocation.rules}</p>
+                      <p className="text-sm text-gray-600 mt-1">{requirements.sub_allocation.rules}</p>
                     )}
                   </div>
                 </div>
 
-                <div className="border-t border-slate-100 pt-7">
-                  {sectionHeading('03', 'Number Porting')}
-                  <div className="ml-3 space-y-5 border-l-2 border-slate-100 pl-5">
+                <div>
+                  <h4 className="font-semibold mb-2">Number Porting</h4>
+                  <div className="ml-4 space-y-2">
                     <div>
-                      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        <User className="h-3.5 w-3.5" />
-                        Individual documentation
-                      </p>
-                      {docList(requirements.number_porting?.end_user_documentation?.individual)}
+                      <p className="font-medium text-sm">Individual Documentation:</p>
+                      <ul className="list-disc list-inside ml-2 text-sm text-gray-600">
+                        {requirements.number_porting?.end_user_documentation?.individual?.map((doc: string, idx: number) => (
+                          <li key={`porting-individual-${idx}-${doc.substring(0, 10)}`}>{doc}</li>
+                        ))}
+                      </ul>
                     </div>
                     <div>
-                      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        <Building2 className="h-3.5 w-3.5" />
-                        Business documentation
-                      </p>
-                      {docList(requirements.number_porting?.end_user_documentation?.business)}
+                      <p className="font-medium text-sm">Business Documentation:</p>
+                      <ul className="list-disc list-inside ml-2 text-sm text-gray-600">
+                        {requirements.number_porting?.end_user_documentation?.business?.map((doc: string, idx: number) => (
+                          <li key={`porting-business-${idx}-${doc.substring(0, 10)}`}>{doc}</li>
+                        ))}
+                      </ul>
                     </div>
                     {requirements.number_porting?.process_notes && (
-                      <div className="flex gap-2 rounded-lg bg-slate-50 px-3.5 py-3 text-sm text-slate-600">
-                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                        <p>{requirements.number_porting.process_notes}</p>
-                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        <strong>Process Notes:</strong> {requirements.number_porting.process_notes}
+                      </p>
                     )}
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="py-4 text-center text-sm text-slate-500">Failed to load requirements. Please try again.</p>
+              <div className="text-center py-4">
+                <p className="text-gray-600">Failed to load requirements. Please try again.</p>
+              </div>
             )}
           </div>
         )
         break
-      }
       case 'features': {
         title = 'Features'
         // Voice and SMS are represented by the dedicated columns, not features.
         const featureEntries = Object.entries(modal.data.features || {}).filter(
           ([key]) => key !== 'voice' && key !== 'sms'
         )
-        widthClassName = featureEntries.length <= 1 ? 'max-w-sm' : featureEntries.length <= 4 ? 'max-w-lg' : 'max-w-2xl'
-
-        content = featureEntries.length > 0 ? (
+        content = (
           <div>
-            <div className="mb-3">
-              <DetailCaption>Available capabilities</DetailCaption>
-            </div>
-            <div className={featureEntries.length <= 1 ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-1 gap-2.5 sm:grid-cols-2'}>
-              {featureEntries.map(([key, value]: [string, any], idx: number) => {
-                const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-                const isBoolean = typeof value === 'boolean'
-                const supported = isBoolean ? value : true
-                const FeatureIcon = detailIconFor(key)
-                return (
-                  <div
-                    key={`feature-${key}-${idx}`}
-                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors ${supported ? 'border-slate-200 bg-white hover:border-[#215F9A]/30 hover:bg-[#215F9A]/[0.03]' : 'border-slate-100 bg-slate-50/60 shadow-none'}`}
-                  >
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${supported ? 'bg-[#215F9A]/10 text-[#215F9A] ring-[#215F9A]/15' : 'bg-slate-100 text-slate-400 ring-slate-200/70'}`}>
-                      <FeatureIcon className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className={`truncate text-sm font-medium ${supported ? 'text-slate-900' : 'text-slate-500'}`}>{label}</p>
-                      {isBoolean ? (
-                        <p className={`text-xs font-medium ${value ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {value ? 'Supported' : 'Not supported'}
-                        </p>
-                      ) : (
-                        <p className="break-words text-xs font-semibold text-[#1C4F80]">{value}</p>
-                      )}
-                    </div>
-                    {isBoolean && (
-                      value ? (
-                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-                      ) : (
-                        <XCircle className="h-4 w-4 shrink-0 text-slate-300" />
-                      )
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-              <Zap className="h-5 w-5" />
-            </div>
-            <p className="max-w-xs text-sm text-slate-500">Standard features included.</p>
+            {featureEntries.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-[#215F9A] text-white text-sm">
+                      <th className="p-3 text-left">Feature</th>
+                      <th className="p-3 text-center">Status/Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {featureEntries.map(([key, value]: [string, any], idx: number) => (
+                      <tr key={`feature-${key}-${idx}`} className="border-b hover:bg-gray-50">
+                        <td className="p-3 text-sm">{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
+                        <td className="p-3 text-center">
+                          {typeof value === 'boolean' ? (
+                            <span className={`px-2 py-1 rounded text-xs ${value ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {value ? 'Yes' : 'No'}
+                            </span>
+                          ) : (
+                            <span className="text-sm">{value}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-gray-600">Standard features included.</p>
+            )}
           </div>
         )
         break
@@ -967,150 +763,126 @@ export default function Numbers() {
     }
 
     return (
-      <ModalShell
-        icon={ModalIcon}
-        title={title}
-        subtitle={headerSubtitle}
-        onClose={handleClose}
-        widthClassName={widthClassName}
-        footer={footer}
-      >
-        {content}
-      </ModalShell>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:p-6" onClick={() => closeModal(numberId)}>
+        <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 max-w-2xl w-full max-h-[min(90vh,100dvh)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-between items-start gap-3 mb-4">
+            <h3 className="text-lg sm:text-xl font-semibold text-[#215F9A] pr-2">{title}</h3>
+            <button
+              onClick={() => closeModal(numberId)}
+              className="text-gray-500 hover:text-gray-700 text-2xl"
+            >
+              ×
+            </button>
+          </div>
+          <div className="text-gray-700">
+            {content}
+          </div>
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={() => closeModal(numberId)}
+              className="w-full sm:w-auto bg-[#215F9A] text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 pb-16 pt-6 sm:px-6 lg:px-10 xl:px-12">
-      <div className="mx-auto max-w-[1600px]">
+    <main className="bg-gray-50 min-h-screen px-3 sm:px-6 md:px-8 py-6 sm:py-8 md:py-10">
+      <div className="max-w-7xl mx-auto">
         <BackButton href="/" label="Back to Dashboard" />
+        {/* Title */}
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#215F9A] text-center mb-2">
+          Number Search & Ordering
+        </h1>
 
-        {/* Page header */}
-        <div className="mb-6 flex flex-col gap-1 sm:mb-7">
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#F97316]" />
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#215F9A]">
-              Voxco Number Portal
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[1.75rem]">
-            Number Search &amp; Ordering
-          </h1>
-          <p className="max-w-2xl text-sm text-slate-600">
-            Browse available numbers below. Use the filters to narrow down your search.
-          </p>
-        </div>
+        <p className="text-center text-gray-600 mb-8 text-base sm:text-lg">
+          Browse available numbers below. Use the filters to narrow down your search.
+        </p>
 
         {/* Error Message */}
         {countriesError && (
-          <div className="mb-6 max-w-2xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-            <p className="text-sm font-semibold">Error loading countries</p>
-            <p className="mt-0.5 text-sm">{countriesError}</p>
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 max-w-2xl mx-auto">
+            <p className="font-semibold">Error loading countries:</p>
+            <p className="text-sm">{countriesError}</p>
             <button
               onClick={loadCountries}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-700"
+              className="mt-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm"
             >
-              <RotateCcw className="h-3.5 w-3.5" />
               Retry
             </button>
           </div>
         )}
 
-        {/* Number inventory workspace — filters and results share one continuous surface
-            instead of two separate boxes, so it reads as a single tool rather than a
-            search form stacked on top of a results panel. */}
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          {/* Utility row: identity + live result count */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-sm font-semibold text-slate-900">Available numbers</h2>
-              <span className="inline-flex items-center rounded-full bg-[#215F9A]/10 px-2.5 py-0.5 text-xs font-semibold text-[#215F9A]">
-                {availableNumbers.length}
-              </span>
-            </div>
-            {(form.country || form.smsVoice || form.inboundOutbound) && (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#215F9A]" />
-                {[form.country, form.smsVoice, form.inboundOutbound].filter(Boolean).length} filter{[form.country, form.smsVoice, form.inboundOutbound].filter(Boolean).length > 1 ? 's' : ''} applied
-              </span>
-            )}
-          </div>
-
-          {/* Filter row — the three dropdowns fill most of the row; secondary actions
-              get a fixed, comfortably-sized column of their own on the right. */}
-          <div className="flex flex-col gap-5 border-b border-slate-100 px-6 py-5 lg:flex-row lg:items-end lg:gap-8">
-            <div className="grid flex-1 grid-cols-1 gap-5 sm:grid-cols-3">
-              {/* Country */}
-              <div>
-                <label htmlFor="filter-country" className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-slate-600">
-                  Country
-                </label>
-                <IconSelect
-                  id="filter-country"
-                  icon={Globe}
-                  value={form.country}
-                  onChange={handleCountryChange}
-                >
-                  <option value="">All countries</option>
-                  {countries.map((c) => {
-                    const flag = getCountryFlagEmoji(c.country_code)
-                    return (
-                      <option key={c.id} value={c.id}>
-                        {flag ? `${flag} ` : ''}{c.name} ({c.country_code})
-                      </option>
-                    )
-                  })}
-                </IconSelect>
-              </div>
-
-              {/* SMS/Voice */}
-              <div>
-                <label htmlFor="filter-smsvoice" className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-slate-600">
-                  SMS / Voice
-                </label>
-                <IconSelect
-                  id="filter-smsvoice"
-                  icon={MessageSquare}
-                  value={form.smsVoice}
-                  onChange={handleSmsVoiceChange}
-                >
-                  <option value="">All types</option>
-                  <option>SMS only</option>
-                  <option>Voice only</option>
-                  <option>Both</option>
-                </IconSelect>
-              </div>
-
-              {/* Inbound/Outbound */}
-              <div>
-                <label htmlFor="filter-direction" className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-slate-600">
-                  Direction
-                </label>
-                <IconSelect
-                  id="filter-direction"
-                  icon={ArrowLeftRight}
-                  value={form.inboundOutbound}
-                  onChange={handleInboundOutboundChange}
-                >
-                  <option value="">All directions</option>
-                  <option>Inbound only</option>
-                  <option>Outbound only</option>
-                  <option>Both</option>
-                </IconSelect>
-              </div>
+        {/* Search Form */}
+        <section className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-3 sm:p-6 mb-4 sm:mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            {/* Country */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Filter by Country</label>
+              <select
+                className="w-full p-2 border rounded-lg text-sm sm:text-base"
+                value={form.country}
+                onChange={handleCountryChange}
+              >
+                <option value="">All Countries</option>
+                {countries.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.country_code})
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Secondary actions: a quiet reset chip, and a small contextual tile for the
-                custom-number workflow — both stay visually lighter than the blue Order CTAs. */}
-            <div className="flex flex-col gap-2.5 lg:w-80 lg:shrink-0">
+            {/* SMS/Voice */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Filter by SMS/Voice</label>
+              <select
+                className="w-full p-2 border rounded-lg text-sm sm:text-base"
+                value={form.smsVoice}
+                onChange={handleSmsVoiceChange}
+              >
+                <option value="">All Types</option>
+                <option>SMS only</option>
+                <option>Voice only</option>
+                <option>Both</option>
+              </select>
+            </div>
+
+            {/* Inbound/Outbound */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Filter by Inbound/Outbound</label>
+              <select
+                className="w-full p-2 border rounded-lg text-sm sm:text-base"
+                value={form.inboundOutbound}
+                onChange={handleInboundOutboundChange}
+              >
+                <option value="">All Directions</option>
+                <option>Inbound only</option>
+                <option>Outbound only</option>
+                <option>Both</option>
+              </select>
+            </div>
+
+            {/* Reset Filters button */}
+            <div className="flex items-end">
               <button
                 onClick={handleResetFilters}
                 disabled={loading}
-                className="inline-flex items-center justify-center gap-1.5 self-start rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-500 transition-colors hover:border-[#215F9A]/30 hover:bg-blue-50/50 hover:text-[#215F9A] disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full bg-gray-500 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-gray-600 text-xs sm:text-sm cursor-pointer disabled:opacity-50"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Reset filters
+                Reset Filters
               </button>
+            </div>
+
+            {/* Request a custom number */}
+            <div className="sm:col-span-2 md:col-span-4 flex flex-col sm:flex-row sm:items-center sm:justify-end pt-2 gap-3 border-t border-gray-100 sm:border-0 mt-1 sm:mt-0">
+              <p className="text-sm text-gray-600 text-center sm:text-right">
+                Can&apos;t find it on the list? Click here.
+              </p>
               <button
                 type="button"
                 onClick={() => {
@@ -1118,161 +890,138 @@ export default function Numbers() {
                   setCustomRequestError(null)
                   setCustomRequestSuccess(null)
                 }}
-                className="group flex items-center gap-3 rounded-xl border border-[#215F9A]/15 bg-[#215F9A]/[0.04] px-4 py-3 text-left transition-colors hover:border-[#215F9A]/30 hover:bg-[#215F9A]/[0.08]"
+                className="w-full sm:w-auto shrink-0 bg-[#215F9A] text-white px-4 sm:px-6 py-2.5 rounded-lg hover:bg-blue-700 text-sm"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#215F9A] shadow-sm ring-1 ring-[#215F9A]/10">
-                  <Sparkles className="h-4 w-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold text-slate-900">
-                    Need a custom number?
-                    <span aria-hidden="true" className="inline-block h-1 w-1 shrink-0 rounded-full bg-[#F97316]" />
-                  </span>
-                  <span className="block text-[11px] leading-snug text-slate-500">Can't find it on the list? Click here.</span>
-                </span>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[#215F9A] transition-transform group-hover:translate-x-0.5" />
+                Request a custom number
               </button>
             </div>
           </div>
+        </section>
+
+        {/* Results Table */}
+        <section className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-3 sm:p-6 overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold text-[#215F9A]">
+              Available Numbers ({availableNumbers.length})
+            </h2>
+            {(form.country || form.smsVoice || form.inboundOutbound) && (
+              <span className="text-xs sm:text-sm text-gray-500">
+                Filters active: {[form.country, form.smsVoice, form.inboundOutbound].filter(Boolean).length}
+              </span>
+            )}
+          </div>
 
           {loading ? (
-            <div className="flex flex-col items-center gap-3 px-5 py-20 text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#215F9A]/10">
-                <Loader2 className="h-5 w-5 animate-spin text-[#215F9A]" />
+            <div className="text-center py-12">
+              <div className="inline-flex items-center gap-3">
+                <svg className="animate-spin h-6 w-6 text-[#215F9A]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-gray-600 font-medium">Searching for available numbers...</span>
               </div>
-              <span className="text-sm font-medium text-slate-600">Searching for available numbers…</span>
             </div>
           ) : availableNumbers.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 px-5 py-20 text-center">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                <SearchX className="h-5 w-5" />
+            <div className="text-center py-8">
+              <div className="text-gray-600">
+                No numbers found matching your criteria. Please try different search parameters.
               </div>
-              <p className="max-w-sm text-sm text-slate-500">
-                No numbers found matching your criteria. Try adjusting or resetting the filters above.
-              </p>
-              {(form.country || form.smsVoice || form.inboundOutbound) && (
-                <button
-                  onClick={handleResetFilters}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Reset filters
-                </button>
-              )}
             </div>
           ) : (
             <>
-              <div className="divide-y divide-slate-100 lg:hidden">
+              <div className="lg:hidden space-y-3">
                 {availableNumbers.map((num) => {
                   const quantityStr = quantities[num.id]
                   const quantity = quantityStr !== undefined ? (quantityStr === '' ? 0 : parseInt(quantityStr) || 0) : num.moq
                   const displayValue = quantityStr !== undefined ? quantityStr : String(num.moq)
-                  const flag = getCountryFlagEmoji(num.country_code)
                   return (
-                    <article key={num.id} className="p-4 sm:p-5">
-                      <div className="flex items-start justify-between gap-3">
+                    <article
+                      key={num.id}
+                      className="rounded-2xl border border-gray-200 bg-gray-50/80 p-4 space-y-3"
+                    >
+                      <div>
+                        <p className="font-semibold text-[#215F9A] text-base">
+                          {num.country_name}{' '}
+                          <span className="text-gray-600 font-normal">({num.country_code})</span>
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {num.number_type} · {num.sms_capability} · {num.direction}
+                        </p>
+                      </div>
+                      <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
                         <div>
-                          <p className="flex items-center gap-1.5 text-base font-semibold text-slate-900">
-                            {flag && <span aria-hidden="true" className="text-lg leading-none">{flag}</span>}
-                            {num.country_name}{' '}
-                            <span className="font-normal text-slate-400">({num.country_code})</span>
-                          </p>
-                          <div className="mt-1.5 flex flex-wrap gap-1.5">
-                            <span className={BADGE_CLASS}>{num.number_type}</span>
-                            <span className={BADGE_CLASS}>{num.sms_capability}</span>
-                            <span className={BADGE_CLASS}>{num.direction}</span>
-                          </div>
+                          <dt className="text-gray-500">MRC</dt>
+                          <dd className="font-medium">
+                            {formatDecimal(num.mrc, 2)}
+                          </dd>
                         </div>
-                        <div className="shrink-0 text-right">
-                          <p className="text-base font-semibold tabular-nums text-slate-900">
-                            {num.currency} {formatDecimal(num.mrc, 2)}
-                          </p>
-                          <p className="text-xs text-slate-400">MRC</p>
+                        <div>
+                          <dt className="text-gray-500">NRC</dt>
+                          <dd className="font-medium">
+                            {formatDecimal(num.nrc, 2)}
+                          </dd>
                         </div>
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                        <span>NRC: <span className="font-medium text-slate-700">{num.currency} {formatDecimal(num.nrc, 2)}</span></span>
-                        <span>MOQ: <span className="font-medium text-slate-700">{num.moq}</span></span>
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap gap-2">
+                        <div>
+                          <dt className="text-gray-500">Currency</dt>
+                          <dd className="font-medium">{num.currency}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">MOQ</dt>
+                          <dd className="font-medium">{num.moq}</dd>
+                        </div>
+                      </dl>
+                      <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => openModal(num.id, 'other_charges', num)}
-                          className="flex flex-1 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-2 py-2 text-xs font-medium text-slate-600 transition-colors hover:border-[#215F9A]/40 hover:bg-[#215F9A]/5 hover:text-[#215F9A]"
+                          className="flex-1 min-w-[5.5rem] bg-white border border-[#215F9A]/30 text-[#215F9A] px-2 py-2 rounded-lg text-xs font-medium hover:bg-blue-50"
                         >
-                          <Receipt className="h-3.5 w-3.5" />
                           Charges
                         </button>
                         <button
                           type="button"
                           onClick={() => openModal(num.id, 'requirements', num)}
-                          className="flex flex-1 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-2 py-2 text-xs font-medium text-slate-600 transition-colors hover:border-[#215F9A]/40 hover:bg-[#215F9A]/5 hover:text-[#215F9A]"
+                          className="flex-1 min-w-[5.5rem] bg-white border border-[#215F9A]/30 text-[#215F9A] px-2 py-2 rounded-lg text-xs font-medium hover:bg-blue-50"
                         >
-                          <ClipboardList className="h-3.5 w-3.5" />
                           Requirements
                         </button>
                         <button
                           type="button"
                           onClick={() => openModal(num.id, 'features', num)}
-                          className="flex flex-1 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-2 py-2 text-xs font-medium text-slate-600 transition-colors hover:border-[#215F9A]/40 hover:bg-[#215F9A]/5 hover:text-[#215F9A]"
+                          className="flex-1 min-w-[5.5rem] bg-white border border-[#215F9A]/30 text-[#215F9A] px-2 py-2 rounded-lg text-xs font-medium hover:bg-blue-50"
                         >
-                          <ListChecks className="h-3.5 w-3.5" />
                           Features
                         </button>
                       </div>
-
-                      <div className="mt-4 flex flex-col gap-3 rounded-xl bg-slate-50 p-3 sm:flex-row sm:items-end">
-                        <div className="min-w-0 flex-1">
-                          <label htmlFor={`qty-${num.id}`} className="mb-1 block text-xs font-medium text-slate-500">
+                      <div className="flex flex-col sm:flex-row sm:items-end gap-3 pt-1">
+                        <div className="flex-1 min-w-0">
+                          <label htmlFor={`qty-${num.id}`} className="block text-xs font-medium text-gray-600 mb-1">
                             Quantity
                           </label>
-                          <div
-                            className={`inline-flex items-center overflow-hidden rounded-lg border bg-white transition-colors focus-within:ring-2 ${quantityErrors[num.id]
-                              ? 'border-red-400 focus-within:ring-red-500/20'
+                          <input
+                            id={`qty-${num.id}`}
+                            type="text"
+                            inputMode="numeric"
+                            value={displayValue}
+                            placeholder={num.moq.toString()}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              if (value === '' || /^\d+$/.test(value)) {
+                                handleQuantityChange(num.id, value, num.moq)
+                              }
+                            }}
+                            className={`w-full max-w-[8rem] p-2.5 border rounded-lg text-center text-base ${quantityErrors[num.id]
+                              ? 'border-red-500'
                               : quantityWarnings[num.id]
-                                ? 'border-amber-400 focus-within:ring-amber-500/20'
-                                : 'border-slate-300 focus-within:border-[#215F9A] focus-within:ring-[#215F9A]/20'
+                                ? 'border-amber-400'
+                                : 'border-gray-300'
                               }`}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleQuantityChange(num.id, String(Math.max(0, quantity - 1)), num.moq)}
-                              aria-label={`Decrease quantity for ${num.country_name} ${num.number_type}`}
-                              disabled={quantity <= 0}
-                              className="flex h-11 w-10 shrink-0 items-center justify-center text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              <Minus className="h-4 w-4" />
-                            </button>
-                            <input
-                              id={`qty-${num.id}`}
-                              type="text"
-                              inputMode="numeric"
-                              value={displayValue}
-                              placeholder={num.moq.toString()}
-                              onChange={(e) => {
-                                const value = e.target.value
-                                if (value === '' || /^\d+$/.test(value)) {
-                                  handleQuantityChange(num.id, value, num.moq)
-                                }
-                              }}
-                              className="h-11 w-12 shrink-0 border-0 bg-transparent text-center text-base tabular-nums text-slate-900 focus:outline-none focus:ring-0"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleQuantityChange(num.id, String(quantity + 1), num.moq)}
-                              aria-label={`Increase quantity for ${num.country_name} ${num.number_type}`}
-                              className="flex h-11 w-10 shrink-0 items-center justify-center text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                          </div>
+                          />
                           {quantityErrors[num.id] && (
-                            <p className="mt-1 text-xs text-red-500">{quantityErrors[num.id]}</p>
+                            <p className="text-red-500 text-xs mt-1">{quantityErrors[num.id]}</p>
                           )}
                           {!quantityErrors[num.id] && quantityWarnings[num.id] && (
-                            <p className="mt-1 text-xs text-amber-700">{quantityWarnings[num.id]}</p>
+                            <p className="text-amber-700 text-xs mt-1">{quantityWarnings[num.id]}</p>
                           )}
                         </div>
                         <div className="flex sm:items-end">
@@ -1280,18 +1029,18 @@ export default function Numbers() {
                             type="button"
                             onClick={() => handleOrder(num.id, quantity)}
                             disabled={processingOrderId === num.id || quantity === 0}
-                            className="inline-flex min-h-[44px] w-full min-w-[7.5rem] items-center justify-center gap-2 rounded-lg bg-[#215F9A] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#1b4e80] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 sm:w-auto"
+                            className="w-full sm:w-auto min-h-[44px] min-w-[7.5rem] bg-[#215F9A] text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                           >
                             {processingOrderId === num.id ? (
                               <>
-                                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                                <svg className="animate-spin h-4 w-4 text-white shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
                                 Processing...
                               </>
                             ) : (
-                              <>
-                                Order
-                                <ArrowRight className="h-4 w-4" />
-                              </>
+                              'Order'
                             )}
                           </button>
                         </div>
@@ -1301,158 +1050,116 @@ export default function Numbers() {
                 })}
               </div>
               <DualScrollbar className="hidden lg:block -mx-1 px-1">
-                <table className="w-full min-w-[1280px] border-separate border-spacing-0 text-sm">
+                <table className="w-full border-collapse min-w-[960px]">
                   <thead>
-                    <tr className="bg-blue-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                      <th className="border-b border-slate-200 px-5 py-3.5">Country</th>
-                      <th className="border-b border-slate-200 px-4 py-3.5">Type</th>
-                      <th className="border-b border-slate-200 px-4 py-3.5">SMS/Voice</th>
-                      <th className="border-b border-slate-200 px-4 py-3.5">Direction</th>
-                      <th className="border-b border-slate-200 px-4 py-3.5 text-right">MRC</th>
-                      <th className="border-b border-slate-200 px-4 py-3.5 text-right">NRC</th>
-                      <th className="border-b border-slate-200 px-4 py-3.5">Currency</th>
-                      <th className="border-b border-slate-200 px-3 py-3.5 text-center">MOQ</th>
-                      <th className="border-b border-slate-200 px-3 py-3.5 text-center">Other Charges</th>
-                      <th className="border-b border-slate-200 px-3 py-3.5 text-center">Requirements</th>
-                      <th className="border-b border-slate-200 px-3 py-3.5 text-center">Features</th>
-                      <th className="w-48 border-b border-slate-200 px-3 py-3.5 text-center">Quantity</th>
-                      <th className="sticky right-0 z-20 w-40 border-b border-l border-slate-200 bg-blue-50/60 px-3 py-3.5 text-center">
-                        Action
-                      </th>
+                    <tr className="bg-[#215F9A] text-white text-xs sm:text-sm">
+                      <th className="p-3 text-left">Country</th>
+                      <th className="p-3 text-left">Type</th>
+                      <th className="p-3 text-left">SMS/Voice</th>
+                      <th className="p-3 text-left">Inbound/Outbound</th>
+                      <th className="p-3 text-right">MRC</th>
+                      <th className="p-3 text-right">NRC</th>
+                      <th className="p-3 text-left">Currency</th>
+                      <th className="p-3 text-center">MOQ</th>
+                      <th className="p-3 text-center">Other Charge</th>
+                      <th className="p-3 text-center">Requirements</th>
+                      <th className="p-3 text-center">Features</th>
+                      <th className="p-3 text-center">Quantity</th>
+                      <th className="p-3 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody>
                     {availableNumbers.map((num) => {
                       const quantityStr = quantities[num.id]
                       const quantity = quantityStr !== undefined ? (quantityStr === '' ? 0 : parseInt(quantityStr) || 0) : num.moq
                       const displayValue = quantityStr !== undefined ? quantityStr : String(num.moq)
-                      const flag = getCountryFlagEmoji(num.country_code)
                       return (
-                        <tr key={num.id} className="group transition-colors hover:bg-blue-50/40">
-                          <td className="whitespace-nowrap px-5 py-3.5">
-                            {flag && <span aria-hidden="true" className="mr-1.5 text-base leading-none">{flag}</span>}
-                            <span className="font-medium text-slate-900">{num.country_name}</span>{' '}
-                            <span className="text-slate-400">({num.country_code})</span>
+                        <tr key={num.id} className="border-b hover:bg-gray-50">
+                          <td className="p-3">
+                            {num.country_name} ({num.country_code})
                           </td>
-                          <td className="px-4 py-3.5">
-                            <span className={BADGE_CLASS}>{num.number_type}</span>
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <span className={BADGE_CLASS}>{num.sms_capability}</span>
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <span className={BADGE_CLASS}>{num.direction}</span>
-                          </td>
-                          <td className="px-4 py-3.5 text-right font-semibold tabular-nums text-slate-900">
+                          <td className="p-3">{num.number_type}</td>
+                          <td className="p-3">{num.sms_capability}</td>
+                          <td className="p-3">{num.direction}</td>
+                          <td className="p-3 text-right">
                             {formatDecimal(num.mrc, 2)}
                           </td>
-                          <td className="px-4 py-3.5 text-right tabular-nums text-slate-600">
+                          <td className="p-3 text-right">
                             {formatDecimal(num.nrc, 2)}
                           </td>
-                          <td className="px-4 py-3.5 text-slate-500">{num.currency}</td>
-                          <td className="px-3 py-3.5 text-center font-medium text-slate-700">{num.moq}</td>
-                          <td className="px-3 py-3.5 text-center">
+                          <td className="p-3">{num.currency}</td>
+                          <td className="p-3 text-center">{num.moq}</td>
+                          <td className="p-3 text-center">
                             <button
                               onClick={() => openModal(num.id, 'other_charges', num)}
-                              aria-label={`View other charges for ${num.country_name} ${num.number_type}`}
-                              title="Other charges"
-                              className={DETAIL_BUTTON_CLASS}
+                              className="bg-[#215F9A] text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-xs"
                             >
-                              <Receipt className="h-4 w-4" />
+                              details
                             </button>
                           </td>
-                          <td className="px-3 py-3.5 text-center">
+                          <td className="p-3 text-center">
                             <button
                               onClick={() => openModal(num.id, 'requirements', num)}
-                              aria-label={`View requirements for ${num.country_name} ${num.number_type}`}
-                              title="Requirements"
-                              className={DETAIL_BUTTON_CLASS}
+                              className="bg-[#215F9A] text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-xs"
                             >
-                              <ClipboardList className="h-4 w-4" />
+                              details
                             </button>
                           </td>
-                          <td className="px-3 py-3.5 text-center">
+                          <td className="p-3 text-center">
                             <button
                               onClick={() => openModal(num.id, 'features', num)}
-                              aria-label={`View features for ${num.country_name} ${num.number_type}`}
-                              title="Features"
-                              className={DETAIL_BUTTON_CLASS}
+                              className="bg-[#215F9A] text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-xs"
                             >
-                              <ListChecks className="h-4 w-4" />
+                              details
                             </button>
                           </td>
-                          <td className="w-48 px-3 py-3.5">
+                          <td className="p-3">
                             <div className="flex flex-col items-center">
-                              <label htmlFor={`qty-desktop-${num.id}`} className="sr-only">
-                                Quantity for {num.country_name} {num.number_type}
-                              </label>
-                              <div
-                                className={`inline-flex items-center overflow-hidden rounded-lg border bg-white transition-colors focus-within:ring-2 ${quantityErrors[num.id]
-                                  ? 'border-red-400 focus-within:ring-red-500/20'
+                              <input
+                                type="text"
+                                value={displayValue}
+                                placeholder={num.moq.toString()}
+                                onChange={(e) => {
+                                  const value = e.target.value
+                                  if (value === '' || /^\d+$/.test(value)) {
+                                    handleQuantityChange(num.id, value, num.moq)
+                                  }
+                                }}
+                                className={`w-20 p-2 border rounded-lg text-center ${quantityErrors[num.id]
+                                  ? 'border-red-500'
                                   : quantityWarnings[num.id]
-                                    ? 'border-amber-400 focus-within:ring-amber-500/20'
-                                    : 'border-slate-300 focus-within:border-[#215F9A] focus-within:ring-[#215F9A]/20'
+                                    ? 'border-amber-400'
+                                    : ''
                                   }`}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuantityChange(num.id, String(Math.max(0, quantity - 1)), num.moq)}
-                                  aria-label={`Decrease quantity for ${num.country_name} ${num.number_type}`}
-                                  disabled={quantity <= 0}
-                                  className="flex h-9 w-7 shrink-0 items-center justify-center text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  <Minus className="h-3.5 w-3.5" />
-                                </button>
-                                <input
-                                  id={`qty-desktop-${num.id}`}
-                                  type="text"
-                                  value={displayValue}
-                                  placeholder={num.moq.toString()}
-                                  onChange={(e) => {
-                                    const value = e.target.value
-                                    if (value === '' || /^\d+$/.test(value)) {
-                                      handleQuantityChange(num.id, value, num.moq)
-                                    }
-                                  }}
-                                  className="h-9 w-10 shrink-0 border-0 bg-transparent text-center tabular-nums text-slate-900 focus:outline-none focus:ring-0"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuantityChange(num.id, String(quantity + 1), num.moq)}
-                                  aria-label={`Increase quantity for ${num.country_name} ${num.number_type}`}
-                                  className="flex h-9 w-7 shrink-0 items-center justify-center text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                                >
-                                  <Plus className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
+                              />
                               {quantityErrors[num.id] && (
-                                <span className="mt-1 text-center text-xs text-red-500">
+                                <span className="text-red-500 text-xs mt-1 text-center">
                                   {quantityErrors[num.id]}
                                 </span>
                               )}
                               {!quantityErrors[num.id] && quantityWarnings[num.id] && (
-                                <span className="mt-1 block max-w-[10rem] text-center text-xs text-amber-700">
+                                <span className="text-amber-700 text-xs mt-1 text-center block max-w-[10rem]">
                                   {quantityWarnings[num.id]}
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="sticky right-0 z-10 w-40 border-l border-slate-200 bg-white px-3 py-3.5 text-center group-hover:bg-blue-50/40">
+                          <td className="p-3 text-center">
                             <button
                               onClick={() => handleOrder(num.id, quantity)}
                               disabled={processingOrderId === num.id || quantity === 0}
-                              className="inline-flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#215F9A] px-3 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#1b4e80] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                              className="bg-[#215F9A] text-white px-4 py-1 rounded-lg hover:bg-blue-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 justify-center min-w-[100px]"
                             >
                               {processingOrderId === num.id ? (
                                 <>
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  Processing
+                                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  Processing...
                                 </>
                               ) : (
-                                <>
-                                  Order
-                                  <ArrowRight className="h-3.5 w-3.5" />
-                                </>
+                                'Order'
                               )}
                             </button>
                           </td>
@@ -1474,41 +1181,21 @@ export default function Numbers() {
         {/* Custom number request modal */}
         {/* MOQ warning modal */}
         {showMoqWarningModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] motion-safe:animate-[fadeIn_150ms_ease-out]">
-            <div
-              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/5 motion-safe:animate-[scaleIn_150ms_ease-out]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-5 flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-slate-900">Below minimum order quantity</h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    This order will be <span className="font-semibold text-slate-900">reviewed by an administrator</span> before it is approved. Do you want to continue?
-                  </p>
-                </div>
-              </div>
-              <div className="mb-5 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3">
-                <span className="text-sm font-medium text-amber-800">Minimum order quantity</span>
-                <span className="text-lg font-bold tabular-nums text-amber-900">{moqWarningMoq}</span>
-              </div>
-              <div className="flex flex-col gap-2.5 sm:flex-row">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-xl font-semibold text-[#215F9A] mb-3">Below minimum order quantity</h3>
+              <p className="text-gray-700 mb-4">
+                Your order quantity is below the minimum order quantity (MOQ) of <strong>{moqWarningMoq}</strong>.
+                This order will be <strong>reviewed by an administrator</strong> before it is approved. Do you want to continue?
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
                   onClick={handleConfirmBelowMoqOrder}
                   disabled={processingOrderId !== null}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#215F9A] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1b4e80] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex-1 bg-[#215F9A] text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
                 >
-                  {processingOrderId ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    'Confirm and continue'
-                  )}
+                  {processingOrderId ? 'Processing...' : 'Confirm and continue'}
                 </button>
                 <button
                   type="button"
@@ -1516,7 +1203,7 @@ export default function Numbers() {
                     setShowMoqWarningModal(false)
                     setPendingBelowMoqOrder(null)
                   }}
-                  className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                  className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium"
                 >
                   Cancel
                 </button>
@@ -1526,98 +1213,52 @@ export default function Numbers() {
         )}
 
         {showCustomRequestModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] motion-safe:animate-[fadeIn_150ms_ease-out]"
-            onClick={() => setShowCustomRequestModal(false)}
-          >
-            <div
-              className="flex max-h-[min(90vh,100dvh)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 motion-safe:animate-[scaleIn_150ms_ease-out]"
-              onClick={(e) => e.stopPropagation()}
-            >
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowCustomRequestModal(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[min(90vh,100dvh)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               {/* Header */}
-              <div className="border-b border-slate-100 px-4 py-4 sm:px-8 sm:py-6">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#215F9A]/10 text-[#215F9A]">
-                      <Sparkles className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">Request a custom number</h3>
-                      <p className="mt-0.5 text-sm text-slate-500">
-                        Need a number that is not in our inventory? Submit your requirements and we will review your request.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowCustomRequestModal(false)}
-                    aria-label="Close"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/30"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
+              <div className="bg-[#215F9A] text-white px-4 py-4 sm:px-8 sm:py-6 rounded-t-2xl">
+                <h3 className="text-xl sm:text-2xl font-bold mb-2">Request a custom number</h3>
+                <p className="text-blue-100 text-base">
+                  Need a number that is not in our inventory? Submit your requirements and we will review your request.
+                </p>
                 <button
                   type="button"
                   onClick={() => setShowCustomOrderStepsModal(true)}
-                  className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[#215F9A] hover:underline focus:outline-none"
+                  className="mt-3 text-sm font-medium text-white underline hover:no-underline focus:outline-none"
                 >
-                  <Info className="h-3.5 w-3.5" />
                   How it works — see steps
                 </button>
               </div>
-              <div className="overflow-y-auto p-4 sm:p-8">
-                {/* Mini workflow stepper — decorative context only, mirrors the "how it works" steps */}
-                <div className="mb-6 flex items-center gap-2 text-xs font-medium text-slate-400">
-                  <span className="flex items-center gap-1.5 text-[#215F9A]">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#215F9A] text-[10px] font-bold text-white">1</span>
-                    Submit
-                  </span>
-                  <span className="h-px w-6 bg-slate-200" />
-                  <span className="flex items-center gap-1.5">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 text-[10px] font-bold text-slate-400">2</span>
-                    Review
-                  </span>
-                  <span className="h-px w-6 bg-slate-200" />
-                  <span className="flex items-center gap-1.5">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 text-[10px] font-bold text-slate-400">3</span>
-                    Response
-                  </span>
-                </div>
+              <div className="p-4 sm:p-8">
                 {customRequestError && (
-                  <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{customRequestError}</div>
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{customRequestError}</div>
                 )}
                 {customRequestSuccess && (
-                  <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{customRequestSuccess}</div>
+                  <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm">{customRequestSuccess}</div>
                 )}
                 <section className="mb-6">
-                  <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Your requirements</h4>
-                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Your requirements</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
-                      <label htmlFor="custom-country" className="mb-2 block text-sm font-medium text-slate-700">Country *</label>
-                      <IconSelect
-                        id="custom-country"
-                        icon={Globe}
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Country *</label>
+                      <select
                         value={customRequestForm.country_id}
                         onChange={(e) => setCustomRequestForm({ ...customRequestForm, country_id: e.target.value })}
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#215F9A] focus:border-[#215F9A]"
                         required
                       >
                         <option value="">Select country</option>
-                        {countries.map((c) => {
-                          const flag = getCountryFlagEmoji(c.country_code)
-                          return (
-                            <option key={c.id} value={c.id}>{flag ? `${flag} ` : ''}{c.name} ({c.country_code})</option>
-                          )
-                        })}
-                      </IconSelect>
+                        {countries.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name} ({c.country_code})</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
-                      <label htmlFor="custom-number-type" className="mb-2 block text-sm font-medium text-slate-700">Number type *</label>
-                      <IconSelect
-                        id="custom-number-type"
-                        icon={Hash}
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Number type *</label>
+                      <select
                         value={customRequestForm.number_type}
                         onChange={(e) => setCustomRequestForm({ ...customRequestForm, number_type: e.target.value as 'Geographic' | 'National' | 'Local' | 'Mobile' | 'Toll-Free' | 'Non-Geographic' | '2WV' })}
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#215F9A] focus:border-[#215F9A]"
                       >
                         <option value="Geographic">Geographic</option>
                         <option value="National">National</option>
@@ -1626,58 +1267,49 @@ export default function Numbers() {
                         <option value="Toll-Free">Toll-Free</option>
                         <option value="Non-Geographic">Non-Geographic</option>
                         <option value="2WV">2WV</option>
-                      </IconSelect>
+                      </select>
                     </div>
                     <div>
-                      <label htmlFor="custom-sms-voice" className="mb-2 block text-sm font-medium text-slate-700">SMS/Voice *</label>
-                      <IconSelect
-                        id="custom-sms-voice"
-                        icon={MessageSquare}
+                      <label className="block text-sm font-medium text-gray-700 mb-2">SMS/Voice *</label>
+                      <select
                         value={customRequestForm.sms_capability}
                         onChange={(e) => setCustomRequestForm({ ...customRequestForm, sms_capability: e.target.value as 'SMS only' | 'Voice only' | 'Both' })}
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#215F9A] focus:border-[#215F9A]"
                       >
                         <option value="SMS only">SMS only</option>
                         <option value="Voice only">Voice only</option>
                         <option value="Both">Both</option>
-                      </IconSelect>
+                      </select>
                     </div>
                     <div>
-                      <label htmlFor="custom-direction" className="mb-2 block text-sm font-medium text-slate-700">Direction *</label>
-                      <IconSelect
-                        id="custom-direction"
-                        icon={ArrowLeftRight}
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Direction *</label>
+                      <select
                         value={customRequestForm.direction}
                         onChange={(e) => setCustomRequestForm({ ...customRequestForm, direction: e.target.value as 'Inbound only' | 'Outbound only' | 'Both' })}
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#215F9A] focus:border-[#215F9A]"
                       >
                         <option value="Inbound only">Inbound only</option>
                         <option value="Outbound only">Outbound only</option>
                         <option value="Both">Both</option>
-                      </IconSelect>
+                      </select>
                     </div>
                   </div>
                 </section>
-              </div>
-              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 px-4 py-4 sm:flex-row sm:gap-4 sm:px-8 sm:py-6">
-                <button
-                  onClick={handleSubmitCustomRequest}
-                  disabled={submittingCustomRequest}
-                  className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#215F9A] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#1a4d7a] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {submittingCustomRequest ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    'Submit request'
-                  )}
-                </button>
-                <button
-                  onClick={() => setShowCustomRequestModal(false)}
-                  className="min-h-[44px] flex-1 rounded-xl bg-slate-100 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
-                >
-                  Cancel
-                </button>
+                <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 mt-6 sm:mt-8">
+                  <button
+                    onClick={handleSubmitCustomRequest}
+                    disabled={submittingCustomRequest}
+                    className="flex-1 bg-[#215F9A] text-white py-3 px-4 rounded-xl font-medium hover:bg-[#1a4d7a] disabled:opacity-50 transition-colors min-h-[44px]"
+                  >
+                    {submittingCustomRequest ? 'Submitting...' : 'Submit request'}
+                  </button>
+                  <button
+                    onClick={() => setShowCustomRequestModal(false)}
+                    className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-300 transition-colors min-h-[44px]"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1685,51 +1317,35 @@ export default function Numbers() {
 
         {/* Custom order steps pop-up */}
         {showCustomOrderStepsModal && (
-          <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] motion-safe:animate-[fadeIn_150ms_ease-out]"
-            onClick={() => setShowCustomOrderStepsModal(false)}
-          >
-            <div
-              className="max-h-[min(90vh,100dvh)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/5 motion-safe:animate-[scaleIn_150ms_ease-out] sm:p-8"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-4 flex items-start justify-between gap-3 sm:mb-6">
-                <h4 className="text-lg font-bold text-slate-900 sm:text-xl">Custom order — how it works</h4>
-                <button
-                  type="button"
-                  onClick={() => setShowCustomOrderStepsModal(false)}
-                  aria-label="Close"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/30"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <ol className="space-y-5 text-slate-700">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" onClick={() => setShowCustomOrderStepsModal(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-8 max-h-[min(90vh,100dvh)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <h4 className="text-lg sm:text-xl font-bold text-[#215F9A] mb-4 sm:mb-6">Custom order — how it works</h4>
+              <ol className="space-y-5 text-gray-700">
                 <li className="flex gap-3">
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#215F9A]/10 text-sm font-semibold text-[#215F9A]">1</span>
+                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-[#215F9A] text-white flex items-center justify-center font-semibold text-sm">1</span>
                   <div>
-                    <span className="font-medium text-slate-900">Submit your request</span>
-                    <p className="mt-0.5 text-sm text-slate-600">Tell us the country, number type, and capabilities you need.</p>
+                    <span className="font-medium">Submit your request</span>
+                    <p className="text-sm text-gray-600 mt-0.5">Tell us the country, number type, and capabilities you need.</p>
                   </div>
                 </li>
                 <li className="flex gap-3">
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#215F9A]/10 text-sm font-semibold text-[#215F9A]">2</span>
+                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-[#215F9A] text-white flex items-center justify-center font-semibold text-sm">2</span>
                   <div>
-                    <span className="font-medium text-slate-900">We review</span>
-                    <p className="mt-0.5 text-sm text-slate-600">Our team checks availability and will get back to you.</p>
+                    <span className="font-medium">We review</span>
+                    <p className="text-sm text-gray-600 mt-0.5">Our team checks availability and will get back to you.</p>
                   </div>
                 </li>
                 <li className="flex gap-3">
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#215F9A]/10 text-sm font-semibold text-[#215F9A]">3</span>
+                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-[#215F9A] text-white flex items-center justify-center font-semibold text-sm">3</span>
                   <div>
-                    <span className="font-medium text-slate-900">Numbers added or we respond</span>
-                    <p className="mt-0.5 text-sm text-slate-600">If we can fulfill your request, we add numbers to inventory and notify you. Otherwise we will contact you with next steps.</p>
+                    <span className="font-medium">Numbers added or we respond</span>
+                    <p className="text-sm text-gray-600 mt-0.5">If we can fulfill your request, we add numbers to inventory and notify you. Otherwise we will contact you with next steps.</p>
                   </div>
                 </li>
               </ol>
               <button
                 onClick={() => setShowCustomOrderStepsModal(false)}
-                className="mt-6 w-full rounded-xl bg-[#215F9A] py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#1a4d7a]"
+                className="mt-6 w-full bg-[#215F9A] text-white py-2.5 rounded-xl font-medium hover:bg-[#1a4d7a]"
               >
                 Got it
               </button>

@@ -7,96 +7,7 @@ import { useAuth } from './AuthContext'
 import BackButton from './BackButton'
 import DocumentsModal from './DocumentsModal'
 import { formatDecimal } from '@/lib/utils/formatNumber'
-import { getCountryFlagEmoji } from '@/lib/utils/countryFlag'
-import {
-  Pencil,
-  Upload,
-  Ban,
-  RefreshCw,
-  Files,
-  Loader2,
-  SquarePen,
-  CircleCheckBig,
-  CircleX,
-  FileCheck,
-  Hourglass,
-  Clock,
-  Inbox,
-  X,
-  MessageSquare,
-  Phone,
-  ArrowLeft,
-  ArrowRight,
-  ArrowLeftRight,
-} from 'lucide-react'
-
-const BADGE_CLASS =
-  'inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600'
-
-// Presentational-only status classification: derives an icon + color tone
-// from the same status strings the app already produces (orders and custom
-// requests share the visual language, but not every value below is used by
-// both). It intentionally does not introduce any new status values — the
-// displayed label always comes from the existing getStatusLabel()/req.status
-// text, this only decides the icon and color.
-function getStatusMeta(status: string): { icon: React.ComponentType<{ className?: string }>; className: string } {
-  switch (status) {
-    case 'granted':
-    case 'approved':
-      return { icon: CircleCheckBig, className: 'border-emerald-200 bg-emerald-50 text-emerald-700' }
-    case 'rejected':
-      return { icon: CircleX, className: 'border-red-200 bg-red-50 text-red-700' }
-    case 'cancelled':
-      return { icon: Ban, className: 'border-slate-200 bg-slate-100 text-slate-500' }
-    case 'documentation_review':
-      return { icon: FileCheck, className: 'border-blue-200 bg-blue-50 text-blue-700' }
-    case 'pending':
-      return { icon: Hourglass, className: 'border-amber-200 bg-amber-50 text-amber-700' }
-    default:
-      return { icon: Clock, className: 'border-slate-200 bg-slate-100 text-slate-600' }
-  }
-}
-
-// Presentational-only: picks an appropriate icon for the existing SMS/Voice
-// and Direction text values without altering or interpreting them beyond
-// simple keyword matching — the displayed text is always the exact original
-// value.
-function SmsVoiceIndicator({ value }: { value: string }) {
-  const hasSms = /sms/i.test(value)
-  const hasVoice = /voice/i.test(value)
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-slate-600">
-      {hasSms && !hasVoice ? (
-        <MessageSquare className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      ) : hasVoice && !hasSms ? (
-        <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      ) : (
-        <span className="flex shrink-0 items-center -space-x-1 text-slate-400">
-          <MessageSquare className="h-3.5 w-3.5" />
-          <Phone className="h-3.5 w-3.5" />
-        </span>
-      )}
-      {value}
-    </span>
-  )
-}
-
-function DirectionIndicator({ value }: { value: string }) {
-  const hasInbound = /inbound/i.test(value)
-  const hasOutbound = /outbound/i.test(value)
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-slate-600">
-      {hasInbound && !hasOutbound ? (
-        <ArrowLeft className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      ) : hasOutbound && !hasInbound ? (
-        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      ) : (
-        <ArrowLeftRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      )}
-      {value}
-    </span>
-  )
-}
+import { Pencil } from 'lucide-react'
 
 interface UploadedDocumentInfo {
   requirement_key: string
@@ -131,7 +42,6 @@ interface Order {
   rejected_reason: string | null
   phone_number: string
   country_name: string
-  country_code: string
   number_type: string
   sms_capability: string
   direction: string
@@ -145,7 +55,6 @@ interface Order {
 interface CustomNumberRequest {
   id: string
   country_name: string
-  country_code: string
   number_type: string
   sms_capability: string
   direction: string
@@ -232,7 +141,7 @@ export default function CustomerOrders() {
           rejected_reason,
           uploaded_documents,
           admin_request_changes,
-          numbers!inner(number, number_type, sms_capability, direction, moq, requirements_text, countries!inner(name, country_code))
+          numbers!inner(number, number_type, sms_capability, direction, moq, requirements_text, countries!inner(name))
         `)
         .eq('customer_id', customerData.id)
         .order('created_at', { ascending: false })
@@ -255,7 +164,6 @@ export default function CustomerOrders() {
         rejected_reason: order.rejected_reason,
         phone_number: order.numbers.number,
         country_name: order.numbers.countries.name,
-        country_code: order.numbers.countries.country_code,
         number_type: order.numbers.number_type,
         sms_capability: order.numbers.sms_capability,
         direction: order.numbers.direction,
@@ -301,7 +209,7 @@ export default function CustomerOrders() {
           status,
           admin_notes,
           created_at,
-          countries!inner(name, country_code)
+          countries!inner(name)
         `)
         .eq('customer_id', customerData.id)
         .order('created_at', { ascending: false })
@@ -309,7 +217,6 @@ export default function CustomerOrders() {
       setCustomRequests((data || []).map((r: any) => ({
         id: r.id,
         country_name: r.countries?.name ?? '—',
-        country_code: r.countries?.country_code ?? '',
         number_type: r.number_type,
         sms_capability: r.sms_capability,
         direction: r.direction,
@@ -464,263 +371,213 @@ export default function CustomerOrders() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 pb-16 pt-6 sm:px-6 lg:px-10 xl:px-12">
-      <div className="mx-auto max-w-[1600px]">
+    <main className="bg-gray-50 min-h-screen py-12 px-8">
+      <div className="max-w-7xl mx-auto">
         <BackButton href="/" label="Back to Dashboard" />
-
-        <div className="mb-6 sm:mb-8">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#F97316]" />
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#215F9A]">
-              Voxco Number Portal
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">My Orders</h1>
-          <p className="mt-1.5 text-sm text-slate-600">
+        <section className="text-center mb-8">
+          <h2 className="text-4xl font-bold text-[#215F9A] mb-4">My Orders</h2>
+          <p className="text-xl text-gray-600">
             Welcome, {(user?.user_metadata as { name?: string })?.name || user?.email}
           </p>
-        </div>
-
-        {error && (
-          <div className="mb-6 max-w-2xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        </section>
 
         {/* Tabs: My Orders | Custom number requests */}
-        <div className="mb-6 flex items-center gap-6 border-b border-slate-200">
+        <div className="flex gap-2 mb-4 border-b border-gray-200">
           <button
             type="button"
             onClick={() => setOrdersTab('orders')}
-            className={`relative pb-3 text-sm font-semibold transition-colors ${ordersTab === 'orders' ? 'text-[#215F9A]' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${ordersTab === 'orders' ? 'bg-[#215F9A] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
           >
             My Orders
             {orders.length > 0 && (
-              <span className="ml-1.5 text-xs font-medium text-slate-400">({orders.length})</span>
-            )}
-            {ordersTab === 'orders' && (
-              <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[#215F9A]" />
+              <span className="ml-2 text-xs opacity-90">({orders.length})</span>
             )}
           </button>
           <button
             type="button"
             onClick={() => setOrdersTab('custom_requests')}
-            className={`relative pb-3 text-sm font-semibold transition-colors ${ordersTab === 'custom_requests' ? 'text-[#215F9A]' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${ordersTab === 'custom_requests' ? 'bg-[#215F9A] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
           >
             Custom number requests
             {customRequests.length > 0 && (
-              <span className="ml-1.5 text-xs font-medium text-slate-400">({customRequests.length})</span>
-            )}
-            {ordersTab === 'custom_requests' && (
-              <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[#215F9A]" />
+              <span className="ml-2 text-xs opacity-90">({customRequests.length})</span>
             )}
           </button>
         </div>
 
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+
         {ordersTab === 'orders' && (
           <>
             {loading ? (
-              <div className="flex flex-col items-center gap-3 py-16 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#215F9A]/10">
-                  <Loader2 className="h-5 w-5 animate-spin text-[#215F9A]" />
-                </div>
-                <span className="text-sm font-medium text-slate-600">Loading your orders…</span>
+              <div className="text-center py-8">
+                <div className="text-gray-600">Loading your orders...</div>
               </div>
             ) : orders.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white py-16 text-center">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                  <Inbox className="h-5 w-5" />
-                </div>
-                <p className="text-sm font-medium text-slate-700">You haven&apos;t placed any orders yet.</p>
-                <p className="text-sm text-slate-500">Start by searching and ordering numbers!</p>
+              <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
+                <p className="text-gray-600 text-lg mb-4">You haven't placed any orders yet.</p>
+                <p className="text-gray-500">Start by searching and ordering numbers!</p>
               </div>
             ) : (
-              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-sm font-semibold text-slate-900">Order history</h2>
-                    <span className="inline-flex items-center rounded-full bg-[#215F9A]/10 px-2.5 py-0.5 text-xs font-semibold text-[#215F9A]">
-                      {orders.length}
-                    </span>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1360px] border-separate border-spacing-0 text-sm">
-                    <thead>
-                      <tr className="bg-blue-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        <th className="border-b border-slate-200 px-4 py-3">Date</th>
-                        <th className="border-b border-slate-200 px-4 py-3">Country</th>
-                        <th className="border-b border-slate-200 px-3 py-3">Type</th>
-                        <th className="border-b border-slate-200 px-3 py-3">SMS/Voice</th>
-                        <th className="border-b border-slate-200 px-3 py-3">Inbound/Outbound</th>
-                        <th className="border-b border-slate-200 px-3 py-3 text-center">Qty</th>
-                        <th className="border-b border-slate-200 px-3 py-3 text-right">MRC</th>
-                        <th className="border-b border-slate-200 px-3 py-3 text-right">NRC</th>
-                        <th className="border-b border-slate-200 px-3 py-3 text-center">Documents</th>
-                        <th className="border-b border-slate-200 px-3 py-3">Status</th>
-                        <th className="border-b border-slate-200 px-4 py-3">Notes</th>
-                        <th className="border-b border-slate-200 px-3 py-3 text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {orders.map((order) => {
-                        const meta = getStatusMeta(order.status)
-                        const StatusIcon = meta.icon
-                        const flag = getCountryFlagEmoji(order.country_code)
-                        return (
-                          <tr key={order.id} className="transition-colors hover:bg-blue-50/40">
-                            <td className="whitespace-nowrap px-4 py-3.5 text-slate-600">
-                              {new Date(order.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="whitespace-nowrap px-4 py-3.5 font-medium text-slate-900">
-                              {flag && <span aria-hidden="true" className="mr-1.5 align-middle text-base leading-none">{flag}</span>}
-                              {order.country_name}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5">
-                              <span className={BADGE_CLASS}>{order.number_type}</span>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5 text-sm">
-                              <SmsVoiceIndicator value={order.sms_capability} />
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5 text-sm">
-                              <DirectionIndicator value={order.direction} />
-                            </td>
-                            <td className="px-3 py-3.5 text-center">
-                              <span className="font-medium tabular-nums text-slate-900">{order.quantity}</span>
-                              {order.below_moq_at_order && (
-                                <p className="mt-0.5 whitespace-nowrap text-[10px] font-medium text-amber-600">Below MOQ ({order.moq})</p>
-                              )}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5 text-right">
-                              <span className="font-semibold tabular-nums text-slate-900">{formatDecimal(order.mrc_at_order, 2) || '0'}</span>
-                              <span className="ml-1 text-xs text-slate-400">{order.currency_at_order}</span>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5 text-right">
-                              <span className="tabular-nums text-slate-600">{formatDecimal(order.nrc_at_order, 2) || '0'}</span>
-                              <span className="ml-1 text-xs text-slate-400">{order.currency_at_order}</span>
-                            </td>
-                            <td className="px-3 py-3.5 text-center">
-                              {(() => {
-                                const docs = order.uploaded_documents?.documents ?? []
-                                const otherDocs = order.uploaded_documents?.other_documents ?? []
-                                const hasDocs = docs.length > 0 || otherDocs.length > 0
-                                if (hasDocs) {
-                                  return (
-                                    <button
-                                      onClick={() => setSelectedOrder(order)}
-                                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-[#215F9A]/30 hover:bg-blue-50/50 hover:text-[#215F9A]"
-                                    >
-                                      <Files className="h-3.5 w-3.5" />
-                                      {docs.length + otherDocs.length}
-                                    </button>
-                                  )
-                                }
-                                if (order.uploaded_documents?.documents_deleted) {
-                                  return <span className="text-xs italic text-slate-400">Processed</span>
-                                }
-                                return <span className="text-xs text-slate-300">—</span>
-                              })()}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5">
-                              <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${meta.className}`}>
-                                <StatusIcon className="h-3.5 w-3.5" />
-                                {getStatusLabel(order.status)}
-                              </span>
-                            </td>
-                            <td className="max-w-[240px] px-4 py-3.5">
-                              <div className="space-y-1.5">
-                                {order.admin_request_changes && (
-                                  <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2 text-xs text-blue-800">
-                                    <p className="font-semibold">Action needed</p>
-                                    <p className="mt-0.5 line-clamp-2" title={order.admin_request_changes}>
-                                      {order.admin_request_changes}
-                                    </p>
-                                    <button
-                                      onClick={() => handleResubmitDocuments(order)}
-                                      className="mt-1 font-medium text-[#215F9A] hover:underline"
-                                    >
-                                      Upload / Update documents
-                                    </button>
-                                  </div>
+              <div className="bg-white rounded-3xl shadow-lg p-6">
+                <h3 className="text-xl font-semibold text-[#215F9A] mb-4">
+                  Order History ({orders.length})
+                </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-[#215F9A] text-white text-xs">
+                    <th className="p-2 text-left">Date</th>
+                    <th className="p-2 text-left">Country</th>
+                    <th className="p-2 text-left">Type</th>
+                    <th className="p-2 text-left">SMS/Voice</th>
+                    <th className="p-2 text-left">Inbound/Outbound</th>
+                    <th className="p-2 text-center">Qty</th>
+                    <th className="p-2 text-center">MOQ</th>
+                    <th className="p-2 text-right">MRC</th>
+                    <th className="p-2 text-right">NRC</th>
+                    <th className="p-2 text-left">Currency</th>
+                    <th className="p-2 text-center">Documents</th>
+                    <th className="p-2 text-center">Status</th>
+                    <th className="p-2 text-left">Notes</th>
+                    <th className="p-2 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => (
+                    <tr key={order.id} className="border-b hover:bg-gray-50">
+                      <td className="p-2 text-xs">
+                        {new Date(order.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="p-2 text-xs">{order.country_name}</td>
+                      <td className="p-2 text-xs">{order.number_type}</td>
+                      <td className="p-2 text-xs">{order.sms_capability}</td>
+                      <td className="p-2 text-xs">{order.direction}</td>
+                      <td className="p-2 text-center text-xs">{order.quantity}</td>
+                      <td className="p-2 text-center text-xs">{order.moq}</td>
+                      <td className="p-2 text-right text-xs">
+                        {formatDecimal(order.mrc_at_order, 2) || '0'}
+                      </td>
+                      <td className="p-2 text-right text-xs">
+                        {formatDecimal(order.nrc_at_order, 2) || '0'}
+                      </td>
+                      <td className="p-2 text-xs">{order.currency_at_order}</td>
+                      <td className="p-2 text-center">
+                        {(() => {
+                          const docs = order.uploaded_documents?.documents ?? []
+                          const otherDocs = order.uploaded_documents?.other_documents ?? []
+                          const hasDocs = docs.length > 0 || otherDocs.length > 0
+                          if (hasDocs) {
+                            return (
+                              <div className="flex flex-col items-center gap-1">
+                                {docs.length > 0 && (
+                                  <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
+                                    {docs.length} file(s)
+                                  </span>
                                 )}
-                                {order.rejected_reason && (
-                                  <p className="line-clamp-2 text-xs text-red-600" title={`Rejected: ${order.rejected_reason}`}>
-                                    Rejected: {order.rejected_reason}
-                                  </p>
+                                {otherDocs.length > 0 && (
+                                  <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs">
+                                    {otherDocs.length} custom doc{otherDocs.length !== 1 ? 's' : ''}
+                                  </span>
                                 )}
-                                {order.status === 'granted' && order.granted_at && (
-                                  <p className="text-xs text-emerald-600">
-                                    Approved on {new Date(order.granted_at).toLocaleDateString()}
-                                  </p>
-                                )}
-                                {order.below_moq_at_order &&
-                                  (order.status === 'pending' || order.status === 'documentation_review') && (
-                                  <p className="text-xs text-amber-600">
-                                    Pending admin approval (quantity below MOQ).
-                                  </p>
-                                )}
-                                {order.status === 'documentation_review' && (
-                                  <p className="text-xs text-blue-600">Under documentation review</p>
-                                )}
-                                {order.status === 'pending' && (
-                                  <p className="text-xs text-amber-600">Awaiting approval</p>
-                                )}
-                                {!order.admin_request_changes &&
-                                  !order.rejected_reason &&
-                                  !(order.status === 'granted' && order.granted_at) &&
-                                  !(order.below_moq_at_order && (order.status === 'pending' || order.status === 'documentation_review')) &&
-                                  order.status !== 'documentation_review' &&
-                                  order.status !== 'pending' && (
-                                  <span className="text-xs text-slate-300">—</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-3.5 text-center">
-                              {canEditOrder(order.status) && (
-                                <div className="flex items-center justify-center gap-1">
-                                  <button
-                                    onClick={() => handleEditClick(order)}
-                                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-[#215F9A]"
-                                    title="Edit quantity"
-                                    aria-label="Edit quantity"
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleResubmitDocuments(order)}
-                                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-[#215F9A]"
-                                    title="Update documents"
-                                    aria-label="Update documents"
-                                  >
-                                    <Upload className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => setCancelTarget({ type: 'order', id: order.id })}
-                                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                                    title="Cancel this order"
-                                    aria-label="Cancel this order"
-                                  >
-                                    <Ban className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              )}
-                              {order.status === 'rejected' && (
                                 <button
-                                  onClick={() => handleResubmitDocuments(order)}
-                                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#215F9A] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#1b4e80]"
+                                  onClick={() => setSelectedOrder(order)}
+                                  className="text-[#215F9A] hover:text-blue-700 text-xs underline"
                                 >
-                                  <RefreshCw className="h-3.5 w-3.5" />
-                                  Resubmit
+                                  View
                                 </button>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+                              </div>
+                            )
+                          }
+                          if (order.uploaded_documents?.documents_deleted) {
+                            return <span className="text-gray-400 text-xs italic">Processed</span>
+                          }
+                          return <span className="text-gray-400 text-xs">None</span>
+                        })()}
+                      </td>
+                      <td className="p-2 text-center">
+                        <span className={`px-2 py-1 rounded text-xs ${getStatusColor(order.status)}`}>
+                          {getStatusLabel(order.status)}
+                        </span>
+                      </td>
+                      <td className="p-2 text-xs text-gray-600">
+                        {order.admin_request_changes && (
+                          <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-blue-800">
+                            <strong>Admin request:</strong> {order.admin_request_changes}
+                            <button
+                              onClick={() => handleResubmitDocuments(order)}
+                              className="block mt-1 text-[#215F9A] font-medium hover:underline"
+                            >
+                              Upload / Update documents
+                            </button>
+                          </div>
+                        )}
+                        {order.rejected_reason && (
+                          <span className="text-red-600">Rejected: {order.rejected_reason}</span>
+                        )}
+                        {order.status === 'granted' && order.granted_at && (
+                          <span className="text-green-600">
+                            Approved on {new Date(order.granted_at).toLocaleDateString()}
+                          </span>
+                        )}
+                        {order.below_moq_at_order &&
+                          (order.status === 'pending' || order.status === 'documentation_review') && (
+                          <span className="text-amber-700 block mt-1">
+                            Pending admin approval (quantity below MOQ).
+                          </span>
+                        )}
+                        {order.status === 'documentation_review' && (
+                          <span className="text-blue-600">Under documentation review</span>
+                        )}
+                        {order.status === 'pending' && (
+                          <span className="text-yellow-600">Awaiting approval</span>
+                        )}
+                      </td>
+                      <td className="p-2 text-center">
+                        {canEditOrder(order.status) && (
+                          <div className="flex flex-wrap gap-1 justify-center items-center">
+                            <button
+                              onClick={() => handleEditClick(order)}
+                              className="p-1 text-[#215F9A] hover:bg-blue-50 rounded transition-colors"
+                              title="Edit quantity"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleResubmitDocuments(order)}
+                              className="text-xs text-[#215F9A] hover:text-blue-700 underline"
+                              title="Update documents"
+                            >
+                              Docs
+                            </button>
+                            <button
+                              onClick={() => setCancelTarget({ type: 'order', id: order.id })}
+                              className="text-xs text-red-600 hover:text-red-800 underline"
+                              title="Cancel this order"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                        {order.status === 'rejected' && (
+                          <button
+                            onClick={() => handleResubmitDocuments(order)}
+                            className="text-xs bg-[#215F9A] text-white px-2 py-1 rounded hover:bg-blue-700"
+                          >
+                            Resubmit
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
             )}
           </>
         )}
@@ -728,120 +585,84 @@ export default function CustomerOrders() {
         {ordersTab === 'custom_requests' && (
           <>
             {loadingCustomRequests ? (
-              <div className="flex flex-col items-center gap-3 py-16 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#215F9A]/10">
-                  <Loader2 className="h-5 w-5 animate-spin text-[#215F9A]" />
-                </div>
-                <span className="text-sm font-medium text-slate-600">Loading custom number requests…</span>
+              <div className="text-center py-8">
+                <div className="text-gray-600">Loading custom number requests...</div>
               </div>
             ) : customRequests.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white py-16 text-center">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                  <Inbox className="h-5 w-5" />
-                </div>
-                <p className="text-sm font-medium text-slate-700">You have no custom number requests.</p>
-                <p className="max-w-sm text-sm text-slate-500">
-                  Request a custom number from the Numbers page when the quantity is below MOQ or the number is not in inventory.
-                </p>
+              <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
+                <p className="text-gray-600 text-lg mb-4">You have no custom number requests.</p>
+                <p className="text-gray-500">Request a custom number from the Numbers page when the quantity is below MOQ or the number is not in inventory.</p>
               </div>
             ) : (
-              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-sm font-semibold text-slate-900">Custom number requests</h2>
-                    <span className="inline-flex items-center rounded-full bg-[#215F9A]/10 px-2.5 py-0.5 text-xs font-semibold text-[#215F9A]">
-                      {customRequests.length}
-                    </span>
-                  </div>
-                </div>
+              <div className="bg-white rounded-3xl shadow-lg p-6">
+                <h3 className="text-xl font-semibold text-[#215F9A] mb-4">
+                  Custom number requests ({customRequests.length})
+                </h3>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1140px] border-separate border-spacing-0 text-sm">
+                  <table className="w-full border-collapse text-sm">
                     <thead>
-                      <tr className="bg-blue-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        <th className="border-b border-slate-200 px-4 py-3">Date</th>
-                        <th className="border-b border-slate-200 px-4 py-3">Country</th>
-                        <th className="border-b border-slate-200 px-3 py-3">Type</th>
-                        <th className="border-b border-slate-200 px-3 py-3">SMS/Voice</th>
-                        <th className="border-b border-slate-200 px-3 py-3">Direction</th>
-                        <th className="border-b border-slate-200 px-3 py-3 text-right">MRC</th>
-                        <th className="border-b border-slate-200 px-3 py-3 text-right">NRC</th>
-                        <th className="border-b border-slate-200 px-3 py-3">Status</th>
-                        <th className="border-b border-slate-200 px-4 py-3">Admin notes</th>
-                        <th className="border-b border-slate-200 px-3 py-3 text-center">Actions</th>
+                      <tr className="bg-[#215F9A] text-white text-xs">
+                        <th className="p-2 text-left">Date</th>
+                        <th className="p-2 text-left">Country</th>
+                        <th className="p-2 text-left">Type</th>
+                        <th className="p-2 text-left">SMS/Voice</th>
+                        <th className="p-2 text-left">Direction</th>
+                        <th className="p-2 text-center">MOQ</th>
+                        <th className="p-2 text-right">MRC</th>
+                        <th className="p-2 text-right">NRC</th>
+                        <th className="p-2 text-left">Currency</th>
+                        <th className="p-2 text-center">Status</th>
+                        <th className="p-2 text-left">Admin notes</th>
+                        <th className="p-2 text-center">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {customRequests.map((req) => {
-                        const meta = getStatusMeta(req.status)
-                        const StatusIcon = meta.icon
-                        const label = req.status === 'approved' ? 'Approved' : req.status === 'rejected' ? 'Rejected' : req.status === 'cancelled' ? 'Cancelled' : 'Pending'
-                        const flag = getCountryFlagEmoji(req.country_code)
-                        return (
-                          <tr key={req.id} className="transition-colors hover:bg-blue-50/40">
-                            <td className="whitespace-nowrap px-4 py-3.5 text-slate-600">
-                              {new Date(req.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="whitespace-nowrap px-4 py-3.5 font-medium text-slate-900">
-                              {flag && <span aria-hidden="true" className="mr-1.5 align-middle text-base leading-none">{flag}</span>}
-                              {req.country_name}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5">
-                              <span className={BADGE_CLASS}>{req.number_type}</span>
-                              <p className="mt-1 text-xs text-slate-400">MOQ {req.moq}</p>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5 text-sm">
-                              <SmsVoiceIndicator value={req.sms_capability} />
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5 text-sm">
-                              <DirectionIndicator value={req.direction} />
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5 text-right">
-                              <span className="font-semibold tabular-nums text-slate-900">{formatDecimal(req.mrc, 2)}</span>
-                              <span className="ml-1 text-xs text-slate-400">{req.currency}</span>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5 text-right">
-                              <span className="tabular-nums text-slate-600">{formatDecimal(req.nrc, 2)}</span>
-                              <span className="ml-1 text-xs text-slate-400">{req.currency}</span>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5">
-                              <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${meta.className}`}>
-                                <StatusIcon className="h-3.5 w-3.5" />
-                                {label}
-                              </span>
-                            </td>
-                            <td className="max-w-[240px] px-4 py-3.5">
-                              {req.admin_notes ? (
-                                <p className="line-clamp-2 text-xs text-slate-500" title={req.admin_notes}>
-                                  {req.admin_notes}
-                                </p>
-                              ) : (
-                                <span className="text-xs text-slate-300">—</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-3.5 text-center">
-                              {canCancelRequest(req.status) ? (
-                                <button
-                                  onClick={() => setCancelTarget({ type: 'request', id: req.id })}
-                                  className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                                  title="Cancel this request"
-                                  aria-label="Cancel this request"
-                                >
-                                  <Ban className="h-4 w-4" />
-                                </button>
-                              ) : (
-                                <span className="text-xs text-slate-300">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
+                    <tbody>
+                      {customRequests.map((req) => (
+                        <tr key={req.id} className="border-b hover:bg-gray-50">
+                          <td className="p-2 text-xs">
+                            {new Date(req.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="p-2 text-xs">{req.country_name}</td>
+                          <td className="p-2 text-xs">{req.number_type}</td>
+                          <td className="p-2 text-xs">{req.sms_capability}</td>
+                          <td className="p-2 text-xs">{req.direction}</td>
+                          <td className="p-2 text-center text-xs">{req.moq}</td>
+                          <td className="p-2 text-right text-xs">{formatDecimal(req.mrc, 2)}</td>
+                          <td className="p-2 text-right text-xs">{formatDecimal(req.nrc, 2)}</td>
+                          <td className="p-2 text-xs">{req.currency}</td>
+                          <td className="p-2 text-center">
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              req.status === 'approved' ? 'bg-green-100 text-green-800' :
+                              req.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              req.status === 'cancelled' ? 'bg-gray-200 text-gray-700' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {req.status === 'approved' ? 'Approved' : req.status === 'rejected' ? 'Rejected' : req.status === 'cancelled' ? 'Cancelled' : 'Pending'}
+                            </span>
+                          </td>
+                          <td className="p-2 text-xs text-gray-600">{req.admin_notes ?? '—'}</td>
+                          <td className="p-2 text-center">
+                            {canCancelRequest(req.status) ? (
+                              <button
+                                onClick={() => setCancelTarget({ type: 'request', id: req.id })}
+                                className="text-xs text-red-600 hover:text-red-800 underline"
+                                title="Cancel this request"
+                              >
+                                Cancel
+                              </button>
+                            ) : (
+                              <span className="text-gray-300 text-xs">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
-                <p className="border-t border-slate-100 px-5 py-4 text-sm text-slate-500">
-                  When a request is approved, the number is added to inventory and a new order is created for you—you will see it under <strong className="font-medium text-slate-700">My Orders</strong>.
+                <p className="text-sm text-gray-500 mt-4">
+                  When a request is approved, the number is added to inventory and a new order is created for you—you will see it under <strong>My Orders</strong>.
                 </p>
-              </section>
+              </div>
             )}
           </>
         )}
@@ -860,47 +681,27 @@ export default function CustomerOrders() {
 
       {/* Cancel Confirmation Modal */}
       {cancelTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] motion-safe:animate-[fadeIn_150ms_ease-out]"
-          onClick={() => !cancelling && setCancelTarget(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl ring-1 ring-black/5 motion-safe:animate-[scaleIn_150ms_ease-out]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-5 flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
-                <Ban className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">
-                  Cancel {cancelTarget.type === 'order' ? 'order' : 'request'}?
-                </h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  Are you sure you want to cancel this {cancelTarget.type === 'order' ? 'order' : 'custom number request'}?
-                  This action cannot be undone.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2.5 sm:flex-row">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-[#215F9A] mb-3">
+              Cancel {cancelTarget.type === 'order' ? 'order' : 'request'}?
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you sure you want to cancel this {cancelTarget.type === 'order' ? 'order' : 'custom number request'}?
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
               <button
                 onClick={handleConfirmCancel}
                 disabled={cancelling}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {cancelling ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Cancelling…
-                  </>
-                ) : (
-                  `Yes, cancel ${cancelTarget.type === 'order' ? 'order' : 'request'}`
-                )}
+                {cancelling ? 'Cancelling...' : `Yes, cancel ${cancelTarget.type === 'order' ? 'order' : 'request'}`}
               </button>
               <button
                 onClick={() => setCancelTarget(null)}
                 disabled={cancelling}
-                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 disabled:opacity-50"
               >
                 Keep it
               </button>
@@ -911,76 +712,49 @@ export default function CustomerOrders() {
 
       {/* Edit Order Modal */}
       {editingOrder && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] motion-safe:animate-[fadeIn_150ms_ease-out]"
-          onClick={() => !saving && setEditingOrder(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl ring-1 ring-black/5 motion-safe:animate-[scaleIn_150ms_ease-out]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#215F9A]/10 text-[#215F9A]">
-                  <SquarePen className="h-[18px] w-[18px]" />
-                </div>
-                <h3 className="text-base font-semibold text-slate-900">Edit order</h3>
-              </div>
-              <button
-                onClick={() => setEditingOrder(null)}
-                aria-label="Close"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-[#215F9A] mb-4">Edit Order</h3>
 
-            <div className="mb-4 space-y-1.5 rounded-lg bg-slate-50 p-3 text-sm">
-              <p className="text-slate-600">
-                <span className="font-medium text-slate-900">Country:</span> {editingOrder.country_name}
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">
+                <strong>Country:</strong> {editingOrder.country_name}
               </p>
-              <p className="text-slate-600">
-                <span className="font-medium text-slate-900">Type:</span> {editingOrder.number_type} - {editingOrder.sms_capability}
+              <p className="text-sm text-gray-600 mb-2">
+                <strong>Type:</strong> {editingOrder.number_type} - {editingOrder.sms_capability}
               </p>
-              <p className="text-slate-600">
-                <span className="font-medium text-slate-900">MOQ:</span> {editingOrder.moq}
+              <p className="text-sm text-gray-600 mb-4">
+                <strong>MOQ:</strong> {editingOrder.moq}
               </p>
             </div>
 
-            <div className="mb-5">
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Quantity
               </label>
               <input
                 type="text"
                 value={editQuantity}
                 onChange={(e) => handleEditQuantityChange(e.target.value)}
-                className={`w-full rounded-lg border p-2.5 text-sm transition-colors focus:outline-none focus:ring-2 ${editError ? 'border-red-400 focus:ring-red-500/20' : 'border-slate-300 focus:border-[#215F9A] focus:ring-[#215F9A]/20'}`}
+                className={`w-full p-2 border rounded-lg ${editError ? 'border-red-500' : 'border-gray-300'}`}
                 placeholder="Enter quantity"
               />
               {editError && (
-                <p className="mt-1 text-xs text-red-500">{editError}</p>
+                <p className="text-red-500 text-xs mt-1">{editError}</p>
               )}
             </div>
 
-            <div className="flex gap-2.5">
+            <div className="flex gap-3">
               <button
                 onClick={handleSaveEdit}
                 disabled={!!editError || saving || !editQuantity}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#215F9A] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1b4e80] disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex-1 bg-[#215F9A] text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Saving…
-                  </>
-                ) : (
-                  'Save changes'
-                )}
+                {saving ? 'Saving...' : 'Save Changes'}
               </button>
               <button
                 onClick={() => setEditingOrder(null)}
-                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
               >
                 Cancel
               </button>

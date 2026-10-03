@@ -2,67 +2,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import BackButton from './BackButton'
 import NumberFileUpload from './NumberFileUpload'
 import DocumentsModal from './DocumentsModal'
-import LoadingSpinner, { TableSkeleton } from './ui/LoadingSpinner'
-import { EmptyState } from './ui/Alert'
+import LoadingSpinner, { TableSkeleton, CardSkeleton } from './ui/LoadingSpinner'
+import Alert from './ui/Alert'
+import Button from './ui/Button'
 import { formatDecimal, formatPricePerUnit } from '@/lib/utils/formatNumber'
 import SelectWithCustom from './ui/SelectWithCustom'
 import DualScrollbar from './ui/DualScrollbar'
-import InventoryNumberDetails from './InventoryNumberDetails'
-import { getCountryFlagEmoji } from '@/lib/utils/countryFlag'
-import {
-  Package,
-  Globe,
-  Landmark,
-  Search,
-  RotateCcw,
-  Plus,
-  Upload,
-  FileSpreadsheet,
-  Pencil,
-  Trash2,
-  Info,
-  ChevronDown,
-  ChevronUp,
-  ChevronLeft,
-  ChevronRight,
-  X,
-  AlertTriangle,
-  CircleCheckBig,
-  CircleX,
-  Hourglass,
-  FileCheck,
-  Clock,
-  Ban,
-  Users as UsersIcon,
-  Settings as SettingsIcon,
-  Mail,
-  Send,
-  Building2,
-  MessageSquare,
-  Phone,
-  ArrowLeft,
-  ArrowRightLeft,
-  ArrowRight,
-  Loader2,
-  Sparkles,
-  Check,
-  CreditCard,
-  Receipt,
-  KeyRound,
-  PauseCircle,
-  PlayCircle,
-  ShieldCheck,
-  Files,
-  StickyNote,
-  ClipboardList,
-  PackagePlus,
-  Boxes,
-  MapPin,
-  UserCircle2,
-  ListFilter,
-} from 'lucide-react'
 
 // Default options for dropdown fields
 const BILL_PULSE_OPTIONS = [
@@ -326,579 +274,6 @@ interface UserProfile {
   is_admin: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Shared presentational primitives for the admin console. These hold no
-// state of their own beyond what's passed in, and call nothing except the
-// callbacks the caller supplies — every Supabase call, handler, and
-// business rule lives where it already did, above and below. Purely a
-// shared visual vocabulary so Details/Edit/Delete, status badges, filters,
-// and modals look and behave consistently across every tab.
-// ---------------------------------------------------------------------------
-
-const BADGE_CLASS =
-  'inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600'
-
-const INPUT_CLASS =
-  'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm transition-colors placeholder:text-slate-400 focus:border-[#215F9A] focus:outline-none focus:ring-2 focus:ring-[#215F9A]/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500'
-
-const INPUT_SM_CLASS =
-  'w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-900 shadow-sm transition-colors focus:border-[#215F9A] focus:outline-none focus:ring-2 focus:ring-[#215F9A]/20'
-
-const LABEL_CLASS = 'mb-1.5 block text-[13px] font-medium text-slate-600'
-
-const BTN_PRIMARY =
-  'inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#215F9A] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#2c78c0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/30 disabled:cursor-not-allowed disabled:opacity-50'
-
-const BTN_SECONDARY =
-  'inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-semibold text-slate-700 transition-colors hover:border-[#215F9A]/30 hover:bg-[#215F9A]/5 hover:text-[#215F9A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/20 disabled:cursor-not-allowed disabled:opacity-50'
-
-const BTN_SUCCESS =
-  'inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50'
-
-const BTN_DANGER =
-  'inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 disabled:cursor-not-allowed disabled:opacity-50'
-
-const BTN_DANGER_SOFT =
-  'inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-white px-3.5 py-2 text-[13px] font-semibold text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/20 disabled:cursor-not-allowed disabled:opacity-50'
-
-function formatMoney(value: number | string | null | undefined, currency?: string | null): string {
-  const amount = formatDecimal(value, 2)
-  if (!amount) return '—'
-  return currency ? `${currency} ${amount}` : amount
-}
-
-// Presentational-only status classification shared by Orders, Custom Number
-// Requests, and Signup Requests. It never introduces new status values —
-// the label always comes from the existing status string; this only maps
-// that string to an icon + color tone.
-function getStatusMeta(status: string): { icon: React.ComponentType<{ className?: string }>; className: string } {
-  switch (status) {
-    case 'granted':
-    case 'approved':
-      return { icon: CircleCheckBig, className: 'border-emerald-200 bg-emerald-50 text-emerald-700' }
-    case 'rejected':
-      return { icon: CircleX, className: 'border-red-200 bg-red-50 text-red-700' }
-    case 'documentation_review':
-      return { icon: FileCheck, className: 'border-blue-200 bg-blue-50 text-blue-700' }
-    case 'pending':
-      return { icon: Hourglass, className: 'border-amber-200 bg-amber-50 text-amber-700' }
-    default:
-      return { icon: Clock, className: 'border-slate-200 bg-slate-100 text-slate-600' }
-  }
-}
-
-function StatusPill({ status, label }: { status: string; label: string }) {
-  const meta = getStatusMeta(status)
-  const Icon = meta.icon
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${meta.className}`}
-    >
-      <Icon className="h-3.5 w-3.5 shrink-0" />
-      {label}
-    </span>
-  )
-}
-
-// Presentational-only: derives an icon for existing SMS/Voice and
-// Inbound/Outbound text values via simple keyword matching. The displayed
-// text is always the exact original value passed in.
-function SmsVoiceIndicator({ value }: { value?: string | null }) {
-  const v = value || ''
-  const hasSms = /sms/i.test(v)
-  const hasVoice = /voice/i.test(v)
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-      {hasSms && !hasVoice ? (
-        <MessageSquare className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      ) : hasVoice && !hasSms ? (
-        <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      ) : (
-        <span className="flex shrink-0 items-center -space-x-1 text-slate-400">
-          <MessageSquare className="h-3.5 w-3.5" />
-          <Phone className="h-3.5 w-3.5" />
-        </span>
-      )}
-      {v || '—'}
-    </span>
-  )
-}
-
-function DirectionIndicator({ value }: { value?: string | null }) {
-  const v = value || ''
-  const hasInbound = /inbound/i.test(v)
-  const hasOutbound = /outbound/i.test(v)
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-      {hasInbound && !hasOutbound ? (
-        <ArrowLeft className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      ) : hasOutbound && !hasInbound ? (
-        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      ) : (
-        <ArrowRightLeft className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      )}
-      {v || '—'}
-    </span>
-  )
-}
-
-function CountryCell({ name, code }: { name: string; code?: string | null }) {
-  const flag = getCountryFlagEmoji(code)
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-slate-800">
-      {flag && (
-        <span aria-hidden="true" className="text-[15px] leading-none">
-          {flag}
-        </span>
-      )}
-      {name}
-      {code && <span className="font-normal text-slate-400">({code})</span>}
-    </span>
-  )
-}
-
-// Shared row-action visual system: Details is quiet/informational, Edit is
-// secondary, Delete is restrained until hovered — never a plain colored
-// text link, never a loud default-styled button.
-function RowActionButton({
-  icon: Icon,
-  label,
-  onClick,
-  disabled,
-  variant = 'quiet',
-  title,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  onClick: () => void
-  disabled?: boolean
-  variant?: 'quiet' | 'edit' | 'danger'
-  title?: string
-}) {
-  const variantClass =
-    variant === 'danger'
-      ? 'text-slate-400 hover:bg-red-50 hover:text-red-600 focus-visible:ring-red-500/30'
-      : variant === 'edit'
-        ? 'text-slate-400 hover:bg-[#215F9A]/5 hover:text-[#215F9A] focus-visible:ring-[#215F9A]/30'
-        : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:ring-slate-400/30'
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title || label}
-      aria-label={label}
-      className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-40 ${variantClass}`}
-    >
-      <Icon className="h-4 w-4" />
-    </button>
-  )
-}
-
-function TabButton({
-  active,
-  onClick,
-  icon: Icon,
-  label,
-  shortLabel,
-  count,
-}: {
-  active: boolean
-  onClick: () => void
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  shortLabel?: string
-  count?: number
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`relative flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3.5 py-3 text-[13px] font-semibold transition-colors sm:px-4 ${active
-        ? 'border-[#215F9A] text-[#215F9A]'
-        : 'border-transparent text-slate-500 hover:border-slate-200 hover:text-slate-800'
-        }`}
-    >
-      <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-[#215F9A]' : 'text-slate-400'}`} />
-      <span className="sm:hidden">{shortLabel || label}</span>
-      <span className="hidden sm:inline">{label}</span>
-      {!!count && count > 0 && (
-        <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
-          {count > 99 ? '99+' : count}
-        </span>
-      )}
-    </button>
-  )
-}
-
-function TabHeader({
-  title,
-  count,
-  description,
-  action,
-}: {
-  title: string
-  count?: number
-  description?: string
-  action?: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-      <div>
-        <div className="flex items-center gap-2.5">
-          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-          {count !== undefined && (
-            <span className="inline-flex items-center rounded-full bg-[#215F9A]/10 px-2 py-0.5 text-xs font-semibold text-[#215F9A]">
-              {count}
-            </span>
-          )}
-        </div>
-        {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
-      </div>
-      {action && <div className="flex flex-wrap items-center gap-2.5">{action}</div>}
-    </div>
-  )
-}
-
-// Purely presentational wrapper around a native <select>: adds a leading
-// icon and custom chevron. Forwards every prop straight through.
-function FilterSelect({
-  icon: Icon,
-  children,
-  ...selectProps
-}: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode } & React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <div className="relative">
-      <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-      <select
-        {...selectProps}
-        className="w-full appearance-none rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-8 text-[13px] text-slate-900 shadow-sm transition-colors hover:border-slate-400 focus:border-[#215F9A] focus:outline-none focus:ring-2 focus:ring-[#215F9A]/20"
-      >
-        {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-    </div>
-  )
-}
-
-// Compact page-number sequence with ellipsis for large page counts, e.g.
-// [1, '…', 4, 5, 6, '…', 42]. Pure function of (current page, total pages).
-function getPaginationRange(current: number, total: number): (number | 'ellipsis')[] {
-  if (total <= 1) return total === 1 ? [1] : []
-  const range: (number | 'ellipsis')[] = [1]
-  const left = Math.max(2, current - 1)
-  const right = Math.min(total - 1, current + 1)
-  if (left > 2) range.push('ellipsis')
-  for (let i = left; i <= right; i++) range.push(i)
-  if (right < total - 1) range.push('ellipsis')
-  range.push(total)
-  return range
-}
-
-// Client-side pagination footer: "Showing X–Y of Z", compact page numbers,
-// Prev/Next, and an optional rows-per-page selector. Purely presentational —
-// holds no state of its own and calls nothing but the callbacks it's given.
-// The caller owns the page/pageSize state and is responsible for slicing its
-// already-filtered array; this component never reads or filters data itself.
-function PaginationBar({
-  page,
-  totalPages,
-  pageSize,
-  totalItems,
-  onPageChange,
-  onPageSizeChange,
-  pageSizeOptions = [20, 50, 100],
-}: {
-  page: number
-  totalPages: number
-  pageSize: number
-  totalItems: number
-  onPageChange: (page: number) => void
-  onPageSizeChange?: (size: number) => void
-  pageSizeOptions?: number[]
-}) {
-  if (totalItems === 0) return null
-
-  const startItem = (page - 1) * pageSize + 1
-  const endItem = Math.min(page * pageSize, totalItems)
-  const pages = getPaginationRange(page, totalPages)
-
-  return (
-    <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-        <span>
-          Showing <span className="font-medium tabular-nums text-slate-700">{startItem}–{endItem}</span> of{' '}
-          <span className="font-medium tabular-nums text-slate-700">{totalItems}</span>
-        </span>
-        {onPageSizeChange && (
-          <label className="flex items-center gap-1.5">
-            <span className="hidden sm:inline">Rows per page</span>
-            <select
-              value={pageSize}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="rounded-md border border-slate-200 bg-white py-1 pl-2 pr-6 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:border-slate-300 focus:border-[#215F9A] focus:outline-none focus:ring-2 focus:ring-[#215F9A]/20"
-            >
-              {pageSizeOptions.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1}
-            aria-label="Previous page"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-[#215F9A]/30 hover:bg-[#215F9A]/5 hover:text-[#215F9A] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-transparent disabled:hover:text-slate-500"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-
-          {pages.map((p, idx) =>
-            p === 'ellipsis' ? (
-              <span key={`ellipsis-${idx}`} className="px-1 text-xs text-slate-400">
-                …
-              </span>
-            ) : (
-              <button
-                key={p}
-                type="button"
-                onClick={() => onPageChange(p)}
-                aria-current={p === page ? 'page' : undefined}
-                className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold tabular-nums transition-colors ${
-                  p === page
-                    ? 'bg-[#215F9A] text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                {p}
-              </button>
-            )
-          )}
-
-          <button
-            type="button"
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= totalPages}
-            aria-label="Next page"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-[#215F9A]/30 hover:bg-[#215F9A]/5 hover:text-[#215F9A] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-transparent disabled:hover:text-slate-500"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Shared chrome for admin modals: backdrop, panel, header (icon + title +
-// optional subtitle + close), scrollable body, optional footer. Holds no
-// state; calls nothing but the onClose the caller supplies.
-function AdminModalShell({
-  icon: Icon,
-  title,
-  subtitle,
-  onClose,
-  widthClassName = 'max-w-lg',
-  footer,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  title: string
-  subtitle?: React.ReactNode
-  onClose: () => void
-  widthClassName?: string
-  footer?: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] motion-safe:animate-[fadeIn_150ms_ease-out] sm:p-6"
-      onClick={onClose}
-    >
-      <div
-        className={`flex max-h-[min(88vh,100dvh)] w-full ${widthClassName} flex-col overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-black/5 motion-safe:animate-[scaleIn_150ms_ease-out]`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#215F9A]/10 text-[#215F9A]">
-              <Icon className="h-[19px] w-[19px]" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="truncate text-base font-semibold text-slate-900 sm:text-[17px]">{title}</h3>
-              {subtitle}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/30"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
-        {footer && <div className="flex justify-end gap-3 border-t border-slate-100 px-5 py-3.5 sm:px-6">{footer}</div>}
-      </div>
-    </div>
-  )
-}
-
-// Replaces window.confirm() for destructive actions. The caller still runs
-// the exact same mutation on confirm — only how confirmation is collected
-// changes (a restrained-but-clear danger dialog instead of a native alert).
-function ConfirmModal({
-  isOpen,
-  title,
-  message,
-  confirmLabel = 'Delete',
-  onConfirm,
-  onCancel,
-  loading,
-}: {
-  isOpen: boolean
-  title: string
-  message: React.ReactNode
-  confirmLabel?: string
-  onConfirm: () => void
-  onCancel: () => void
-  loading?: boolean
-}) {
-  if (!isOpen) return null
-  return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] motion-safe:animate-[fadeIn_150ms_ease-out]"
-      onClick={onCancel}
-    >
-      <div
-        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl ring-1 ring-black/5 motion-safe:animate-[scaleIn_150ms_ease-out]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start gap-3.5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
-            <AlertTriangle className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 pt-0.5">
-            <h3 className="text-[15px] font-semibold text-slate-900">{title}</h3>
-            <div className="mt-1 text-sm text-slate-500">{message}</div>
-          </div>
-        </div>
-        <div className="mt-6 flex justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={loading}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Replaces window.prompt() for reason-gated actions (reject order / signup /
-// custom request). The caller receives the same free-text reason it would
-// have gotten from prompt() — the mutation and whether a reason is required
-// are unchanged.
-function ReasonModal({
-  isOpen,
-  title,
-  message,
-  placeholder,
-  value,
-  onChange,
-  confirmLabel = 'Confirm',
-  onConfirm,
-  onCancel,
-  loading,
-  danger = true,
-  requireValue = false,
-}: {
-  isOpen: boolean
-  title: string
-  message?: React.ReactNode
-  placeholder?: string
-  value: string
-  onChange: (value: string) => void
-  confirmLabel?: string
-  onConfirm: () => void
-  onCancel: () => void
-  loading?: boolean
-  danger?: boolean
-  requireValue?: boolean
-}) {
-  if (!isOpen) return null
-  return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] motion-safe:animate-[fadeIn_150ms_ease-out]"
-      onClick={onCancel}
-    >
-      <div
-        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl ring-1 ring-black/5 motion-safe:animate-[scaleIn_150ms_ease-out]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start gap-3.5">
-          <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${danger ? 'bg-red-50 text-red-600' : 'bg-[#215F9A]/10 text-[#215F9A]'
-              }`}
-          >
-            <AlertTriangle className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 pt-0.5">
-            <h3 className="text-[15px] font-semibold text-slate-900">{title}</h3>
-            {message && <div className="mt-1 text-sm text-slate-500">{message}</div>}
-          </div>
-        </div>
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="mt-4 w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-900 shadow-sm transition-colors focus:border-[#215F9A] focus:outline-none focus:ring-2 focus:ring-[#215F9A]/20"
-          rows={3}
-          autoFocus
-        />
-        <div className="mt-5 flex justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={loading}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={loading || (requireValue && !value.trim())}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-[#215F9A] hover:bg-[#2c78c0]'
-              }`}
-          >
-            {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function AdminDashboard() {
   const supabase = createClient()
   const [activeTab, setActiveTab] = useState<TabType>('inventory')
@@ -910,10 +285,6 @@ export default function AdminDashboard() {
     inboundOutbound: '',
     supplier: '',
   })
-  // Client-side pagination over the already-filtered inventory list — purely
-  // a display slice, never touches loading/filtering/business logic.
-  const [inventoryPage, setInventoryPage] = useState(1)
-  const [inventoryPageSize, setInventoryPageSize] = useState(20)
   const [orders, setOrders] = useState<Order[]>([])
   const [selectedOrderForDocs, setSelectedOrderForDocs] = useState<Order | null>(null)
   const [signupRequests, setSignupRequests] = useState<SignupRequest[]>([])
@@ -967,20 +338,6 @@ export default function AdminDashboard() {
   const [processingOrder, setProcessingOrder] = useState<string | null>(null)
   const [orderForRequestChanges, setOrderForRequestChanges] = useState<Order | null>(null)
   const [requestChangesMessage, setRequestChangesMessage] = useState('')
-
-  // UI-only state for the in-app confirmation modals that replace
-  // window.confirm()/window.prompt() below. None of these change what gets
-  // sent to Supabase — they only change how the admin confirms/enters a
-  // reason before the existing handler runs.
-  const [numberPendingDelete, setNumberPendingDelete] = useState<Number | null>(null)
-  const [userPendingDelete, setUserPendingDelete] = useState<UserProfile | null>(null)
-  const [orderPendingReject, setOrderPendingReject] = useState<Order | null>(null)
-  const [orderRejectReason, setOrderRejectReason] = useState('')
-  const [signupPendingReject, setSignupPendingReject] = useState<SignupRequest | null>(null)
-  const [signupRejectReason, setSignupRejectReason] = useState('')
-  const [customRequestPendingReject, setCustomRequestPendingReject] = useState<CustomNumberRequest | null>(null)
-  const [customRequestRejectReason, setCustomRequestRejectReason] = useState('')
-  const [isDeletingNumber, setIsDeletingNumber] = useState(false)
 
   // Users tab state
   const [users, setUsers] = useState<UserProfile[]>([])
@@ -1285,11 +642,9 @@ export default function AdminDashboard() {
     }
   }
 
-  // Confirmation is now collected via the in-app ConfirmModal (see
-  // numberPendingDelete) instead of window.confirm() — the mutation below
-  // is unchanged.
   const handleDeleteNumber = async (numberId: string) => {
     setError(null)
+    if (!confirm('Are you sure you want to delete this number?')) return
 
     try {
       // Always soft-delete: mark as unavailable (never hard-delete from DB)
@@ -1475,15 +830,16 @@ export default function AdminDashboard() {
     }
   }
 
-  // Confirmation is now collected via the in-app ConfirmModal (see
-  // userPendingDelete) instead of window.confirm() — the mutation below is
-  // unchanged.
   const handleDeleteUser = async (user: UserProfile) => {
     if (processingUser) return
 
     // Prevent deleting admin users
     if (user.is_admin) {
       setError('Cannot delete admin users. Please use the admin management system.')
+      return
+    }
+
+    if (!confirm(`Are you sure you want to delete user "${user.name}"? This action cannot be undone.`)) {
       return
     }
 
@@ -2514,24 +1870,6 @@ export default function AdminDashboard() {
     return list
   }, [allNumbers, inventoryFilters])
 
-  // Whenever any inventory filter changes, jump back to page 1 — the
-  // previously-viewed page number may no longer make sense against the new
-  // filtered set.
-  useEffect(() => {
-    setInventoryPage(1)
-  }, [inventoryFilters])
-
-  // Pure display slice over filteredInventoryNumbers — filtering itself is
-  // entirely unaffected; this only decides which already-filtered rows are
-  // rendered for the current page. Clamped so a shrinking result set (e.g.
-  // after a delete) never leaves the page number pointing past the end.
-  const inventoryTotalPages = Math.max(1, Math.ceil(filteredInventoryNumbers.length / inventoryPageSize))
-  const inventoryCurrentPage = Math.min(inventoryPage, inventoryTotalPages)
-  const paginatedInventoryNumbers = useMemo(() => {
-    const start = (inventoryCurrentPage - 1) * inventoryPageSize
-    return filteredInventoryNumbers.slice(start, start + inventoryPageSize)
-  }, [filteredInventoryNumbers, inventoryCurrentPage, inventoryPageSize])
-
   // Distinct supplier names already present in the inventory, for the supplier
   // dropdown. Custom entries can still be added via SelectWithCustom.
   const existingSuppliers = useMemo(() => {
@@ -2543,9 +1881,130 @@ export default function AdminDashboard() {
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [allNumbers])
 
-  // Presentation lives in InventoryNumberDetails; values are formatted there
-  // exactly as before.
-  const inventoryPricingDetailContent = (num: Number) => <InventoryNumberDetails num={num} />
+  const inventoryPricingDetailContent = (num: Number) => {
+    const otherCharges =
+      typeof num.other_charges === 'object' && num.other_charges !== null ? (num.other_charges as any) : {}
+    const supOther =
+      typeof num.supplier_other_charges === 'object' && num.supplier_other_charges !== null
+        ? (num.supplier_other_charges as any)
+        : {}
+    const supCur = num.supplier_currency || num.currency || 'USD'
+    return (
+      <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 space-y-6">
+        <div>
+          <h4 className="font-semibold text-[#215F9A] mb-3">Supplier rates &amp; fees (admin)</h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Supplier MRC</p>
+              <p className="font-medium">
+                {num.supplier_mrc != null ? formatDecimal(num.supplier_mrc, 2) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Supplier NRC</p>
+              <p className="font-medium">
+                {num.supplier_nrc != null ? formatDecimal(num.supplier_nrc, 2) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Supplier currency</p>
+              <p className="font-medium">{num.supplier_currency || '—'}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Inbound Call (supplier)</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.inbound_call, '', '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound Call Fixed (supplier)</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.outbound_call_fixed, '', '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound Call Mobile (supplier)</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.outbound_call_mobile, '', '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Inbound SMS (supplier)</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.inbound_sms, '', ' per SMS')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound SMS (supplier)</p>
+              <p className="font-medium">{formatPricePerUnit(supOther.outbound_sms, '', ' per SMS')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Other fees (supplier)</p>
+              <p className="font-medium">
+                {supOther.other_fees != null && supOther.other_fees !== '' ? String(supOther.other_fees) : ''}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h4 className="font-semibold text-[#215F9A] mb-3">Customer pricing</h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Customer MRC</p>
+              <p className="font-medium">
+                {formatDecimal(num.mrc, 2)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Customer NRC</p>
+              <p className="font-medium">
+                {formatDecimal(num.nrc, 2)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Customer currency</p>
+              <p className="font-medium">{num.currency}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Inbound Call (customer)</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.inbound_call, '', '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound Call (Fixed) (customer)</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_call_fixed, '', '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound Call (Mobile) (customer)</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_call_mobile, '', '/min')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Inbound SMS (customer)</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.inbound_sms, '', ' per SMS')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Outbound SMS (customer)</p>
+              <p className="font-medium">{formatPricePerUnit(otherCharges.outbound_sms, '', ' per SMS')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Other fees (customer)</p>
+              <p className="font-medium">
+                {otherCharges.other_fees != null && otherCharges.other_fees !== '' ? String(otherCharges.other_fees) : ''}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h4 className="font-semibold text-[#215F9A] mb-3">Features</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Reach</p>
+              <p className="font-medium">{(num.features as any)?.reach || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Emergency services</p>
+              <p className="font-medium">{(num.features as any)?.emergency_services || '—'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const openInventoryEditorForModal = (num: Number) => {
     const oc = (num.other_charges || {}) as any
@@ -2605,118 +2064,129 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 pb-16 pt-6 sm:px-6 lg:px-8 xl:px-10">
-      <div className="mx-auto max-w-[1600px]">
-        {/* Masthead */}
-        <div className="mb-5 flex flex-col gap-1 sm:mb-6">
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#F97316]" />
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#215F9A]">
-              Voxco Operations Console
-            </span>
+    <main className="bg-gray-50 min-h-screen px-4 sm:px-6 md:px-8 py-8 md:py-10">
+      <div className="max-w-7xl mx-auto">
+        {/* Tabs - Main Navigation */}
+        <div className="bg-white rounded-t-lg shadow-lg border-b mb-4 sm:mb-6 overflow-x-auto overflow-y-visible">
+          <div className="flex flex-wrap sm:flex-nowrap min-w-0">
+            <button
+              onClick={() => setActiveTab('inventory')}
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors whitespace-nowrap ${activeTab === 'inventory'
+                ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
+                : 'text-gray-600 hover:text-[#215F9A]'
+                }`}
+            >
+              Inventory
+            </button>
+            <button
+              onClick={() => setActiveTab('countries')}
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors whitespace-nowrap ${activeTab === 'countries'
+                ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
+                : 'text-gray-600 hover:text-[#215F9A]'
+                }`}
+            >
+              Countries
+            </button>
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap overflow-visible ${activeTab === 'orders'
+                ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
+                : 'text-gray-600 hover:text-[#215F9A]'
+                }`}
+            >
+              <span className="sm:hidden">Orders</span>
+              <span className="hidden sm:inline">Order Management</span>
+              {pendingOrdersCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-20 bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center shadow-sm">
+                  {pendingOrdersCount > 99 ? '99+' : pendingOrdersCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('custom_requests')}
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap overflow-visible ${activeTab === 'custom_requests'
+                ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
+                : 'text-gray-600 hover:text-[#215F9A]'
+                }`}
+            >
+              <span className="sm:hidden">Custom</span>
+              <span className="hidden sm:inline">Custom number requests</span>
+              {pendingCustomRequestsCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-20 bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center shadow-sm">
+                  {pendingCustomRequestsCount > 99 ? '99+' : pendingCustomRequestsCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('signup_requests')}
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors relative whitespace-nowrap overflow-visible ${activeTab === 'signup_requests'
+                ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
+                : 'text-gray-600 hover:text-[#215F9A]'
+                }`}
+            >
+              <span className="sm:hidden">Signups</span>
+              <span className="hidden sm:inline">Signup Requests</span>
+              {pendingSignupCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-20 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
+                  {pendingSignupCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors whitespace-nowrap ${activeTab === 'users'
+                ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
+                : 'text-gray-600 hover:text-[#215F9A]'
+                }`}
+            >
+              Users
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-3 py-2.5 sm:px-6 sm:py-4 font-semibold text-sm sm:text-lg transition-colors whitespace-nowrap ${activeTab === 'settings'
+                ? 'text-[#215F9A] border-b-2 border-[#215F9A]'
+                : 'text-gray-600 hover:text-[#215F9A]'
+                }`}
+            >
+              Settings
+            </button>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[1.75rem]">Admin Dashboard</h1>
         </div>
 
-        {/* Alerts */}
-        {(error || success) && (
-          <div className="mb-4 space-y-2.5">
-            {error && (
-              <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <p className="flex-1">{error}</p>
-                <button
-                  onClick={() => setError(null)}
-                  aria-label="Dismiss"
-                  className="shrink-0 rounded-md p-0.5 text-red-500 transition-colors hover:bg-red-100 hover:text-red-700"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-            {success && (
-              <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                <CircleCheckBig className="mt-0.5 h-4 w-4 shrink-0" />
-                <p className="flex-1">{success}</p>
-                <button
-                  onClick={() => setSuccess(null)}
-                  aria-label="Dismiss"
-                  className="shrink-0 rounded-md p-0.5 text-emerald-600 transition-colors hover:bg-emerald-100 hover:text-emerald-800"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            )}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+            <button
+              onClick={() => setError(null)}
+              className="float-right font-bold"
+            >
+              ×
+            </button>
           </div>
         )}
 
-        {/* Admin workspace — one continuous surface: tab navigation and the
-            active tab's content share the same card instead of stacked
-            rounded-top/rounded-bottom boxes. */}
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          {/* Tabs - Main Navigation */}
-          <div className="overflow-x-auto border-b border-slate-100 px-2 sm:px-3">
-            <div className="flex min-w-max">
-              <TabButton
-                active={activeTab === 'inventory'}
-                onClick={() => setActiveTab('inventory')}
-                icon={Boxes}
-                label="Inventory"
-              />
-              <TabButton
-                active={activeTab === 'countries'}
-                onClick={() => setActiveTab('countries')}
-                icon={Globe}
-                label="Countries"
-              />
-              <TabButton
-                active={activeTab === 'orders'}
-                onClick={() => setActiveTab('orders')}
-                icon={PackagePlus}
-                label="Order Management"
-                shortLabel="Orders"
-                count={pendingOrdersCount}
-              />
-              <TabButton
-                active={activeTab === 'custom_requests'}
-                onClick={() => setActiveTab('custom_requests')}
-                icon={Sparkles}
-                label="Custom number requests"
-                shortLabel="Custom"
-                count={pendingCustomRequestsCount}
-              />
-              <TabButton
-                active={activeTab === 'signup_requests'}
-                onClick={() => setActiveTab('signup_requests')}
-                icon={ShieldCheck}
-                label="Signup Requests"
-                shortLabel="Signups"
-                count={pendingSignupCount}
-              />
-              <TabButton
-                active={activeTab === 'users'}
-                onClick={() => setActiveTab('users')}
-                icon={UsersIcon}
-                label="Users"
-              />
-              <TabButton
-                active={activeTab === 'settings'}
-                onClick={() => setActiveTab('settings')}
-                icon={SettingsIcon}
-                label="Settings"
-              />
-            </div>
+        {success && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+            {success}
+            <button
+              onClick={() => setSuccess(null)}
+              className="float-right font-bold"
+            >
+              ×
+            </button>
           </div>
+        )}
 
         {/* Inventory Tab */}
         {activeTab === 'inventory' && (
-          <div>
+          <div className="bg-white rounded-b-lg shadow-lg p-6">
             {/* Add Number Section */}
-            <TabHeader
-              title="Add to inventory"
-              description="Add a single number or bulk-import from a supplier file."
-              action={
-                <>
+            <div className="mb-8">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+                <h2 className="text-2xl font-semibold text-[#215F9A]">
+                  Add Number to Inventory
+                </h2>
+                <div className="grid grid-cols-2 sm:flex gap-3 w-full sm:w-auto">
                   <button
                     onClick={() => {
                       setShowFileUpload(!showFileUpload)
@@ -2724,9 +2194,8 @@ export default function AdminDashboard() {
                       setError(null)
                       setSuccess(null)
                     }}
-                    className={showFileUpload ? BTN_SECONDARY : BTN_SUCCESS}
+                    className="bg-green-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto"
                   >
-                    {showFileUpload ? <X className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />}
                     {showFileUpload ? 'Cancel Upload' : 'Upload from File'}
                   </button>
                   <button
@@ -2736,33 +2205,29 @@ export default function AdminDashboard() {
                       setError(null)
                       setSuccess(null)
                     }}
-                    className={showAddNumber ? BTN_SECONDARY : BTN_PRIMARY}
+                    className="bg-[#215F9A] text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
                   >
-                    {showAddNumber ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                     {showAddNumber ? 'Cancel' : 'Add Number'}
                   </button>
-                </>
-              }
-            />
+                </div>
+              </div>
 
-            <div className="p-4 sm:p-6">
               {/* File Upload Section */}
               {showFileUpload && (
-                <div className="mb-8 overflow-hidden rounded-xl border border-dashed border-slate-300 p-3 sm:p-6">
+                <div className="mb-8 p-3 sm:p-6 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-                    <h3 className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
-                      <FileSpreadsheet className="h-4 w-4 text-[#215F9A]" />
+                    <h3 className="text-xl font-semibold text-[#215F9A]">
                       Upload Numbers from File
                     </h3>
                     <button
                       type="button"
                       onClick={() => setActiveTab('countries')}
-                      className="text-left text-sm font-medium text-[#215F9A] hover:underline sm:text-right"
+                      className="text-sm text-[#215F9A] font-medium hover:underline text-left sm:text-right"
                     >
                       Manage countries
                     </button>
                   </div>
-                  <p className="text-sm text-slate-500 mb-4">
+                  <p className="text-sm text-gray-600 mb-4">
                     Upload a CSV, Excel, Word, or PDF file containing a table with phone numbers.
                     The system will automatically detect the number column and extract additional
                     information if available (country, type, pricing, etc.).
@@ -2793,13 +2258,13 @@ export default function AdminDashboard() {
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         Country *
                       </label>
                       <select
                         value={formData.country_id}
                         onChange={handleCountryChange}
-                        className={INPUT_CLASS}
+                        className="w-full p-2 border rounded-lg"
                         required
                       >
                         <option value="">Select Country</option>
@@ -2813,7 +2278,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         Available Numbers
                       </label>
                       <input
@@ -2827,12 +2292,12 @@ export default function AdminDashboard() {
                           }
                         }}
                         placeholder="Available numbers"
-                        className={INPUT_CLASS}
+                        className="w-full p-2 border rounded-lg"
                       />
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         Number Type *
                       </label>
                       <SelectWithCustom
@@ -2845,7 +2310,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         SMS/Voice Capability *
                       </label>
                       <SelectWithCustom
@@ -2858,7 +2323,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         Inbound/Outbound *
                       </label>
                       <SelectWithCustom
@@ -2871,7 +2336,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         Customer MRC (Monthly Recurring Charge)
                       </label>
                       <input
@@ -2884,14 +2349,14 @@ export default function AdminDashboard() {
                             setFormData({ ...formData, mrc: normalizeDecimalInput(value) })
                           }
                         }}
-                        className={INPUT_CLASS}
+                        className="w-full p-2 border rounded-lg"
                         inputMode="decimal"
                         placeholder="Enter MRC (e.g., 12.50)"
                       />
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         Customer NRC (Non-Recurring Charge)
                       </label>
                       <input
@@ -2904,14 +2369,14 @@ export default function AdminDashboard() {
                             setFormData({ ...formData, nrc: normalizeDecimalInput(value) })
                           }
                         }}
-                        className={INPUT_CLASS}
+                        className="w-full p-2 border rounded-lg"
                         inputMode="decimal"
                         placeholder="Enter NRC (e.g., 20.00)"
                       />
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         Customer currency *
                       </label>
                       <SelectWithCustom
@@ -2925,7 +2390,7 @@ export default function AdminDashboard() {
 
                     <div className="col-span-1 md:col-span-2 text-sm font-semibold text-[#215F9A] mt-2">Supplier rate (admin only)</div>
                     <div>
-                      <label className={LABEL_CLASS}>Supplier MRC</label>
+                      <label className="block text-sm font-medium mb-2">Supplier MRC</label>
                       <input
                         type="text"
                         value={formData.supplier_mrc ?? ''}
@@ -2935,13 +2400,13 @@ export default function AdminDashboard() {
                             setFormData({ ...formData, supplier_mrc: normalizeDecimalInput(value) })
                           }
                         }}
-                        className={INPUT_CLASS}
+                        className="w-full p-2 border rounded-lg"
                         inputMode="decimal"
                         placeholder="Optional"
                       />
                     </div>
                     <div>
-                      <label className={LABEL_CLASS}>Supplier NRC</label>
+                      <label className="block text-sm font-medium mb-2">Supplier NRC</label>
                       <input
                         type="text"
                         value={formData.supplier_nrc ?? ''}
@@ -2951,13 +2416,13 @@ export default function AdminDashboard() {
                             setFormData({ ...formData, supplier_nrc: normalizeDecimalInput(value) })
                           }
                         }}
-                        className={INPUT_CLASS}
+                        className="w-full p-2 border rounded-lg"
                         inputMode="decimal"
                         placeholder="Optional"
                       />
                     </div>
                     <div>
-                      <label className={LABEL_CLASS}>Supplier Currency</label>
+                      <label className="block text-sm font-medium mb-2">Supplier Currency</label>
                       <SelectWithCustom
                         value={formData.supplier_currency ?? ''}
                         onChange={(value) => setFormData({ ...formData, supplier_currency: value })}
@@ -2968,7 +2433,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         MOQ (Minimum Order Quantity)
                       </label>
                       <input
@@ -2981,13 +2446,13 @@ export default function AdminDashboard() {
                             setFormData({ ...formData, moq: value })
                           }
                         }}
-                        className={INPUT_CLASS}
+                        className="w-full p-2 border rounded-lg"
                         placeholder="Enter MOQ (e.g., 1)"
                       />
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         Supplier
                       </label>
                       <SelectWithCustom
@@ -3002,7 +2467,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         Specification (Prefix/Area)
                       </label>
                       <input
@@ -3012,12 +2477,12 @@ export default function AdminDashboard() {
                           setFormData({ ...formData, specification: e.target.value })
                         }
                         placeholder="e.g., Landline, France (07), France (093)"
-                        className={INPUT_CLASS}
+                        className="w-full p-2 border rounded-lg"
                       />
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         Bill Pulse
                       </label>
                       <SelectWithCustom
@@ -3032,7 +2497,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <label className={LABEL_CLASS}>
+                      <label className="block text-sm font-medium mb-2">
                         Requirements Text
                       </label>
                       <textarea
@@ -3041,7 +2506,7 @@ export default function AdminDashboard() {
                           setFormData({ ...formData, requirements_text: e.target.value })
                         }
                         placeholder="Requirements and documentation needed"
-                        className={INPUT_CLASS}
+                        className="w-full p-2 border rounded-lg"
                         rows={3}
                       />
                     </div>
@@ -3050,10 +2515,10 @@ export default function AdminDashboard() {
 
                   {/* Customer other charges */}
                   <div className="mt-4">
-                    <label className={LABEL_CLASS}>Customer other charges</label>
-                    <div className="overflow-hidden rounded-xl border border-slate-200 overflow-x-auto">
+                    <label className="block text-sm font-medium mb-2">Customer other charges</label>
+                    <div className="border rounded-lg overflow-x-auto">
                       <table className="w-full text-sm min-w-[500px] md:min-w-0">
-                        <thead className="bg-slate-50 text-slate-500">
+                        <thead className="bg-gray-100">
                           <tr>
                             <th className="p-2 text-left">Charge Type</th>
                             <th className="p-2 text-left">Amount</th>
@@ -3078,7 +2543,7 @@ export default function AdminDashboard() {
                                     })
                                   }
                                 }}
-                                className={INPUT_SM_CLASS}
+                                className="w-full p-1 border rounded"
                                 inputMode="decimal"
                                 placeholder="0.0000"
                               />
@@ -3102,7 +2567,7 @@ export default function AdminDashboard() {
                                     })
                                   }
                                 }}
-                                className={INPUT_SM_CLASS}
+                                className="w-full p-1 border rounded"
                                 inputMode="decimal"
                                 placeholder="0.0000"
                               />
@@ -3126,7 +2591,7 @@ export default function AdminDashboard() {
                                     })
                                   }
                                 }}
-                                className={INPUT_SM_CLASS}
+                                className="w-full p-1 border rounded"
                                 inputMode="decimal"
                                 placeholder="0.0000"
                               />
@@ -3150,7 +2615,7 @@ export default function AdminDashboard() {
                                     })
                                   }
                                 }}
-                                className={INPUT_SM_CLASS}
+                                className="w-full p-1 border rounded"
                                 inputMode="decimal"
                                 placeholder="0.0000"
                               />
@@ -3174,7 +2639,7 @@ export default function AdminDashboard() {
                                     })
                                   }
                                 }}
-                                className={INPUT_SM_CLASS}
+                                className="w-full p-1 border rounded"
                                 inputMode="decimal"
                                 placeholder="0.0000"
                               />
@@ -3193,7 +2658,7 @@ export default function AdminDashboard() {
                                     other_fees: e.target.value || undefined
                                   }
                                 })}
-                                className={INPUT_SM_CLASS}
+                                className="w-full p-1 border rounded"
                                 placeholder="Description or amount"
                               />
                             </td>
@@ -3205,10 +2670,10 @@ export default function AdminDashboard() {
 
                   {/* Supplier other charges (add form) */}
                   <div className="mt-4">
-                    <label className={LABEL_CLASS}>Supplier other charges (admin)</label>
-                    <div className="overflow-hidden rounded-xl border border-slate-200 overflow-x-auto">
+                    <label className="block text-sm font-medium mb-2">Supplier other charges (admin)</label>
+                    <div className="border rounded-lg overflow-x-auto">
                       <table className="w-full text-sm min-w-[500px] md:min-w-0">
-                        <thead className="bg-slate-50 text-slate-500">
+                        <thead className="bg-gray-100">
                           <tr>
                             <th className="p-2 text-left">Charge Type</th>
                             <th className="p-2 text-left">Amount</th>
@@ -3234,7 +2699,7 @@ export default function AdminDashboard() {
                                       })
                                     }
                                   }}
-                                  className={INPUT_SM_CLASS}
+                                  className="w-full p-1 border rounded"
                                   inputMode="decimal"
                                   placeholder="0.0000"
                                 />
@@ -3256,7 +2721,7 @@ export default function AdminDashboard() {
                                     },
                                   })
                                 }
-                                className={INPUT_SM_CLASS}
+                                className="w-full p-1 border rounded"
                                 placeholder="Description or amount"
                               />
                             </td>
@@ -3268,10 +2733,10 @@ export default function AdminDashboard() {
 
                   {/* Features Table */}
                   <div className="mt-4">
-                    <label className={LABEL_CLASS}>Features</label>
-                    <div className="overflow-visible rounded-xl border border-slate-200">
+                    <label className="block text-sm font-medium mb-2">Features</label>
+                    <div className="border rounded-lg overflow-visible">
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-50 text-slate-500">
+                        <thead className="bg-gray-100">
                           <tr>
                             <th className="p-2 text-left">Feature</th>
                             <th className="p-2 text-left">Status/Value</th>
@@ -3319,9 +2784,8 @@ export default function AdminDashboard() {
 
                   <button
                     type="submit"
-                    className={`${BTN_PRIMARY} w-full py-2.5`}
+                    className="w-full bg-[#215F9A] text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
                   >
-                    <Plus className="h-3.5 w-3.5" />
                     Add Number to Inventory
                   </button>
                 </form>
@@ -3329,265 +2793,243 @@ export default function AdminDashboard() {
             </div>
 
             {/* All Numbers Table */}
-            <TabHeader
-              title="Inventory"
-              count={filteredInventoryNumbers.length}
-              description={
-                inventoryFilters.country || inventoryFilters.smsVoice || inventoryFilters.inboundOutbound || inventoryFilters.supplier
-                  ? `Filtered · ${allNumbers.length} total row(s) in inventory`
-                  : 'The working list of numbers available for order.'
-              }
-            />
-            <div className="border-b border-slate-100 p-4 sm:p-6">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <FilterSelect
-                  icon={Globe}
-                  value={inventoryFilters.country}
-                  onChange={(e) => setInventoryFilters({ ...inventoryFilters, country: e.target.value })}
-                >
-                  <option value="">All countries</option>
-                  {countries.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.country_code})
-                    </option>
-                  ))}
-                </FilterSelect>
-                <FilterSelect
-                  icon={MessageSquare}
-                  value={inventoryFilters.smsVoice}
-                  onChange={(e) => setInventoryFilters({ ...inventoryFilters, smsVoice: e.target.value })}
-                >
-                  <option value="">All SMS/Voice</option>
-                  <option>SMS only</option>
-                  <option>Voice only</option>
-                  <option>Both</option>
-                </FilterSelect>
-                <FilterSelect
-                  icon={ArrowRightLeft}
-                  value={inventoryFilters.inboundOutbound}
-                  onChange={(e) => setInventoryFilters({ ...inventoryFilters, inboundOutbound: e.target.value })}
-                >
-                  <option value="">All directions</option>
-                  <option>Inbound only</option>
-                  <option>Outbound only</option>
-                  <option>Both</option>
-                </FilterSelect>
-                <FilterSelect
-                  icon={Building2}
-                  value={inventoryFilters.supplier}
-                  onChange={(e) => setInventoryFilters({ ...inventoryFilters, supplier: e.target.value })}
-                >
-                  <option value="">All suppliers</option>
-                  {existingSuppliers.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </FilterSelect>
-                <button
-                  type="button"
-                  onClick={() => setInventoryFilters({ country: '', smsVoice: '', inboundOutbound: '', supplier: '' })}
-                  disabled={loadingNumbers}
-                  className={`${BTN_SECONDARY} w-full`}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Reset filters
-                </button>
-              </div>
-            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#215F9A] mb-2">
+                Inventory ({filteredInventoryNumbers.length}
+                {(inventoryFilters.country || inventoryFilters.smsVoice || inventoryFilters.inboundOutbound) &&
+                  allNumbers.length !== filteredInventoryNumbers.length
+                  ? ` of ${allNumbers.length}`
+                  : ''}
+                )
+              </h2>
 
-            <div className="p-4 sm:p-6">
+              <section className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium mb-1">Filter by Country</label>
+                    <select
+                      className="w-full p-2 border rounded-lg text-sm"
+                      value={inventoryFilters.country}
+                      onChange={(e) => setInventoryFilters({ ...inventoryFilters, country: e.target.value })}
+                    >
+                      <option value="">All Countries</option>
+                      {countries.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.country_code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium mb-1">Filter by SMS/Voice</label>
+                    <select
+                      className="w-full p-2 border rounded-lg text-sm"
+                      value={inventoryFilters.smsVoice}
+                      onChange={(e) => setInventoryFilters({ ...inventoryFilters, smsVoice: e.target.value })}
+                    >
+                      <option value="">All Types</option>
+                      <option>SMS only</option>
+                      <option>Voice only</option>
+                      <option>Both</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium mb-1">Filter by Inbound/Outbound</label>
+                    <select
+                      className="w-full p-2 border rounded-lg text-sm"
+                      value={inventoryFilters.inboundOutbound}
+                      onChange={(e) => setInventoryFilters({ ...inventoryFilters, inboundOutbound: e.target.value })}
+                    >
+                      <option value="">All Directions</option>
+                      <option>Inbound only</option>
+                      <option>Outbound only</option>
+                      <option>Both</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium mb-1">Filter by Supplier</label>
+                    <select
+                      className="w-full p-2 border rounded-lg text-sm"
+                      value={inventoryFilters.supplier}
+                      onChange={(e) => setInventoryFilters({ ...inventoryFilters, supplier: e.target.value })}
+                    >
+                      <option value="">All Suppliers</option>
+                      {existingSuppliers.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => setInventoryFilters({ country: '', smsVoice: '', inboundOutbound: '', supplier: '' })}
+                      disabled={loadingNumbers}
+                      className="w-full bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 text-sm disabled:opacity-50"
+                    >
+                      Reset Filters
+                    </button>
+                  </div>
+                </div>
+                {(inventoryFilters.country || inventoryFilters.smsVoice || inventoryFilters.inboundOutbound || inventoryFilters.supplier) && (
+                  <p className="text-xs text-gray-500 mt-2">Filters narrow the list below; totals show matched rows.</p>
+                )}
+              </section>
+
               {loadingNumbers ? (
-                <div className="animate-fade-in">
+                <div className="py-4 animate-fade-in">
                   <TableSkeleton rows={5} cols={8} />
                 </div>
               ) : (
                 <>
                   <div className="md:hidden space-y-3 mb-2">
-                    {paginatedInventoryNumbers.map((num) => {
+                    {filteredInventoryNumbers.map((num) => {
                       const isCardExpanded = expandedRows.has(num.id)
                       const supCurM = num.supplier_currency || num.currency || 'USD'
                       return (
-                        <div key={`m-${num.id}`} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+                        <div key={`m-${num.id}`} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
                           <div className="flex justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="truncate text-xs text-slate-400">{num.supplier || 'No supplier'}</p>
-                              <CountryCell name={num.country_name} code={num.country_code} />
-                              <p className="text-xs text-slate-500">{num.number_type || '—'}</p>
-                              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                                <SmsVoiceIndicator value={num.sms_capability} />
-                                <DirectionIndicator value={num.direction} />
-                              </div>
+                              <p className="text-xs text-gray-500 truncate">Supplier: {num.supplier || '—'}</p>
+                              <p className="font-semibold text-[#215F9A] truncate">{num.country_name}</p>
+                              <p className="text-xs text-gray-600">
+                                {num.number_type}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                SMS/Voice: {num.sms_capability || '-'} · Direction: {num.direction || '-'}
+                              </p>
                             </div>
-                            <div className="shrink-0 text-right text-sm">
-                              <p className="text-xs text-slate-400">Supplier MRC</p>
-                              <p className="font-medium tabular-nums text-slate-900">
+                            <div className="text-right text-sm shrink-0">
+                              <p className="text-xs text-gray-500">Supplier MRC</p>
+                              <p className="font-medium">
                                 {num.supplier_mrc != null ? formatDecimal(num.supplier_mrc, 2) : '—'}
                               </p>
-                              <p className="mt-1 text-xs text-slate-400">NRC</p>
-                              <p className="font-medium tabular-nums text-slate-900">
+                              <p className="text-xs text-gray-500 mt-1">NRC</p>
+                              <p className="font-medium">
                                 {num.supplier_nrc != null ? formatDecimal(num.supplier_nrc, 2) : '—'}
                               </p>
-                              <p className="mt-1 text-xs text-slate-400">{supCurM}</p>
+                              <p className="text-xs text-gray-500 mt-1">Currency: {supCurM}</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1.5 border-t border-slate-100 pt-2.5">
-                            <RowActionButton
-                              icon={isCardExpanded ? ChevronUp : Info}
-                              label={isCardExpanded ? 'Hide details' : 'Details'}
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
                               onClick={() => toggleRowExpansion(num.id)}
-                            />
-                            <RowActionButton
-                              icon={Pencil}
-                              label="Edit"
-                              variant="edit"
+                              className="text-[#215F9A] text-sm font-medium"
+                            >
+                              {isCardExpanded ? '▼ Hide details' : '▶ Details'}
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => openInventoryEditorForModal(num)}
-                            />
-                            <RowActionButton
-                              icon={Trash2}
-                              label="Delete"
-                              variant="danger"
-                              onClick={() => setNumberPendingDelete(num)}
-                            />
-                            <span className="ml-auto text-xs text-slate-400">
-                              {isCardExpanded ? 'Hide pricing detail' : 'View pricing detail'}
-                            </span>
+                              className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteNumber(num.id)}
+                              className="bg-red-500 text-white px-3 py-1 rounded text-sm"
+                            >
+                              Delete
+                            </button>
                           </div>
-                          {isCardExpanded && (
-                            <div className="-mx-4 -mb-4 rounded-b-xl border-t border-[#215F9A]/10 bg-[#215F9A]/[0.025] p-3 motion-safe:animate-[fadeIn_180ms_ease-out]">
-                              {inventoryPricingDetailContent(num)}
-                            </div>
-                          )}
+                          {isCardExpanded && <div className="pt-1">{inventoryPricingDetailContent(num)}</div>}
                         </div>
                       )
                     })}
                   </div>
-                  <DualScrollbar className="hidden md:block -mx-2 px-2 sm:mx-0 sm:px-0" bodyClassName="[container-type:inline-size]">
-                    <table className="w-full min-w-[1200px] border-collapse text-sm">
-                      <thead>
-                        <tr className="border-b-2 border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-600">
-                          <th className="max-w-[120px] p-2.5 align-middle sm:p-3">Supplier</th>
-                          <th className="p-2.5 align-middle sm:p-3">Country</th>
-                          <th className="p-2.5 align-middle sm:p-3">SMS/Voice</th>
-                          <th className="p-2.5 align-middle sm:p-3">Direction</th>
-                          <th className="p-2.5 text-center align-middle sm:p-3">Available</th>
-                          <th className="p-2.5 align-middle sm:p-3">Type</th>
-                          <th className="p-2.5 align-middle sm:p-3">Specification</th>
-                          <th className="p-2.5 text-right align-middle sm:p-3" title="Supplier MRC">MRC</th>
-                          <th className="p-2.5 text-right align-middle sm:p-3" title="Supplier NRC">NRC</th>
-                          <th className="p-2.5 align-middle sm:p-3" title="Supplier currency">Curr.</th>
-                          <th className="p-2.5 text-center align-middle sm:p-3">MOQ</th>
-                          <th className="p-2.5 align-middle sm:p-3">Pulse</th>
-                          <th className="p-2.5 text-center align-middle sm:p-3">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {paginatedInventoryNumbers.map((num) => {
-                          const isExpanded = expandedRows.has(num.id)
-                          const supCur = num.supplier_currency || num.currency || 'USD'
+                  <DualScrollbar className="hidden md:block -mx-2 px-2 sm:mx-0 sm:px-0">
+                    <table className="w-full border-collapse min-w-[1200px] text-sm">
+                    <thead>
+                      <tr className="bg-[#215F9A] text-white text-xs sm:text-sm">
+                        <th className="p-2 sm:p-3 text-left max-w-[120px]">Supplier</th>
+                        <th className="p-2 sm:p-3 text-left">Country</th>
+                        <th className="p-2 sm:p-3 text-left">SMS/Voice</th>
+                        <th className="p-2 sm:p-3 text-left">Direction</th>
+                        <th className="p-2 sm:p-3 text-center">Available</th>
+                        <th className="p-2 sm:p-3 text-left">Type</th>
+                        <th className="p-2 sm:p-3 text-left">Specification</th>
+                        <th className="p-2 sm:p-3 text-right" title="Supplier MRC">MRC</th>
+                        <th className="p-2 sm:p-3 text-right" title="Supplier NRC">NRC</th>
+                        <th className="p-2 sm:p-3 text-left" title="Supplier currency">Curr.</th>
+                        <th className="p-2 sm:p-3 text-center">MOQ</th>
+                        <th className="p-2 sm:p-3 text-left">Pulse</th>
+                        <th className="p-2 sm:p-3 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredInventoryNumbers.map((num) => {
+                        const isExpanded = expandedRows.has(num.id)
+                        const supCur = num.supplier_currency || num.currency || 'USD'
 
-                          return (
-                            <React.Fragment key={num.id}>
-                              <tr
-                                className={`transition-colors ${
-                                  isExpanded
-                                    ? 'bg-[#215F9A]/[0.04] shadow-[inset_3px_0_0_#215F9A] hover:bg-[#215F9A]/[0.06]'
-                                    : 'hover:bg-slate-50'
-                                }`}
-                              >
-                                <td className="max-w-[120px] truncate p-2.5 text-xs text-slate-500 sm:p-3" title={num.supplier || undefined}>
-                                  {num.supplier || '—'}
-                                </td>
-                                <td className="p-2.5 sm:p-3">
-                                  <CountryCell name={num.country_name} code={num.country_code} />
-                                </td>
-                                <td className="p-2.5 text-xs text-slate-600 sm:p-3">
-                                  <SmsVoiceIndicator value={num.sms_capability} />
-                                </td>
-                                <td className="p-2.5 text-xs text-slate-600 sm:p-3">
-                                  <DirectionIndicator value={num.direction} />
-                                </td>
-                                <td className="p-2.5 text-center font-semibold tabular-nums text-slate-900 sm:p-3">{num.available_numbers ?? 0}</td>
-                                <td className="p-2.5 sm:p-3">
-                                  <span className={BADGE_CLASS}>{num.number_type || '—'}</span>
-                                </td>
-                                <td className="p-2.5 text-xs text-slate-500 sm:p-3 sm:text-sm">{num.specification || '—'}</td>
-                                <td className="whitespace-nowrap p-2.5 text-right tabular-nums text-slate-700 sm:p-3">
-                                  {num.supplier_mrc != null ? formatDecimal(num.supplier_mrc, 2) : '—'}
-                                </td>
-                                <td className="whitespace-nowrap p-2.5 text-right tabular-nums text-slate-700 sm:p-3">
-                                  {num.supplier_nrc != null ? formatDecimal(num.supplier_nrc, 2) : '—'}
-                                </td>
-                                <td className="p-2.5 text-slate-500 sm:p-3">{num.supplier_currency || (num.supplier_mrc != null || num.supplier_nrc != null ? num.currency : '—')}</td>
-                                <td className="p-2.5 text-center tabular-nums text-slate-700 sm:p-3">{num.moq}</td>
-                                <td className="p-2.5 text-xs text-slate-500 sm:p-3">{num.bill_pulse || '—'}</td>
-                                <td className="p-2.5 sm:p-3">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <RowActionButton
-                                      icon={isExpanded ? ChevronUp : Info}
-                                      label={isExpanded ? 'Hide details' : 'Details'}
-                                      onClick={() => toggleRowExpansion(num.id)}
-                                    />
-                                    <RowActionButton
-                                      icon={Pencil}
-                                      label="Edit"
-                                      variant="edit"
-                                      onClick={() => openInventoryEditorForModal(num)}
-                                    />
-                                    <RowActionButton
-                                      icon={Trash2}
-                                      label="Delete"
-                                      variant="danger"
-                                      onClick={() => setNumberPendingDelete(num)}
-                                    />
-                                  </div>
+                        return (
+                          <React.Fragment key={num.id}>
+                            <tr className="border-b hover:bg-gray-50">
+                              <td className="p-2 sm:p-3 text-xs max-w-[120px] truncate" title={num.supplier || undefined}>
+                                {num.supplier || '—'}
+                              </td>
+                              <td className="p-2 sm:p-3">
+                                {num.country_name} ({num.country_code})
+                              </td>
+                              <td className="p-2 sm:p-3">{num.sms_capability || '-'}</td>
+                              <td className="p-2 sm:p-3">{num.direction || '-'}</td>
+                              <td className="p-2 sm:p-3 text-center font-semibold">{num.available_numbers ?? 0}</td>
+                              <td className="p-2 sm:p-3">{num.number_type}</td>
+                              <td className="p-2 sm:p-3 text-xs sm:text-sm">{num.specification || '-'}</td>
+                              <td className="p-2 sm:p-3 text-right whitespace-nowrap">
+                                {num.supplier_mrc != null ? formatDecimal(num.supplier_mrc, 2) : '—'}
+                              </td>
+                              <td className="p-2 sm:p-3 text-right whitespace-nowrap">
+                                {num.supplier_nrc != null ? formatDecimal(num.supplier_nrc, 2) : '—'}
+                              </td>
+                              <td className="p-2 sm:p-3">{num.supplier_currency || (num.supplier_mrc != null || num.supplier_nrc != null ? num.currency : '—')}</td>
+                              <td className="p-2 sm:p-3 text-center">{num.moq}</td>
+                              <td className="p-2 sm:p-3 text-xs">{num.bill_pulse || '-'}</td>
+                              <td className="p-2 sm:p-3 text-center">
+                                <div className="flex flex-wrap gap-1 justify-center">
+                                  <button
+                                    onClick={() => toggleRowExpansion(num.id)}
+                                    className="text-[#215F9A] hover:text-[#2c78c0] font-medium text-xs"
+                                  >
+                                    {isExpanded ? '▼ Hide' : '▶ Details'}
+                                  </button>
+                                  <button
+                                    onClick={() => openInventoryEditorForModal(num)}
+                                    className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteNumber(num.id)}
+                                    className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr className="bg-gray-50">
+                                <td colSpan={13} className="p-3 sm:p-4">
+                                  {inventoryPricingDetailContent(num)}
                                 </td>
                               </tr>
-                              {isExpanded && (
-                                <tr className="!border-t-0 bg-[#215F9A]/[0.025] shadow-[inset_3px_0_0_#215F9A]">
-                                  <td colSpan={13} className="p-0">
-                                    {/* Pinned to the visible part of the horizontally-scrolling
-                                        table (sticky + container width) so the panel never
-                                        extends off-screen when the table is wider than the view. */}
-                                    <div className="sticky left-0 w-[100cqw] max-w-full px-4 pb-4 pt-1 motion-safe:animate-[fadeIn_180ms_ease-out] sm:px-5 sm:pb-5">
-                                      {inventoryPricingDetailContent(num)}
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
-                          )
-                        })}
-                      </tbody>
+                            )}
+                          </React.Fragment>
+                        )
+                      })}
+                    </tbody>
                     </table>
                   </DualScrollbar>
-                  <PaginationBar
-                    page={inventoryCurrentPage}
-                    totalPages={inventoryTotalPages}
-                    pageSize={inventoryPageSize}
-                    totalItems={filteredInventoryNumbers.length}
-                    onPageChange={setInventoryPage}
-                    onPageSizeChange={(size) => {
-                      setInventoryPageSize(size)
-                      setInventoryPage(1)
-                    }}
-                  />
                   {allNumbers.length === 0 && (
-                    <EmptyState icon={<Package className="h-6 w-6" />} title="No numbers in inventory yet" />
+                    <div className="text-center py-8 text-gray-600">
+                      No numbers in inventory yet.
+                    </div>
                   )}
                   {allNumbers.length > 0 && filteredInventoryNumbers.length === 0 && (
-                    <EmptyState
-                      icon={<Search className="h-6 w-6" />}
-                      title="No rows match the current filters"
-                      action={
-                        <button
-                          type="button"
-                          onClick={() => setInventoryFilters({ country: '', smsVoice: '', inboundOutbound: '', supplier: '' })}
-                          className={BTN_SECONDARY}
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          Reset filters
-                        </button>
-                      }
-                    />
+                    <div className="text-center py-8 text-gray-600">
+                      No rows match the current filters. Try resetting filters.
+                    </div>
                   )}
                 </>
               )}
@@ -3597,742 +3039,725 @@ export default function AdminDashboard() {
 
         {/* Countries Tab */}
         {activeTab === 'countries' && (
-          <div>
-            <TabHeader
-              title="Countries"
-              count={countries.length}
-              description="Regulatory coverage for every market you sell numbers in."
-              action={
-                <button type="button" onClick={() => openAddCountryModal()} className={BTN_PRIMARY}>
-                  <Plus className="h-3.5 w-3.5" />
-                  Add country
-                </button>
-              }
-            />
-            <div className="p-4 sm:p-6">
-              <div className="relative mb-4 max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="search"
-                  value={countrySearch}
-                  onChange={(e) => setCountrySearch(e.target.value)}
-                  placeholder="Search by name, code, or regulator…"
-                  className={`${INPUT_CLASS} pl-9`}
-                />
-              </div>
-              <div className="overflow-hidden rounded-xl border border-slate-200">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[480px] border-collapse text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        <th className="p-3">Country</th>
-                        <th className="p-3">Code</th>
-                        <th className="p-3">Regulator</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredCountriesList.map((country) => (
-                        <tr key={country.id} className="transition-colors hover:bg-slate-50">
-                          <td className="p-3">
-                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-slate-800">
-                              {(() => {
-                                const flag = getCountryFlagEmoji(country.country_code)
-                                return flag ? (
-                                  <span aria-hidden="true" className="text-[15px] leading-none">
-                                    {flag}
-                                  </span>
-                                ) : null
-                              })()}
-                              {country.name}
-                            </span>
-                          </td>
-                          <td className="p-3">
-                            <span className={BADGE_CLASS}>{country.country_code}</span>
-                          </td>
-                          <td className="p-3 text-slate-500">
-                            {country.regulator ? (
-                              <span className="inline-flex items-center gap-1.5">
-                                <Landmark className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                                {country.regulator}
-                              </span>
-                            ) : (
-                              '—'
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {countries.length === 0 && !loading && (
-                  <EmptyState icon={<Globe className="h-6 w-6" />} title="No countries in the system yet" />
-                )}
-                {countries.length > 0 && filteredCountriesList.length === 0 && (
-                  <EmptyState icon={<Search className="h-6 w-6" />} title="No countries match your search" />
-                )}
-              </div>
+          <div className="bg-white rounded-b-lg shadow-lg p-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+              <h2 className="text-2xl font-semibold text-[#215F9A]">
+                Countries ({countries.length})
+              </h2>
+              <button
+                type="button"
+                onClick={() => openAddCountryModal()}
+                className="bg-[#215F9A] text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
+              >
+                Add country
+              </button>
+            </div>
+            <div className="mb-4">
+              <input
+                type="search"
+                value={countrySearch}
+                onChange={(e) => setCountrySearch(e.target.value)}
+                placeholder="Search by name, code, or regulator..."
+                className="w-full max-w-md p-2 border rounded-lg"
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse min-w-[480px]">
+                <thead>
+                  <tr className="bg-[#215F9A] text-white text-sm">
+                    <th className="p-3 text-left">Name</th>
+                    <th className="p-3 text-left">Code</th>
+                    <th className="p-3 text-left">Regulator</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCountriesList.map((country) => (
+                    <tr key={country.id} className="border-b hover:bg-gray-50">
+                      <td className="p-3">{country.name}</td>
+                      <td className="p-3">{country.country_code}</td>
+                      <td className="p-3 text-gray-600">{country.regulator || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {countries.length === 0 && !loading && (
+                <p className="text-center py-8 text-gray-600">No countries in the system yet.</p>
+              )}
+              {countries.length > 0 && filteredCountriesList.length === 0 && (
+                <p className="text-center py-8 text-gray-600">No countries match your search.</p>
+              )}
             </div>
           </div>
         )}
 
         {/* Orders Tab */}
         {activeTab === 'orders' && (
-          <div>
-            <TabHeader
-              title="Order Management"
-              count={orders.length}
-              description="Approve, reject, or request changes on customer number orders."
-            />
-            <div className="p-4 sm:p-6">
-              {loadingOrders ? (
-                <div className="animate-fade-in">
-                  <TableSkeleton rows={5} cols={10} />
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-xl border border-slate-200">
-                  <DualScrollbar>
-                    <table className="w-full min-w-[1300px] border-collapse text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                          <th className="p-2.5">Date</th>
-                          <th className="p-2.5">Customer</th>
-                          <th className="p-2.5">Country</th>
-                          <th className="p-2.5">Type</th>
-                          <th className="p-2.5">SMS/Voice</th>
-                          <th className="p-2.5">Direction</th>
-                          <th className="p-2.5 text-center">Qty</th>
-                          <th className="p-2.5 text-right">Supplier MRC</th>
-                          <th className="p-2.5 text-right">Supplier NRC</th>
-                          <th className="p-2.5">Requirements</th>
-                          <th className="p-2.5">Documents</th>
-                          <th className="p-2.5">Status</th>
-                          <th className="p-2.5">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {orders.map((order) => {
-                          const belowMoq = order.below_moq_at_order || order.quantity < (order.moq ?? 1)
-                          const docs = order.uploaded_documents?.documents ?? []
-                          const otherDocs = order.uploaded_documents?.other_documents ?? []
-                          const hasDocs = docs.length > 0 || otherDocs.length > 0
-                          const canAct = order.status === 'pending' || order.status === 'documentation_review'
-                          return (
-                            <tr key={order.id} className="align-top transition-colors hover:bg-slate-50">
-                              <td className="whitespace-nowrap p-2.5 text-xs text-slate-500">
-                                {new Date(order.created_at).toLocaleDateString()}
-                              </td>
-                              <td className="p-2.5">
-                                <div className="text-xs font-medium text-slate-800">{order.customer_name}</div>
-                                <div className="text-xs text-slate-400">{order.customer_email}</div>
-                              </td>
-                              <td className="p-2.5 text-xs">
-                                <CountryCell name={order.country_name} code={order.country_code} />
-                              </td>
-                              <td className="p-2.5 text-xs">
-                                <span className={BADGE_CLASS}>{order.number_type}</span>
-                              </td>
-                              <td className="p-2.5 text-xs text-slate-600"><SmsVoiceIndicator value={order.sms_capability} /></td>
-                              <td className="p-2.5 text-xs text-slate-600"><DirectionIndicator value={order.direction} /></td>
-                              <td className="p-2.5 text-center text-xs">
+          <div className="bg-white rounded-b-lg shadow-lg p-6">
+            <h2 className="text-2xl font-semibold text-[#215F9A] mb-4">
+              Customer Orders ({orders.length})
+            </h2>
+
+            {loadingOrders ? (
+              <div className="py-4 animate-fade-in">
+                <TableSkeleton rows={5} cols={10} />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-[#215F9A] text-white text-xs">
+                      <th className="p-2 text-left">Date</th>
+                      <th className="p-2 text-left">Customer</th>
+                      <th className="p-2 text-left">Country</th>
+                      <th className="p-2 text-left">Type</th>
+                      <th className="p-2 text-left">SMS/Voice</th>
+                      <th className="p-2 text-left">Inbound/Outbound</th>
+                      <th className="p-2 text-center">Qty</th>
+                      <th className="p-2 text-center">MOQ</th>
+                      <th className="p-2 text-right">Supplier MRC</th>
+                      <th className="p-2 text-right">Supplier NRC</th>
+                      <th className="p-2 text-left">Requirements</th>
+                      <th className="p-2 text-center">Documents</th>
+                      <th className="p-2 text-center">Status</th>
+                      <th className="p-2 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.map((order) => (
+                      <tr key={order.id} className="border-b hover:bg-gray-50">
+                        <td className="p-2 text-xs">
+                          {new Date(order.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="p-2">
+                          <div>
+                            <div className="font-medium text-xs">{order.customer_name}</div>
+                            <div className="text-xs text-gray-500">{order.customer_email}</div>
+                          </div>
+                        </td>
+                        <td className="p-2 text-xs">{order.country_name}</td>
+                        <td className="p-2 text-xs">{order.number_type}</td>
+                        <td className="p-2 text-xs">{order.sms_capability}</td>
+                        <td className="p-2 text-xs">{order.direction}</td>
+                        <td className="p-2 text-center text-xs">
+                          <div className="flex flex-col items-center gap-1">
+                            <span>{order.quantity}</span>
+                            {(order.below_moq_at_order || order.quantity < (order.moq ?? 1)) && (
+                              <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap">
+                                Below MOQ
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-2 text-center text-xs">{order.moq}</td>
+                        <td className="p-2 text-right text-xs">
+                          {order.supplier_mrc != null ? `${order.supplier_currency || 'USD'} ${formatDecimal(order.supplier_mrc, 2)}` : '—'}
+                        </td>
+                        <td className="p-2 text-right text-xs">
+                          {order.supplier_nrc != null ? `${order.supplier_currency || 'USD'} ${formatDecimal(order.supplier_nrc, 2)}` : '—'}
+                        </td>
+                        <td className="p-2 text-center">
+                          <button
+                            onClick={() => handleOpenOrderRequirements(order)}
+                            className="bg-[#215F9A] text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
+                          >
+                            View
+                          </button>
+                        </td>
+                        <td className="p-2 text-center">
+                          {(() => {
+                            const docs = order.uploaded_documents?.documents ?? []
+                            const otherDocs = order.uploaded_documents?.other_documents ?? []
+                            const hasDocs = docs.length > 0 || otherDocs.length > 0
+                            if (hasDocs) {
+                              return (
                                 <div className="flex flex-col items-center gap-1">
-                                  <span className="font-semibold tabular-nums text-slate-900">{order.quantity}</span>
-                                  <span className="whitespace-nowrap text-[10px] tabular-nums text-slate-400">MOQ {order.moq}</span>
-                                  {belowMoq && (
-                                    <span className="whitespace-nowrap rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
-                                      Below MOQ
+                                  {docs.length > 0 && (
+                                    <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
+                                      {docs.length} file(s)
                                     </span>
                                   )}
-                                </div>
-                              </td>
-                              <td className="whitespace-nowrap p-2.5 text-right text-xs tabular-nums text-slate-700">
-                                {order.supplier_mrc != null ? `${order.supplier_currency || 'USD'} ${formatDecimal(order.supplier_mrc, 2)}` : '—'}
-                              </td>
-                              <td className="whitespace-nowrap p-2.5 text-right text-xs tabular-nums text-slate-700">
-                                {order.supplier_nrc != null ? `${order.supplier_currency || 'USD'} ${formatDecimal(order.supplier_nrc, 2)}` : '—'}
-                              </td>
-                              <td className="p-2.5">
-                                <RowActionButton
-                                  icon={ClipboardList}
-                                  label="View requirements"
-                                  onClick={() => handleOpenOrderRequirements(order)}
-                                />
-                              </td>
-                              <td className="p-2.5">
-                                {hasDocs ? (
-                                  <div className="flex flex-col items-start gap-1">
-                                    {docs.length > 0 && <span className={BADGE_CLASS}>{docs.length} file{docs.length !== 1 ? 's' : ''}</span>}
-                                    {otherDocs.length > 0 && (
-                                      <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700">
-                                        {otherDocs.length} custom doc{otherDocs.length !== 1 ? 's' : ''}
-                                      </span>
-                                    )}
-                                    <span className="text-[11px] capitalize text-slate-400">
-                                      {order.uploaded_documents?.customer_type || 'N/A'}
+                                  {otherDocs.length > 0 && (
+                                    <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs">
+                                      {otherDocs.length} custom doc{otherDocs.length !== 1 ? 's' : ''}
                                     </span>
-                                    <button
-                                      onClick={() => setSelectedOrderForDocs(order)}
-                                      className="inline-flex items-center gap-1 text-xs font-medium text-[#215F9A] hover:underline"
-                                    >
-                                      <Files className="h-3 w-3" />
-                                      View
-                                    </button>
-                                  </div>
-                                ) : order.uploaded_documents?.documents_deleted ? (
-                                  <span className="text-xs italic text-slate-400">Cleaned up</span>
-                                ) : (
-                                  <span className="text-xs text-slate-400">None</span>
-                                )}
-                              </td>
-                              <td className="p-2.5">
-                                <StatusPill status={order.status} label={order.status === 'documentation_review' ? 'Doc Review' : order.status} />
-                              </td>
-                              <td className="p-2.5">
-                                {canAct ? (
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    <button
-                                      onClick={() => handleOrderStatus(order.id, 'granted')}
-                                      disabled={processingOrder === order.id}
-                                      className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      <Check className="h-3 w-3" />
-                                      Grant
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setOrderPendingReject(order)
-                                        setOrderRejectReason('')
-                                      }}
-                                      disabled={processingOrder === order.id}
-                                      className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      <X className="h-3 w-3" />
-                                      Deny
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setOrderForRequestChanges(order)
-                                        setRequestChangesMessage(order.admin_request_changes || '')
-                                      }}
-                                      disabled={processingOrder === order.id}
-                                      className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-[#215F9A]/30 hover:bg-[#215F9A]/5 hover:text-[#215F9A] disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      <MessageSquare className="h-3 w-3" />
-                                      Request changes
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-slate-400">
-                                    {order.status === 'granted' ? 'Approved' : order.status === 'rejected' ? 'Rejected' : '—'}
+                                  )}
+                                  <span className="text-xs text-gray-500 capitalize">
+                                    {order.uploaded_documents?.customer_type || 'N/A'}
                                   </span>
-                                )}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </DualScrollbar>
-                  {orders.length === 0 && (
-                    <EmptyState icon={<PackagePlus className="h-6 w-6" />} title="No orders yet" />
-                  )}
-                </div>
-              )}
-            </div>
+                                  <button
+                                    onClick={() => setSelectedOrderForDocs(order)}
+                                    className="text-[#215F9A] hover:text-blue-700 text-xs underline"
+                                  >
+                                    View
+                                  </button>
+                                </div>
+                              )
+                            }
+                            if (order.uploaded_documents?.documents_deleted) {
+                              return <span className="text-gray-400 text-xs italic">Cleaned up</span>
+                            }
+                            return <span className="text-gray-400 text-xs">None</span>
+                          })()}
+                        </td>
+                        <td className="p-2 text-center">
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${order.status === 'granted'
+                              ? 'bg-green-100 text-green-800'
+                              : order.status === 'rejected'
+                                ? 'bg-red-100 text-red-800'
+                                : order.status === 'documentation_review'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}
+                          >
+                            {order.status === 'documentation_review' ? 'Doc Review' : order.status}
+                          </span>
+                        </td>
+                        <td className="p-2">
+                          <div className="flex gap-1 justify-center flex-wrap">
+                            {(order.status === 'pending' || order.status === 'documentation_review') && (
+                              <>
+                                <button
+                                  onClick={() => handleOrderStatus(order.id, 'granted')}
+                                  disabled={processingOrder === order.id}
+                                  className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
+                                >
+                                  Grant
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const reason = prompt('Rejection reason:')
+                                    if (reason) {
+                                      handleOrderStatus(order.id, 'rejected', reason)
+                                    }
+                                  }}
+                                  disabled={processingOrder === order.id}
+                                  className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 disabled:opacity-50"
+                                >
+                                  Deny
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setOrderForRequestChanges(order)
+                                    setRequestChangesMessage(order.admin_request_changes || '')
+                                  }}
+                                  disabled={processingOrder === order.id}
+                                  className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  Request changes
+                                </button>
+                              </>
+                            )}
+                            {order.status !== 'pending' && order.status !== 'documentation_review' && (
+                              <span className="text-xs text-gray-500">
+                                {order.status === 'granted' ? 'Approved' : 'Rejected'}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {orders.length === 0 && (
+                  <div className="text-center py-8 text-gray-600">
+                    No orders yet.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {/* Custom number requests Tab */}
         {activeTab === 'custom_requests' && (
-          <div>
-            <TabHeader
-              title="Custom number requests"
-              count={customRequests.length}
-              description="Requests for numbers not currently in inventory — distinct from regular orders."
-            />
-            <div className="p-4 sm:p-6">
-              {loadingCustomRequests ? (
-                <div className="animate-fade-in">
-                  <TableSkeleton rows={5} cols={10} />
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-xl border border-slate-200">
-                  <DualScrollbar>
-                    <table className="w-full min-w-[1200px] border-collapse text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                          <th className="p-2.5">Date</th>
-                          <th className="p-2.5">Customer</th>
-                          <th className="p-2.5">Country</th>
-                          <th className="p-2.5">Type</th>
-                          <th className="p-2.5">SMS/Voice</th>
-                          <th className="p-2.5">Direction</th>
-                          <th className="p-2.5 text-right">MRC</th>
-                          <th className="p-2.5 text-right">NRC</th>
-                          <th className="p-2.5 text-center">MOQ</th>
-                          <th className="p-2.5">Requirements</th>
-                          <th className="p-2.5">Status</th>
-                          <th className="p-2.5">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {customRequests.map((req) => (
-                          <tr key={req.id} className="align-top transition-colors hover:bg-slate-50">
-                            <td className="whitespace-nowrap p-2.5 text-xs text-slate-500">{new Date(req.created_at).toLocaleDateString()}</td>
-                            <td className="p-2.5">
-                              <div className="text-xs font-medium text-slate-800">{req.customer_name || '—'}</div>
-                              <div className="text-xs text-slate-400">{req.customer_email || '—'}</div>
-                            </td>
-                            <td className="p-2.5 text-xs">{req.country_name || '—'}</td>
-                            <td className="p-2.5 text-xs">
-                              <span className={BADGE_CLASS}>{req.number_type}</span>
-                            </td>
-                            <td className="p-2.5 text-xs text-slate-600"><SmsVoiceIndicator value={req.sms_capability} /></td>
-                            <td className="p-2.5 text-xs text-slate-600"><DirectionIndicator value={req.direction} /></td>
-                            <td className="whitespace-nowrap p-2.5 text-right text-xs tabular-nums">{formatMoney(req.mrc, req.currency)}</td>
-                            <td className="whitespace-nowrap p-2.5 text-right text-xs tabular-nums">{formatMoney(req.nrc, req.currency)}</td>
-                            <td className="p-2.5 text-center text-xs tabular-nums">{req.moq}</td>
-                            <td className="max-w-[150px] p-2.5 text-xs text-slate-500" title={req.requirements_text || undefined}>
-                              {req.requirements_text ? (req.requirements_text.length > 50 ? `${req.requirements_text.slice(0, 50)}…` : req.requirements_text) : '—'}
-                            </td>
-                            <td className="p-2.5">
-                              <StatusPill status={req.status} label={req.status} />
-                            </td>
-                            <td className="p-2.5">
-                              {req.status === 'pending' ? (
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <button
-                                    onClick={() => {
-                                      setFulfillCustomRequestModal(req)
-                                      setFulfillForm({
-                                        mrc: req.mrc != null ? String(req.mrc) : '',
-                                        nrc: req.nrc != null ? String(req.nrc) : '',
-                                        currency: req.currency || 'USD',
-                                        moq: req.moq != null ? String(req.moq) : '1',
-                                        supplier_mrc: '',
-                                        supplier_nrc: '',
-                                        supplier_currency: '',
-                                        specification: req.specification || '',
-                                        bill_pulse: req.bill_pulse || '',
-                                        requirements_text: req.requirements_text || '',
-                                      })
-                                      setError(null)
-                                    }}
-                                    disabled={processingCustomRequest === req.id}
-                                    className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                    title="Fill mandatory fields in popup, then approve to add to inventory"
-                                  >
-                                    <Check className="h-3 w-3" />
-                                    Approve
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setCustomRequestPendingReject(req)
-                                      setCustomRequestRejectReason('')
-                                    }}
-                                    disabled={processingCustomRequest === req.id}
-                                    className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    <X className="h-3 w-3" />
-                                    Reject
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="text-xs text-slate-400">{req.status === 'approved' ? 'Approved' : 'Rejected'}</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </DualScrollbar>
-                  {customRequests.length === 0 && (
-                    <EmptyState icon={<Sparkles className="h-6 w-6" />} title="No custom number requests yet" />
-                  )}
-                </div>
-              )}
-            </div>
+          <div className="bg-white rounded-b-lg shadow-lg p-6">
+            <h2 className="text-2xl font-semibold text-[#215F9A] mb-4">
+              Custom number requests ({customRequests.length})
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Requests from clients for numbers not in inventory. Different from regular orders (inventory orders).
+            </p>
+            {loadingCustomRequests ? (
+              <div className="py-4 animate-fade-in">
+                <TableSkeleton rows={5} cols={10} />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-[#215F9A] text-white text-xs">
+                      <th className="p-2 text-left">Date</th>
+                      <th className="p-2 text-left">Customer</th>
+                      <th className="p-2 text-left">Country</th>
+                      <th className="p-2 text-left">Type</th>
+                      <th className="p-2 text-left">SMS/Voice</th>
+                      <th className="p-2 text-left">Direction</th>
+                      <th className="p-2 text-right">MRC</th>
+                      <th className="p-2 text-right">NRC</th>
+                      <th className="p-2 text-left">Currency</th>
+                      <th className="p-2 text-center">MOQ</th>
+                      <th className="p-2 text-left">Requirements</th>
+                      <th className="p-2 text-center">Status</th>
+                      <th className="p-2 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customRequests.map((req) => (
+                      <tr key={req.id} className="border-b hover:bg-gray-50">
+                        <td className="p-2 text-xs">{new Date(req.created_at).toLocaleDateString()}</td>
+                        <td className="p-2">
+                          <div className="font-medium text-xs">{req.customer_name || '—'}</div>
+                          <div className="text-xs text-gray-500">{req.customer_email || '—'}</div>
+                        </td>
+                        <td className="p-2 text-xs">{req.country_name || '—'}</td>
+                        <td className="p-2 text-xs">{req.number_type}</td>
+                        <td className="p-2 text-xs">{req.sms_capability}</td>
+                        <td className="p-2 text-xs">{req.direction}</td>
+                        <td className="p-2 text-right text-xs">{formatDecimal(req.mrc, 2)}</td>
+                        <td className="p-2 text-right text-xs">{formatDecimal(req.nrc, 2)}</td>
+                        <td className="p-2 text-xs">{req.currency}</td>
+                        <td className="p-2 text-center text-xs">{req.moq}</td>
+                        <td className="p-2 text-xs max-w-[150px]" title={req.requirements_text || undefined}>
+                          {req.requirements_text ? (req.requirements_text.length > 50 ? `${req.requirements_text.slice(0, 50)}…` : req.requirements_text) : '—'}
+                        </td>
+                        <td className="p-2 text-center">
+                          <span className={`px-2 py-1 rounded text-xs ${req.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            req.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="p-2">
+                          <div className="flex gap-1 justify-center flex-wrap">
+                            {req.status === 'pending' && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setFulfillCustomRequestModal(req)
+                                    setFulfillForm({
+                                      mrc: req.mrc != null ? String(req.mrc) : '',
+                                      nrc: req.nrc != null ? String(req.nrc) : '',
+                                      currency: req.currency || 'USD',
+                                      moq: req.moq != null ? String(req.moq) : '1',
+                                      supplier_mrc: '',
+                                      supplier_nrc: '',
+                                      supplier_currency: '',
+                                      specification: req.specification || '',
+                                      bill_pulse: req.bill_pulse || '',
+                                      requirements_text: req.requirements_text || '',
+                                    })
+                                    setError(null)
+                                  }}
+                                  disabled={processingCustomRequest === req.id}
+                                  className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
+                                  title="Fill mandatory fields in popup, then approve to add to inventory"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const reason = prompt('Rejection reason (optional):')
+                                    if (reason !== null) handleCustomRequestStatus(req.id, 'rejected', reason)
+                                  }}
+                                  disabled={processingCustomRequest === req.id}
+                                  className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 disabled:opacity-50"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            {req.status !== 'pending' && (
+                              <span className="text-xs text-gray-500">{req.status === 'approved' ? 'Approved' : 'Rejected'}</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {customRequests.length === 0 && (
+                  <div className="text-center py-8 text-gray-600">No custom number requests yet.</div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {/* Signup Requests Tab */}
         {activeTab === 'signup_requests' && (
-          <div>
-            <TabHeader
-              title="Signup Requests"
-              count={signupRequests.length}
-              description="Approval queue for new customer accounts."
-            />
-            <div className="p-4 sm:p-6">
-              {loadingSignupRequests ? (
-                <div className="animate-fade-in">
-                  <TableSkeleton rows={5} cols={6} />
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-xl border border-slate-200">
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                          <th className="p-3">Date</th>
-                          <th className="p-3">Name</th>
-                          <th className="p-3">Email</th>
-                          <th className="p-3">Message</th>
-                          <th className="p-3">Status</th>
-                          <th className="p-3">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {signupRequests.map((request) => (
-                          <tr key={request.id} className="align-top transition-colors hover:bg-slate-50">
-                            <td className="whitespace-nowrap p-3 text-xs text-slate-500">
-                              {new Date(request.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="p-3 font-medium text-slate-800">{request.name}</td>
-                            <td className="p-3 text-slate-600">{request.email}</td>
-                            <td className="max-w-xs truncate p-3 text-sm text-slate-500" title={request.message}>
-                              {request.message}
-                            </td>
-                            <td className="p-3">
-                              <StatusPill status={request.status} label={request.status} />
-                            </td>
-                            <td className="p-3">
-                              {request.status === 'pending' ? (
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <button
-                                    onClick={() => handleApproveSignup(request.id)}
-                                    disabled={processingSignup === request.id}
-                                    className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    <Check className="h-3 w-3" />
-                                    Approve
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setSignupPendingReject(request)
-                                      setSignupRejectReason('')
-                                    }}
-                                    disabled={processingSignup === request.id}
-                                    className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    <X className="h-3 w-3" />
-                                    Reject
-                                  </button>
-                                </div>
-                              ) : request.status === 'rejected' && request.rejected_reason ? (
-                                <span className="text-xs text-red-600" title={request.rejected_reason}>
-                                  {request.rejected_reason.substring(0, 20)}...
-                                </span>
-                              ) : request.status === 'approved' ? (
-                                <span className="text-xs text-emerald-600">Approved</span>
-                              ) : null}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+          <div className="bg-white rounded-b-lg shadow-lg p-6">
+            <h2 className="text-2xl font-semibold text-[#215F9A] mb-4">
+              Signup Requests ({signupRequests.length})
+            </h2>
+
+            {loadingSignupRequests ? (
+              <div className="py-4 animate-fade-in">
+                <TableSkeleton rows={5} cols={6} />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-[#215F9A] text-white text-sm">
+                      <th className="p-3 text-left">Date</th>
+                      <th className="p-3 text-left">Name</th>
+                      <th className="p-3 text-left">Email</th>
+                      <th className="p-3 text-left">Message</th>
+                      <th className="p-3 text-center">Status</th>
+                      <th className="p-3 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {signupRequests.map((request) => (
+                      <tr key={request.id} className="border-b hover:bg-gray-50">
+                        <td className="p-3 text-sm">
+                          {new Date(request.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="p-3 font-medium">{request.name}</td>
+                        <td className="p-3">{request.email}</td>
+                        <td className="p-3 text-sm max-w-xs truncate" title={request.message}>
+                          {request.message}
+                        </td>
+                        <td className="p-3 text-center">
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${request.status === 'approved'
+                              ? 'bg-green-100 text-green-800'
+                              : request.status === 'rejected'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                              }`}
+                          >
+                            {request.status}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex gap-2 justify-center">
+                            {request.status === 'pending' && (
+                              <>
+                                <button
+                                  onClick={() => handleApproveSignup(request.id)}
+                                  disabled={processingSignup === request.id}
+                                  className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const reason = prompt('Rejection reason:')
+                                    if (reason !== null) {
+                                      handleRejectSignup(request.id, reason)
+                                    }
+                                  }}
+                                  disabled={processingSignup === request.id}
+                                  className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 disabled:opacity-50"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            {request.status === 'rejected' && request.rejected_reason && (
+                              <span className="text-xs text-red-600" title={request.rejected_reason}>
+                                {request.rejected_reason.substring(0, 20)}...
+                              </span>
+                            )}
+                            {request.status === 'approved' && (
+                              <span className="text-xs text-green-600">Approved</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {signupRequests.length === 0 && (
+                  <div className="text-center py-8 text-gray-600">
+                    No signup requests yet.
                   </div>
-                  {signupRequests.length === 0 && (
-                    <EmptyState icon={<ShieldCheck className="h-6 w-6" />} title="No signup requests yet" />
-                  )}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {/* Users Tab */}
         {activeTab === 'users' && (
-          <div>
-            <TabHeader
-              title="User Management"
-              count={users.length}
-              description="View and manage customer accounts, reset passwords, and handle user issues."
-            />
-            <div className="p-4 sm:p-6">
-              {loadingUsers ? (
-                <TableSkeleton rows={5} />
-              ) : users.length === 0 ? (
-                <EmptyState icon={<UsersIcon className="h-6 w-6" />} title="No users found" />
-              ) : (
-                <div className="overflow-hidden rounded-xl border border-slate-200">
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                          <th className="p-3">Name</th>
-                          <th className="p-3">Email</th>
-                          <th className="p-3">Company</th>
-                          <th className="p-3">Signup date</th>
-                          <th className="p-3">Last login</th>
-                          <th className="p-3">Orders</th>
-                          <th className="p-3">Status</th>
-                          <th className="p-3">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {users.map((user) => (
-                          <tr key={user.id} className={`transition-colors hover:bg-slate-50 ${user.is_admin ? 'bg-[#215F9A]/[0.03]' : ''}`}>
-                            <td className="p-3">
-                              <div className="flex items-center gap-2">
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                                  <UserCircle2 className="h-4.5 w-4.5" />
-                                </span>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-medium text-slate-800">{user.name}</span>
-                                    {user.is_admin && (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-[#215F9A]/10 px-2 py-0.5 text-[11px] font-medium text-[#215F9A]">
-                                        <ShieldCheck className="h-3 w-3" />
-                                        Admin
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-3 text-slate-500">{user.email}</td>
-                            <td className="p-3 text-slate-500">
-                              {user.company_name ? (
-                                <span className="inline-flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />{user.company_name}</span>
-                              ) : '—'}
-                            </td>
-                            <td className="whitespace-nowrap p-3 text-slate-500">
-                              {new Date(user.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="whitespace-nowrap p-3 text-slate-500">
-                              {user.last_login_at
-                                ? new Date(user.last_login_at).toLocaleDateString()
-                                : <span className="italic text-slate-400">Not tracked</span>
-                              }
-                            </td>
-                            <td className="p-3">
+          <div className="bg-white rounded-b-lg shadow-lg p-6">
+            <h2 className="text-2xl font-semibold text-[#215F9A] mb-4">
+              User Management
+            </h2>
+            <p className="text-gray-600 mb-2">
+              View and manage customer accounts, reset passwords, and handle user issues.
+            </p>
+          
+
+            {loadingUsers ? (
+              <TableSkeleton rows={5} />
+            ) : users.length === 0 ? (
+              <div className="text-center py-8 bg-gray-50 rounded-lg">
+                <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <p className="text-gray-500">No users found.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b">
+                      <th className="p-3 text-left font-semibold">Name</th>
+                      <th className="p-3 text-left font-semibold">Email</th>
+                      <th className="p-3 text-left font-semibold">Company</th>
+                      <th className="p-3 text-left font-semibold">Signup Date</th>
+                      <th className="p-3 text-left font-semibold">Last Login</th>
+                      <th className="p-3 text-left font-semibold">Orders</th>
+                      <th className="p-3 text-left font-semibold">Status</th>
+                      <th className="p-3 text-center font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((user) => (
+                      <tr key={user.id} className={`border-b hover:bg-gray-50 ${user.is_admin ? 'bg-purple-50' : ''}`}>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{user.name}</span>
+                            {user.is_admin && (
+                              <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full font-medium">
+                                Admin
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3 text-sm text-gray-600">{user.email}</td>
+                        <td className="p-3 text-sm text-gray-600">{user.company_name ?? '—'}</td>
+                        <td className="p-3 text-sm text-gray-600">
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="p-3 text-sm text-gray-600">
+                          {user.last_login_at
+                            ? new Date(user.last_login_at).toLocaleDateString()
+                            : <span className="text-gray-400 italic">Not tracked</span>
+                          }
+                        </td>
+                        <td className="p-3">
+                          <button
+                            onClick={() => handleViewUserOrders(user)}
+                            className="px-2 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                          >
+                            {user.order_count} orders
+                          </button>
+                        </td>
+                        <td className="p-3">
+                          {user.is_disabled ? (
+                            <span className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">
+                              Disabled
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                              Active
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          {user.is_admin ? (
+                            <span className="text-xs text-gray-400 italic">Protected</span>
+                          ) : (
+                            <div className="flex items-center justify-center gap-2">
                               <button
-                                onClick={() => handleViewUserOrders(user)}
-                                className="inline-flex items-center gap-1 rounded-md bg-[#215F9A]/10 px-2 py-1 text-xs font-medium text-[#215F9A] transition-colors hover:bg-[#215F9A]/15"
+                                onClick={() => handleToggleUserStatus(user)}
+                                disabled={processingUser === user.id}
+                                className={`px-3 py-1 text-xs rounded transition-colors ${user.is_disabled
+                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                  : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                  } disabled:opacity-50`}
+                                title={user.is_disabled ? 'Enable user' : 'Disable user'}
                               >
-                                {user.order_count} order{user.order_count === 1 ? '' : 's'}
+                                {processingUser === user.id ? '...' : user.is_disabled ? 'Enable' : 'Disable'}
                               </button>
-                            </td>
-                            <td className="p-3">
-                              {user.is_disabled ? (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                                  <PauseCircle className="h-3 w-3" />
-                                  Disabled
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                                  <PlayCircle className="h-3 w-3" />
-                                  Active
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-3">
-                              {user.is_admin ? (
-                                <span className="text-xs italic text-slate-400">Protected</span>
-                              ) : (
-                                <div className="flex items-center gap-1">
-                                  <RowActionButton
-                                    icon={user.is_disabled ? PlayCircle : PauseCircle}
-                                    label={user.is_disabled ? 'Enable user' : 'Disable user'}
-                                    onClick={() => handleToggleUserStatus(user)}
-                                    disabled={processingUser === user.id}
-                                    variant={user.is_disabled ? 'quiet' : 'edit'}
-                                  />
-                                  <RowActionButton
-                                    icon={KeyRound}
-                                    label="Send password reset"
-                                    onClick={() => handleSendPasswordReset(user)}
-                                    disabled={processingUser === user.id}
-                                    variant="edit"
-                                  />
-                                  <RowActionButton
-                                    icon={Trash2}
-                                    label="Delete user"
-                                    onClick={() => setUserPendingDelete(user)}
-                                    disabled={processingUser === user.id}
-                                    variant="danger"
-                                  />
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
+                              <button
+                                onClick={() => handleSendPasswordReset(user)}
+                                disabled={processingUser === user.id}
+                                className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors disabled:opacity-50"
+                                title="Send password reset email"
+                              >
+                                {processingUser === user.id ? '...' : 'Reset Pass'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(user)}
+                                disabled={processingUser === user.id}
+                                className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors disabled:opacity-50"
+                                title="Delete user"
+                              >
+                                {processingUser === user.id ? '...' : 'Delete'}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* User Orders Modal */}
             {viewingUserOrders && (
-              <AdminModalShell
-                icon={UsersIcon}
-                title={`Orders for ${viewingUserOrders.name}`}
-                subtitle={<p className="mt-0.5 truncate text-xs text-slate-500">{viewingUserOrders.email}</p>}
-                widthClassName="max-w-2xl"
-                onClose={() => {
-                  setViewingUserOrders(null)
-                  setSelectedUserOrders(null)
-                }}
-              >
-                {selectedUserOrders === null ? (
-                  <div className="flex flex-col items-center gap-3 py-10 text-center">
-                    <Loader2 className="h-5 w-5 animate-spin text-[#215F9A]" />
-                    <span className="text-sm font-medium text-slate-500">Loading orders…</span>
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
+                  <div className="p-6 border-b flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900">
+                        Orders for {viewingUserOrders.name}
+                      </h3>
+                      <p className="text-sm text-gray-500">{viewingUserOrders.email}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setViewingUserOrders(null)
+                        setSelectedUserOrders(null)
+                      }}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
-                ) : selectedUserOrders.length === 0 ? (
-                  <EmptyState icon={<PackagePlus className="h-6 w-6" />} title="No orders found for this user" />
-                ) : (
-                  <div className="space-y-3">
-                    {selectedUserOrders.map((order: any) => (
-                      <div key={order.id} className="rounded-xl border border-slate-200 p-4">
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                          <span className="font-medium text-slate-800">
-                            {order.number?.countries?.name || 'Unknown'} · {order.number?.number_type || 'Unknown'}
-                          </span>
-                          <StatusPill status={order.status} label={order.status} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-slate-500">
-                          <div>Quantity: <span className="tabular-nums text-slate-700">{order.quantity}</span></div>
-                          <div>Created: {new Date(order.created_at).toLocaleDateString()}</div>
-                          <div>MRC: <span className="tabular-nums text-slate-700">{formatDecimal(order.mrc_at_order, 2)}</span></div>
-                          <div>NRC: <span className="tabular-nums text-slate-700">{formatDecimal(order.nrc_at_order, 2)}</span></div>
-                          <div>Currency: {order.currency_at_order}</div>
-                        </div>
+                  <div className="p-6 overflow-y-auto max-h-[60vh]">
+                    {selectedUserOrders === null ? (
+                      <div className="text-center py-8">
+                        <LoadingSpinner size="md" text="Loading orders..." />
                       </div>
-                    ))}
+                    ) : selectedUserOrders.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No orders found for this user.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {selectedUserOrders.map((order: any) => (
+                          <div key={order.id} className="p-4 bg-gray-50 rounded-lg border">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-medium">
+                                {order.number?.countries?.name || 'Unknown'} - {order.number?.number_type || 'Unknown'}
+                              </span>
+                              <span className={`px-2 py-1 text-xs rounded-full ${order.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                  order.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-gray-100 text-gray-700'
+                                }`}>
+                                {order.status}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600 grid grid-cols-2 gap-2">
+                              <div>Quantity: {order.quantity}</div>
+                              <div>Created: {new Date(order.created_at).toLocaleDateString()}</div>
+                              <div>MRC: {order.mrc_at_order}</div>
+                              <div>NRC: {order.nrc_at_order}</div>
+                              <div>Currency: {order.currency_at_order}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </AdminModalShell>
+                </div>
+              </div>
             )}
           </div>
         )}
 
         {/* Settings Tab */}
         {activeTab === 'settings' && (
-          <div>
-            <TabHeader title="Settings" description="Platform-level configuration for notifications and alerts." />
-            <div className="p-4 sm:p-6">
-              {loadingSettings ? (
-                <div className="flex flex-col items-center gap-3 py-10 text-center">
-                  <Loader2 className="h-5 w-5 animate-spin text-[#215F9A]" />
-                  <span className="text-sm font-medium text-slate-500">Loading settings…</span>
-                </div>
-              ) : (
-                <div className="max-w-2xl overflow-hidden rounded-xl border border-slate-200">
-                  <div className="flex items-start gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-4">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#215F9A]/10 text-[#215F9A]">
-                      <Mail className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <h3 className="text-[15px] font-semibold text-slate-900">Email notifications</h3>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        Where new signup requests and orders get sent for review.
-                      </p>
-                    </div>
+          <div className="bg-white rounded-b-lg shadow-lg p-6">
+            <h2 className="text-2xl font-semibold text-[#215F9A] mb-6">
+              Admin Settings
+            </h2>
+
+            {loadingSettings ? (
+              <div className="text-center py-8">
+                <div className="text-gray-600">Loading settings...</div>
+              </div>
+            ) : (
+              <div className="max-w-xl">
+                <div className="mb-6">
+                  <h3 className="text-lg font-medium mb-2">Email Notifications</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Configure the email address to receive notifications for new signup requests and orders.
+                    Delivery also requires SMTP environment variables on the server:{' '}
+                    <code className="text-xs bg-gray-100 px-1 rounded">SMTP_HOST</code>,{' '}
+                    <code className="text-xs bg-gray-100 px-1 rounded">SMTP_PORT</code>,{' '}
+                    <code className="text-xs bg-gray-100 px-1 rounded">SMTP_USER</code>,{' '}
+                    <code className="text-xs bg-gray-100 px-1 rounded">SMTP_PASS</code>
+                    (and optionally <code className="text-xs bg-gray-100 px-1 rounded">EMAIL_FROM</code>). You can set a fallback recipient with{' '}
+                    <code className="text-xs bg-gray-100 px-1 rounded">ADMIN_NOTIFICATION_EMAIL</code> if the database value is empty.
+                  </p>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">
+                      Notification Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={adminSettings.notification_email}
+                      onChange={(e) => setAdminSettings({ ...adminSettings, notification_email: e.target.value })}
+                      className="w-full p-2 border rounded-lg"
+                      placeholder="admin@yourcompany.com"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      This email will receive notifications for new signup requests and customer orders.
+                    </p>
                   </div>
-                  <div className="space-y-4 px-5 py-5">
-                    <div>
-                      <label className={LABEL_CLASS}>Notification email address</label>
-                      <input
-                        type="email"
-                        value={adminSettings.notification_email}
-                        onChange={(e) => setAdminSettings({ ...adminSettings, notification_email: e.target.value })}
-                        className={INPUT_CLASS}
-                        placeholder="admin@yourcompany.com"
-                      />
-                      <p className="mt-1.5 text-xs text-slate-500">
-                        Receives notifications for new signup requests and customer orders.
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-500">
-                      Delivery also requires SMTP environment variables on the server:{' '}
-                      <code className="rounded bg-white px-1 py-0.5 text-slate-600">SMTP_HOST</code>,{' '}
-                      <code className="rounded bg-white px-1 py-0.5 text-slate-600">SMTP_PORT</code>,{' '}
-                      <code className="rounded bg-white px-1 py-0.5 text-slate-600">SMTP_USER</code>,{' '}
-                      <code className="rounded bg-white px-1 py-0.5 text-slate-600">SMTP_PASS</code>
-                      {' '}(and optionally <code className="rounded bg-white px-1 py-0.5 text-slate-600">EMAIL_FROM</code>). A fallback recipient can be set with{' '}
-                      <code className="rounded bg-white px-1 py-0.5 text-slate-600">ADMIN_NOTIFICATION_EMAIL</code> if the database value is empty.
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2.5 border-t border-slate-100 pt-4">
-                      <button
-                        type="button"
-                        onClick={handleSaveSettings}
-                        disabled={loadingSettings}
-                        className={BTN_PRIMARY}
-                      >
-                        {loadingSettings ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                        {loadingSettings ? 'Saving…' : 'Save settings'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSendTestEmail}
-                        disabled={sendingTestEmail || !adminSettings.notification_email?.trim()}
-                        className={BTN_SECONDARY}
-                        title={!adminSettings.notification_email?.trim() ? 'Save a notification email first' : undefined}
-                      >
-                        {sendingTestEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                        {sendingTestEmail ? 'Sending…' : 'Send test email'}
-                      </button>
-                    </div>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSaveSettings}
+                      disabled={loadingSettings}
+                      className="bg-[#215F9A] text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {loadingSettings ? 'Saving...' : 'Save Settings'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSendTestEmail}
+                      disabled={sendingTestEmail || !adminSettings.notification_email?.trim()}
+                      className="bg-white text-[#215F9A] border border-[#215F9A] px-6 py-2 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                      title={!adminSettings.notification_email?.trim() ? 'Save a notification email first' : undefined}
+                    >
+                      {sendingTestEmail ? 'Sending…' : 'Send test email'}
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* Edit Number Modal */}
         {editingNumber && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-3 backdrop-blur-[2px] motion-safe:animate-[fadeIn_150ms_ease-out] sm:p-4"
-            onClick={() => setEditingNumber(null)}
-          >
-            <div
-              className="flex max-h-[min(90vh,100dvh)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-black/5 motion-safe:animate-[scaleIn_150ms_ease-out] sm:max-w-4xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#215F9A]/10 text-[#215F9A]">
-                    <Pencil className="h-[19px] w-[19px]" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="truncate text-base font-semibold text-slate-900 sm:text-[17px]">Edit Number</h3>
-                    <p className="mt-0.5 truncate text-xs text-slate-500">
-                      <CountryCell name={editingNumber.country_name} code={editingNumber.country_code} />
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setEditingNumber(null)}
-                  aria-label="Close"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-4 sm:p-8 max-w-2xl sm:max-w-4xl w-full max-h-[min(90vh,100dvh)] overflow-y-auto">
+              <h2 className="text-2xl font-semibold text-[#215F9A] mb-6">
+                Edit Number
+              </h2>
 
               <form
                 onSubmit={(e) => {
                   e.preventDefault()
                   handleUpdateNumber(editingNumber)
                 }}
-                className="space-y-4 overflow-y-auto px-5 py-5 sm:px-6"
+                className="space-y-4"
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={LABEL_CLASS}>Country</label>
+                    <label className="block text-sm font-medium mb-2">Country</label>
                     <input
                       type="text"
                       value={editingNumber.country_name}
                       disabled
-                      className={INPUT_CLASS}
+                      className="w-full p-2 border rounded-lg bg-gray-100"
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Number Type</label>
+                    <label className="block text-sm font-medium mb-2">Number Type</label>
                     <SelectWithCustom
                       value={editingNumber.number_type}
                       onChange={(value) => setEditingNumber({ ...editingNumber, number_type: value })}
@@ -4342,7 +3767,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>SMS/Voice</label>
+                    <label className="block text-sm font-medium mb-2">SMS/Voice</label>
                     <SelectWithCustom
                       value={(editingNumber.sms_capability || '').trim()}
                       onChange={(value) => setEditingNumber({ ...editingNumber, sms_capability: value })}
@@ -4352,7 +3777,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Inbound/Outbound</label>
+                    <label className="block text-sm font-medium mb-2">Inbound/Outbound</label>
                     <SelectWithCustom
                       value={(editingNumber.direction || '').trim()}
                       onChange={(value) => setEditingNumber({ ...editingNumber, direction: value })}
@@ -4362,7 +3787,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Supplier name</label>
+                    <label className="block text-sm font-medium mb-2">Supplier name</label>
                     <SelectWithCustom
                       value={editingNumber.supplier || ''}
                       onChange={(value) => setEditingNumber({ ...editingNumber, supplier: value })}
@@ -4372,7 +3797,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Customer MRC</label>
+                    <label className="block text-sm font-medium mb-2">Customer MRC</label>
                     <input
                       type="text"
                       value={editingNumber.mrc}
@@ -4383,13 +3808,13 @@ export default function AdminDashboard() {
                           setEditingNumber({ ...editingNumber, mrc: normalizeDecimalInput(value) as any })
                         }
                       }}
-                      className={INPUT_CLASS}
+                      className="w-full p-2 border rounded-lg"
                       inputMode="decimal"
                       placeholder="Enter MRC"
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Customer NRC</label>
+                    <label className="block text-sm font-medium mb-2">Customer NRC</label>
                     <input
                       type="text"
                       value={editingNumber.nrc}
@@ -4400,13 +3825,13 @@ export default function AdminDashboard() {
                           setEditingNumber({ ...editingNumber, nrc: normalizeDecimalInput(value) as any })
                         }
                       }}
-                      className={INPUT_CLASS}
+                      className="w-full p-2 border rounded-lg"
                       inputMode="decimal"
                       placeholder="Enter NRC"
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Customer currency</label>
+                    <label className="block text-sm font-medium mb-2">Customer currency</label>
                     <SelectWithCustom
                       value={editingNumber.currency}
                       onChange={(value) => setEditingNumber({ ...editingNumber, currency: value })}
@@ -4417,7 +3842,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="col-span-2 text-sm font-semibold text-[#215F9A]">Supplier rate (admin only)</div>
                   <div>
-                    <label className={LABEL_CLASS}>Supplier MRC</label>
+                    <label className="block text-sm font-medium mb-2">Supplier MRC</label>
                     <input
                       type="text"
                       value={((editingNumber as any).supplier_mrc ?? '') as string}
@@ -4427,13 +3852,13 @@ export default function AdminDashboard() {
                           setEditingNumber({ ...editingNumber, supplier_mrc: normalizeDecimalInput(value) as any })
                         }
                       }}
-                      className={INPUT_CLASS}
+                      className="w-full p-2 border rounded-lg"
                       inputMode="decimal"
                       placeholder="Optional"
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Supplier NRC</label>
+                    <label className="block text-sm font-medium mb-2">Supplier NRC</label>
                     <input
                       type="text"
                       value={((editingNumber as any).supplier_nrc ?? '') as string}
@@ -4443,13 +3868,13 @@ export default function AdminDashboard() {
                           setEditingNumber({ ...editingNumber, supplier_nrc: normalizeDecimalInput(value) as any })
                         }
                       }}
-                      className={INPUT_CLASS}
+                      className="w-full p-2 border rounded-lg"
                       inputMode="decimal"
                       placeholder="Optional"
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Supplier Currency</label>
+                    <label className="block text-sm font-medium mb-2">Supplier Currency</label>
                     <SelectWithCustom
                       value={((editingNumber as any).supplier_currency ?? '') as string}
                       onChange={(value) => setEditingNumber({ ...editingNumber, supplier_currency: value as any })}
@@ -4459,7 +3884,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>MOQ</label>
+                    <label className="block text-sm font-medium mb-2">MOQ</label>
                     <input
                       type="text"
                       value={editingNumber.moq}
@@ -4470,33 +3895,33 @@ export default function AdminDashboard() {
                           setEditingNumber({ ...editingNumber, moq: value as any })
                         }
                       }}
-                      className={INPUT_CLASS}
+                      className="w-full p-2 border rounded-lg"
                       placeholder="Enter MOQ"
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Available</label>
+                    <label className="block text-sm font-medium mb-2">Available</label>
                     <select
                       value={editingNumber.is_available ? 'true' : 'false'}
                       onChange={(e) => setEditingNumber({ ...editingNumber, is_available: e.target.value === 'true' })}
-                      className={INPUT_CLASS}
+                      className="w-full p-2 border rounded-lg"
                     >
                       <option value="true">Available</option>
                       <option value="false">Unavailable</option>
                     </select>
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Specification (Prefix/Area)</label>
+                    <label className="block text-sm font-medium mb-2">Specification (Prefix/Area)</label>
                     <input
                       type="text"
                       value={editingNumber.specification || ''}
                       onChange={(e) => setEditingNumber({ ...editingNumber, specification: e.target.value })}
-                      className={INPUT_CLASS}
+                      className="w-full p-2 border rounded-lg"
                       placeholder="e.g., Landline, France (07)"
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Bill Pulse</label>
+                    <label className="block text-sm font-medium mb-2">Bill Pulse</label>
                     <SelectWithCustom
                       value={editingNumber.bill_pulse || ''}
                       onChange={(value) => setEditingNumber({ ...editingNumber, bill_pulse: value })}
@@ -4509,10 +3934,10 @@ export default function AdminDashboard() {
 
                 {/* Supplier other charges (edit) */}
                 <div className="mt-4">
-                  <label className={LABEL_CLASS}>Supplier other charges (admin)</label>
-                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <label className="block text-sm font-medium mb-2">Supplier other charges (admin)</label>
+                  <div className="border rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-500">
+                      <thead className="bg-gray-100">
                         <tr>
                           <th className="p-2 text-left">Charge Type</th>
                           <th className="p-2 text-left">Amount</th>
@@ -4538,7 +3963,7 @@ export default function AdminDashboard() {
                                     })
                                   }
                                 }}
-                                className={INPUT_SM_CLASS}
+                                className="w-full p-1 border rounded"
                                 inputMode="decimal"
                                 placeholder="0.0000"
                               />
@@ -4560,7 +3985,7 @@ export default function AdminDashboard() {
                                   },
                                 })
                               }
-                              className={INPUT_SM_CLASS}
+                              className="w-full p-1 border rounded"
                               placeholder="Description or amount"
                             />
                           </td>
@@ -4572,10 +3997,10 @@ export default function AdminDashboard() {
 
                 {/* Other Charges Section for Edit (customer) */}
                 <div className="mt-4">
-                  <label className={LABEL_CLASS}>Customer other charges</label>
-                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <label className="block text-sm font-medium mb-2">Customer other charges</label>
+                  <div className="border rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-500">
+                      <thead className="bg-gray-100">
                         <tr>
                           <th className="p-2 text-left">Charge Type</th>
                           <th className="p-2 text-left">Amount</th>
@@ -4600,7 +4025,7 @@ export default function AdminDashboard() {
                                   })
                                 }
                               }}
-                              className={INPUT_SM_CLASS}
+                              className="w-full p-1 border rounded"
                               inputMode="decimal"
                               placeholder="0.0000"
                             />
@@ -4624,7 +4049,7 @@ export default function AdminDashboard() {
                                   })
                                 }
                               }}
-                              className={INPUT_SM_CLASS}
+                              className="w-full p-1 border rounded"
                               inputMode="decimal"
                               placeholder="0.0000"
                             />
@@ -4648,7 +4073,7 @@ export default function AdminDashboard() {
                                   })
                                 }
                               }}
-                              className={INPUT_SM_CLASS}
+                              className="w-full p-1 border rounded"
                               inputMode="decimal"
                               placeholder="0.0000"
                             />
@@ -4672,7 +4097,7 @@ export default function AdminDashboard() {
                                   })
                                 }
                               }}
-                              className={INPUT_SM_CLASS}
+                              className="w-full p-1 border rounded"
                               inputMode="decimal"
                               placeholder="0.0000"
                             />
@@ -4696,7 +4121,7 @@ export default function AdminDashboard() {
                                   })
                                 }
                               }}
-                              className={INPUT_SM_CLASS}
+                              className="w-full p-1 border rounded"
                               inputMode="decimal"
                               placeholder="0.0000"
                             />
@@ -4715,7 +4140,7 @@ export default function AdminDashboard() {
                                   other_fees: e.target.value || undefined
                                 }
                               })}
-                              className={INPUT_SM_CLASS}
+                              className="w-full p-1 border rounded"
                               placeholder="Description or amount"
                             />
                           </td>
@@ -4727,10 +4152,10 @@ export default function AdminDashboard() {
 
                 {/* Features (editable) */}
                 <div className="mt-4">
-                  <label className={LABEL_CLASS}>Features</label>
-                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <label className="block text-sm font-medium mb-2">Features</label>
+                  <div className="border rounded-lg">
                     <table className="w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-500">
+                      <thead className="bg-gray-100">
                         <tr>
                           <th className="p-2 text-left">Feature</th>
                           <th className="p-2 text-left">Status/Value</th>
@@ -4776,15 +4201,17 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="flex gap-3 border-t border-slate-100 pt-4">
-                  <button type="submit" className={`${BTN_PRIMARY} flex-1 py-2.5`}>
-                    <Check className="h-3.5 w-3.5" />
-                    Save changes
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-[#215F9A] text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
+                  >
+                    Save Changes
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditingNumber(null)}
-                    className={`${BTN_SECONDARY} flex-1 py-2.5`}
+                    className="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400 font-semibold"
                   >
                     Cancel
                   </button>
@@ -4796,323 +4223,282 @@ export default function AdminDashboard() {
 
         {/* Add Country Modal */}
         {showAddCountry && (
-          <AdminModalShell
-            icon={Globe}
-            title="Add new country"
-            subtitle={<p className="mt-0.5 text-xs text-slate-500">Requirements are fetched automatically once saved.</p>}
-            widthClassName="max-w-lg"
-            onClose={() => {
-              setShowAddCountry(false)
-              setCountryFormData({ name: '', country_code: '', regulator: '' })
-            }}
-            footer={
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddCountry(false)
-                    setCountryFormData({ name: '', country_code: '', regulator: '' })
-                  }}
-                  className={BTN_SECONDARY}
-                >
-                  Cancel
-                </button>
-                <button type="submit" form="add-country-form" disabled={fetchingRequirements} className={BTN_PRIMARY}>
-                  {fetchingRequirements && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {fetchingRequirements ? 'Fetching requirements…' : 'Add country'}
-                </button>
-              </>
-            }
-          >
-            <form
-              id="add-country-form"
-              onSubmit={(e) => {
-                e.preventDefault()
-                handleAddCountry()
-              }}
-              className="space-y-4"
-            >
-              <div>
-                <label className={LABEL_CLASS}>
-                  Country Name *
-                </label>
-                <input
-                  type="text"
-                  value={countryFormData.name}
-                  onChange={(e) =>
-                    setCountryFormData({
-                      ...countryFormData,
-                      name: e.target.value,
-                    })
-                  }
-                  placeholder="Ethiopia"
-                  className={INPUT_CLASS}
-                  required
-                />
-              </div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-3xl shadow-lg p-8 max-w-2xl w-full mx-4">
+              <h2 className="text-2xl font-semibold text-[#215F9A] mb-6">
+                Add New Country
+              </h2>
+              <p className="text-gray-600 mb-4">
+                Country requirements will be automatically fetched using AI.
+              </p>
 
-              <div>
-                <label className={LABEL_CLASS}>
-                  Country Code *
-                </label>
-                <input
-                  type="text"
-                  value={countryFormData.country_code}
-                  onChange={(e) =>
-                    setCountryFormData({
-                      ...countryFormData,
-                      country_code: e.target.value.toUpperCase(),
-                    })
-                  }
-                  placeholder="ET"
-                  className={INPUT_CLASS}
-                  required
-                  maxLength={10}
-                />
-              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleAddCountry()
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Country Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={countryFormData.name}
+                    onChange={(e) =>
+                      setCountryFormData({
+                        ...countryFormData,
+                        name: e.target.value,
+                      })
+                    }
+                    placeholder="Ethiopia"
+                    className="w-full p-2 border rounded-lg"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className={LABEL_CLASS}>
-                  Regulator (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={countryFormData.regulator}
-                  onChange={(e) =>
-                    setCountryFormData({
-                      ...countryFormData,
-                      regulator: e.target.value,
-                    })
-                  }
-                  placeholder="Ethiopian Communications Authority"
-                  className={INPUT_CLASS}
-                />
-              </div>
-            </form>
-          </AdminModalShell>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Country Code *
+                  </label>
+                  <input
+                    type="text"
+                    value={countryFormData.country_code}
+                    onChange={(e) =>
+                      setCountryFormData({
+                        ...countryFormData,
+                        country_code: e.target.value.toUpperCase(),
+                      })
+                    }
+                    placeholder="ET"
+                    className="w-full p-2 border rounded-lg"
+                    required
+                    maxLength={10}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Regulator (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={countryFormData.regulator}
+                    onChange={(e) =>
+                      setCountryFormData({
+                        ...countryFormData,
+                        regulator: e.target.value,
+                      })
+                    }
+                    placeholder="Ethiopian Communications Authority"
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+
+                <div className="flex gap-4">
+                  <button
+                    type="submit"
+                    disabled={fetchingRequirements}
+                    className="flex-1 bg-[#215F9A] text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50"
+                  >
+                    {fetchingRequirements
+                      ? 'Fetching Requirements...'
+                      : 'Add Country'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddCountry(false)
+                      setCountryFormData({
+                        name: '',
+                        country_code: '',
+                        regulator: '',
+                      })
+                    }}
+                    className="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400 font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
-        </section>
       </div>
 
       {/* Order requirements modal (like client Numbers page) */}
       {orderForRequirementsModal && (
-        <AdminModalShell
-          icon={ClipboardList}
-          title="Requirements"
-          subtitle={
-            <p className="mt-0.5 truncate text-xs text-slate-500">
-              <CountryCell name={orderForRequirementsModal.country_name} code={orderForRequirementsModal.country_code} />
-            </p>
-          }
-          widthClassName="max-w-2xl"
-          onClose={() => setOrderForRequirementsModal(null)}
-          footer={
-            <button onClick={() => setOrderForRequirementsModal(null)} className={BTN_PRIMARY}>
-              Close
-            </button>
-          }
-        >
-          <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-4">
-            <span className={BADGE_CLASS}>{orderForRequirementsModal.number_type}</span>
-            <span className={BADGE_CLASS}>{orderForRequirementsModal.direction}</span>
-            <span className={BADGE_CLASS}>{orderForRequirementsModal.sms_capability}</span>
-          </div>
-          <div className="mb-4 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
-            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Customer rate (view)</h4>
-            <p className="text-sm tabular-nums text-slate-700">
-              MRC: {formatDecimal(orderForRequirementsModal.mrc_at_order, 2) ?? '0'} &nbsp;·&nbsp; NRC: {formatDecimal(orderForRequirementsModal.nrc_at_order, 2) ?? '0'} &nbsp;·&nbsp; Currency: {orderForRequirementsModal.currency_at_order}
-            </p>
-          </div>
-          {loadingOrderRequirements ? (
-            <div className="flex flex-col items-center gap-3 py-10 text-center">
-              <Loader2 className="h-5 w-5 animate-spin text-[#215F9A]" />
-              <span className="text-sm font-medium text-slate-500">Loading requirements…</span>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setOrderForRequirementsModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-[#215F9A]">
+                Requirements – {orderForRequirementsModal.country_name}
+              </h3>
+              <button onClick={() => setOrderForRequirementsModal(null)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
             </div>
-          ) : orderRequirementsData ? (
-            <div className="space-y-5">
-              <div>
-                <h4 className="mb-2 text-sm font-semibold text-slate-900">Number Allocation</h4>
-                <div className="ml-1 space-y-2 border-l-2 border-slate-100 pl-4">
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">Individual Documentation:</p>
-                    <ul className="ml-2 list-inside list-disc text-sm text-slate-600">
-                      {orderRequirementsData.number_allocation?.end_user_documentation?.individual?.map((doc: string, idx: number) => (
-                        <li key={idx}>{doc}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">Business Documentation:</p>
-                    <ul className="ml-2 list-inside list-disc text-sm text-slate-600">
-                      {orderRequirementsData.number_allocation?.end_user_documentation?.business?.map((doc: string, idx: number) => (
-                        <li key={idx}>{doc}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  {orderRequirementsData.number_allocation?.address_requirements && (
-                    <p className="text-sm text-slate-600">
-                      <strong>Address Requirements:</strong> {orderRequirementsData.number_allocation.address_requirements}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="border-t border-slate-100 pt-5">
-                <h4 className="mb-2 text-sm font-semibold text-slate-900">Sub-Allocation</h4>
-                <div className="ml-1 border-l-2 border-slate-100 pl-4">
-                  <p className="text-sm text-slate-600">
-                    <strong>Allowed:</strong> {orderRequirementsData.sub_allocation?.allowed ? 'Yes' : 'No'}
-                  </p>
-                  {orderRequirementsData.sub_allocation?.rules && (
-                    <p className="mt-1 text-sm text-slate-600">{orderRequirementsData.sub_allocation.rules}</p>
-                  )}
-                </div>
-              </div>
-              <div className="border-t border-slate-100 pt-5">
-                <h4 className="mb-2 text-sm font-semibold text-slate-900">Number Porting</h4>
-                <div className="ml-1 space-y-2 border-l-2 border-slate-100 pl-4">
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">Individual Documentation:</p>
-                    <ul className="ml-2 list-inside list-disc text-sm text-slate-600">
-                      {orderRequirementsData.number_porting?.end_user_documentation?.individual?.map((doc: string, idx: number) => (
-                        <li key={`port-ind-${idx}`}>{doc}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">Business Documentation:</p>
-                    <ul className="ml-2 list-inside list-disc text-sm text-slate-600">
-                      {orderRequirementsData.number_porting?.end_user_documentation?.business?.map((doc: string, idx: number) => (
-                        <li key={`port-biz-${idx}`}>{doc}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  {orderRequirementsData.number_porting?.process_notes && (
-                    <p className="mt-1 text-sm text-slate-600">
-                      <strong>Process Notes:</strong> {orderRequirementsData.number_porting.process_notes}
-                    </p>
-                  )}
-                </div>
-              </div>
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm">
+              <p className="text-gray-700">
+                <strong>Number Type:</strong> {orderForRequirementsModal.number_type} | <strong>Direction:</strong> {orderForRequirementsModal.direction} | <strong>SMS/Voice:</strong> {orderForRequirementsModal.sms_capability}
+              </p>
             </div>
-          ) : orderForRequirementsModal.requirements_text ? (
-            <p className="whitespace-pre-wrap text-sm text-slate-700">{orderForRequirementsModal.requirements_text}</p>
-          ) : (
-            <p className="text-sm text-slate-500">No specific requirements on file for this combination.</p>
-          )}
-        </AdminModalShell>
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 className="font-semibold text-[#215F9A] mb-2">Customer rate (view)</h4>
+              <p className="text-sm text-gray-700">
+                MRC: {formatDecimal(orderForRequirementsModal.mrc_at_order, 2) ?? '0'} &nbsp;|&nbsp; NRC: {formatDecimal(orderForRequirementsModal.nrc_at_order, 2) ?? '0'} &nbsp;|&nbsp; Currency: {orderForRequirementsModal.currency_at_order}
+              </p>
+            </div>
+            {loadingOrderRequirements ? (
+              <div className="text-center py-8 text-gray-600">Loading requirements...</div>
+            ) : orderRequirementsData ? (
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                <div>
+                  <h4 className="font-semibold mb-2">Number Allocation</h4>
+                  <div className="ml-4 space-y-2">
+                    <div>
+                      <p className="font-medium text-sm">Individual Documentation:</p>
+                      <ul className="list-disc list-inside ml-2 text-sm text-gray-600">
+                        {orderRequirementsData.number_allocation?.end_user_documentation?.individual?.map((doc: string, idx: number) => (
+                          <li key={idx}>{doc}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Business Documentation:</p>
+                      <ul className="list-disc list-inside ml-2 text-sm text-gray-600">
+                        {orderRequirementsData.number_allocation?.end_user_documentation?.business?.map((doc: string, idx: number) => (
+                          <li key={idx}>{doc}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    {orderRequirementsData.number_allocation?.address_requirements && (
+                      <p className="text-sm text-gray-600">
+                        <strong>Address Requirements:</strong> {orderRequirementsData.number_allocation.address_requirements}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2">Sub-Allocation</h4>
+                  <div className="ml-4">
+                    <p className="text-sm text-gray-600">
+                      <strong>Allowed:</strong> {orderRequirementsData.sub_allocation?.allowed ? 'Yes' : 'No'}
+                    </p>
+                    {orderRequirementsData.sub_allocation?.rules && (
+                      <p className="text-sm text-gray-600 mt-1">{orderRequirementsData.sub_allocation.rules}</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2">Number Porting</h4>
+                  <div className="ml-4 space-y-2">
+                    <div>
+                      <p className="font-medium text-sm">Individual Documentation:</p>
+                      <ul className="list-disc list-inside ml-2 text-sm text-gray-600">
+                        {orderRequirementsData.number_porting?.end_user_documentation?.individual?.map((doc: string, idx: number) => (
+                          <li key={`port-ind-${idx}`}>{doc}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Business Documentation:</p>
+                      <ul className="list-disc list-inside ml-2 text-sm text-gray-600">
+                        {orderRequirementsData.number_porting?.end_user_documentation?.business?.map((doc: string, idx: number) => (
+                          <li key={`port-biz-${idx}`}>{doc}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    {orderRequirementsData.number_porting?.process_notes && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        <strong>Process Notes:</strong> {orderRequirementsData.number_porting.process_notes}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : orderForRequirementsModal.requirements_text ? (
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{orderForRequirementsModal.requirements_text}</p>
+            ) : (
+              <p className="text-gray-600">No specific requirements on file for this combination.</p>
+            )}
+            <div className="mt-6">
+              <button onClick={() => setOrderForRequirementsModal(null)} className="bg-[#215F9A] text-white px-4 py-2 rounded-lg hover:bg-blue-700">Close</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Request changes modal */}
       {orderForRequestChanges && (
-        <AdminModalShell
-          icon={MessageSquare}
-          title="Request changes from customer"
-          subtitle={
-            <p className="mt-0.5 truncate text-xs text-slate-500">{orderForRequestChanges.customer_name}</p>
-          }
-          widthClassName="max-w-lg"
-          onClose={() => {
-            setOrderForRequestChanges(null)
-            setRequestChangesMessage('')
-          }}
-          footer={
-            <>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+            <h3 className="text-xl font-semibold text-[#215F9A] mb-2">Request changes from customer</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Ask the customer to upload or update specific requirements/documents. They will see this message on their orders page.
+            </p>
+            <textarea
+              value={requestChangesMessage}
+              onChange={(e) => setRequestChangesMessage(e.target.value)}
+              className="w-full p-3 border rounded-lg text-sm min-h-[120px]"
+              placeholder="e.g. Please upload a copy of your business license and proof of address."
+            />
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={handleSaveRequestChanges}
+                disabled={processingOrder === orderForRequestChanges.id}
+                className="flex-1 bg-[#215F9A] text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {processingOrder === orderForRequestChanges.id ? 'Sending...' : 'Send request'}
+              </button>
               <button
                 onClick={() => {
                   setOrderForRequestChanges(null)
                   setRequestChangesMessage('')
                 }}
-                className={BTN_SECONDARY}
+                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleSaveRequestChanges}
-                disabled={processingOrder === orderForRequestChanges.id}
-                className={BTN_PRIMARY}
-              >
-                {processingOrder === orderForRequestChanges.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {processingOrder === orderForRequestChanges.id ? 'Sending…' : 'Send request'}
-              </button>
-            </>
-          }
-        >
-          <p className="mb-4 text-sm text-slate-600">
-            Ask the customer to upload or update specific requirements/documents. They will see this message on their orders page.
-          </p>
-          <textarea
-            value={requestChangesMessage}
-            onChange={(e) => setRequestChangesMessage(e.target.value)}
-            className={`${INPUT_CLASS} min-h-[120px]`}
-            placeholder="e.g. Please upload a copy of your business license and proof of address."
-          />
-        </AdminModalShell>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Fulfill custom request modal - fill mandatory fields before adding to inventory */}
       {fulfillCustomRequestModal && (
-        <AdminModalShell
-          icon={PackagePlus}
-          title="Approve request — mandatory fields"
-          subtitle={
-            <p className="mt-0.5 text-xs text-slate-500">Fill in the fields below to add the number to inventory and create the order.</p>
-          }
-          widthClassName="max-w-lg"
-          onClose={() => {
-            setFulfillCustomRequestModal(null)
-            setFulfillForm({ mrc: '', nrc: '', currency: 'USD', moq: '1', supplier_mrc: '', supplier_nrc: '', supplier_currency: '', specification: '', bill_pulse: '', requirements_text: '' })
-            setError(null)
-          }}
-          footer={
-            <>
-              <button
-                onClick={() => {
-                  setFulfillCustomRequestModal(null)
-                  setFulfillForm({ mrc: '', nrc: '', currency: 'USD', moq: '1', supplier_mrc: '', supplier_nrc: '', supplier_currency: '', specification: '', bill_pulse: '', requirements_text: '' })
-                  setError(null)
-                }}
-                className={BTN_SECONDARY}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleFulfillCustomRequestSubmit}
-                disabled={processingCustomRequest === fulfillCustomRequestModal.id}
-                className={BTN_PRIMARY}
-              >
-                {processingCustomRequest === fulfillCustomRequestModal.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {processingCustomRequest === fulfillCustomRequestModal.id ? 'Approving…' : 'Approve'}
-              </button>
-            </>
-          }
-        >
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+            <h3 className="text-xl font-semibold text-[#215F9A] mb-2">Approve request – mandatory fields</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Fill in the mandatory fields below to approve this request and add the number to inventory.
+            </p>
             {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={LABEL_CLASS}>MRC *</label>
+                  <label className="block text-sm font-medium mb-1">MRC *</label>
                   <input
                     type="text"
                     value={fulfillForm.mrc}
                     onChange={(e) => setFulfillForm({ ...fulfillForm, mrc: e.target.value })}
-                    className={INPUT_CLASS}
+                    className="w-full p-2 border rounded-lg"
                     placeholder="e.g. 12.50"
                   />
                 </div>
                 <div>
-                  <label className={LABEL_CLASS}>NRC *</label>
+                  <label className="block text-sm font-medium mb-1">NRC *</label>
                   <input
                     type="text"
                     value={fulfillForm.nrc}
                     onChange={(e) => setFulfillForm({ ...fulfillForm, nrc: e.target.value })}
-                    className={INPUT_CLASS}
+                    className="w-full p-2 border rounded-lg"
                     placeholder="e.g. 20"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={LABEL_CLASS}>Currency *</label>
+                  <label className="block text-sm font-medium mb-1">Currency *</label>
                   <SelectWithCustom
                     value={fulfillForm.currency}
                     onChange={(value) => setFulfillForm({ ...fulfillForm, currency: value })}
@@ -5122,12 +4508,12 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={LABEL_CLASS}>MOQ *</label>
+                  <label className="block text-sm font-medium mb-1">MOQ *</label>
                   <input
                     type="text"
                     value={fulfillForm.moq}
                     onChange={(e) => setFulfillForm({ ...fulfillForm, moq: e.target.value })}
-                    className={INPUT_CLASS}
+                    className="w-full p-2 border rounded-lg"
                     placeholder="1"
                   />
                 </div>
@@ -5135,27 +4521,27 @@ export default function AdminDashboard() {
               <div className="text-sm font-semibold text-[#215F9A] mt-2">Supplier rate (optional, admin only)</div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className={LABEL_CLASS}>Supplier MRC</label>
+                  <label className="block text-sm font-medium mb-1">Supplier MRC</label>
                   <input
                     type="text"
                     value={fulfillForm.supplier_mrc}
                     onChange={(e) => setFulfillForm({ ...fulfillForm, supplier_mrc: e.target.value })}
-                    className={INPUT_CLASS}
+                    className="w-full p-2 border rounded-lg"
                     placeholder="Optional"
                   />
                 </div>
                 <div>
-                  <label className={LABEL_CLASS}>Supplier NRC</label>
+                  <label className="block text-sm font-medium mb-1">Supplier NRC</label>
                   <input
                     type="text"
                     value={fulfillForm.supplier_nrc}
                     onChange={(e) => setFulfillForm({ ...fulfillForm, supplier_nrc: e.target.value })}
-                    className={INPUT_CLASS}
+                    className="w-full p-2 border rounded-lg"
                     placeholder="Optional"
                   />
                 </div>
                 <div>
-                  <label className={LABEL_CLASS}>Supplier Currency</label>
+                  <label className="block text-sm font-medium mb-1">Supplier Currency</label>
                   <SelectWithCustom
                     value={fulfillForm.supplier_currency}
                     onChange={(value) => setFulfillForm({ ...fulfillForm, supplier_currency: value })}
@@ -5166,36 +4552,56 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div>
-                <label className={LABEL_CLASS}>Specification (optional)</label>
+                <label className="block text-sm font-medium mb-1">Specification (optional)</label>
                 <input
                   type="text"
                   value={fulfillForm.specification}
                   onChange={(e) => setFulfillForm({ ...fulfillForm, specification: e.target.value })}
-                  className={INPUT_CLASS}
+                  className="w-full p-2 border rounded-lg"
                   placeholder="e.g. Landline, France (07)"
                 />
               </div>
               <div>
-                <label className={LABEL_CLASS}>Bill pulse (optional)</label>
+                <label className="block text-sm font-medium mb-1">Bill pulse (optional)</label>
                 <input
                   type="text"
                   value={fulfillForm.bill_pulse}
                   onChange={(e) => setFulfillForm({ ...fulfillForm, bill_pulse: e.target.value })}
-                  className={INPUT_CLASS}
+                  className="w-full p-2 border rounded-lg"
                   placeholder="e.g. 30/30"
                 />
               </div>
               <div>
-                <label className={LABEL_CLASS}>Requirements text (optional)</label>
+                <label className="block text-sm font-medium mb-1">Requirements text (optional)</label>
                 <textarea
                   value={fulfillForm.requirements_text}
                   onChange={(e) => setFulfillForm({ ...fulfillForm, requirements_text: e.target.value })}
-                  className={`${INPUT_CLASS} min-h-[80px]`}
+                  className="w-full p-2 border rounded-lg min-h-[80px]"
                   placeholder="Documentation or regulatory requirements"
                 />
               </div>
             </div>
-        </AdminModalShell>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleFulfillCustomRequestSubmit}
+                disabled={processingCustomRequest === fulfillCustomRequestModal.id}
+                className="flex-1 bg-[#215F9A] text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {processingCustomRequest === fulfillCustomRequestModal.id ? 'Approving...' : 'Approve'}
+              </button>
+              <button
+                onClick={() => {
+                  setFulfillCustomRequestModal(null)
+                  setFulfillForm({ mrc: '', nrc: '', currency: 'USD', moq: '1', supplier_mrc: '', supplier_nrc: '', supplier_currency: '', specification: '', bill_pulse: '', requirements_text: '' })
+                  setError(null)
+                }}
+                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Documents Modal for viewing uploaded documents */}
@@ -5209,128 +4615,6 @@ export default function AdminDashboard() {
           isAdmin={true}
         />
       )}
-
-      {/* Destructive / reason-gated confirmations. Each onConfirm calls the
-          exact same handler the old window.confirm()/prompt() flow called,
-          with the exact same arguments — only how confirmation is collected
-          changed. */}
-      <ConfirmModal
-        isOpen={!!numberPendingDelete}
-        title="Delete this number?"
-        message={
-          <>
-            This removes{' '}
-            <strong>
-              {numberPendingDelete?.country_name} · {numberPendingDelete?.number_type}
-            </strong>{' '}
-            from the available inventory (soft-delete — it can be restored later if needed).
-          </>
-        }
-        confirmLabel="Delete number"
-        loading={isDeletingNumber}
-        onCancel={() => setNumberPendingDelete(null)}
-        onConfirm={async () => {
-          if (!numberPendingDelete) return
-          setIsDeletingNumber(true)
-          await handleDeleteNumber(numberPendingDelete.id)
-          setIsDeletingNumber(false)
-          setNumberPendingDelete(null)
-        }}
-      />
-
-      <ConfirmModal
-        isOpen={!!userPendingDelete}
-        title="Delete this user?"
-        message={
-          <>
-            This permanently deletes <strong>{userPendingDelete?.name}</strong>&apos;s account and all associated orders. This action cannot be undone.
-          </>
-        }
-        confirmLabel="Delete user"
-        loading={processingUser === userPendingDelete?.id}
-        onCancel={() => setUserPendingDelete(null)}
-        onConfirm={async () => {
-          if (!userPendingDelete) return
-          await handleDeleteUser(userPendingDelete)
-          setUserPendingDelete(null)
-        }}
-      />
-
-      <ReasonModal
-        isOpen={!!orderPendingReject}
-        title="Reject this order?"
-        message={
-          <>
-            Provide a reason for rejecting the order from <strong>{orderPendingReject?.customer_name}</strong>.
-          </>
-        }
-        placeholder="Rejection reason…"
-        value={orderRejectReason}
-        onChange={setOrderRejectReason}
-        confirmLabel="Reject order"
-        requireValue
-        loading={processingOrder === orderPendingReject?.id}
-        onCancel={() => {
-          setOrderPendingReject(null)
-          setOrderRejectReason('')
-        }}
-        onConfirm={async () => {
-          if (!orderPendingReject || !orderRejectReason) return
-          await handleOrderStatus(orderPendingReject.id, 'rejected', orderRejectReason)
-          setOrderPendingReject(null)
-          setOrderRejectReason('')
-        }}
-      />
-
-      <ReasonModal
-        isOpen={!!signupPendingReject}
-        title="Reject this signup request?"
-        message={
-          <>
-            Optionally provide a reason for rejecting <strong>{signupPendingReject?.email}</strong>&apos;s signup request.
-          </>
-        }
-        placeholder="Rejection reason (optional)…"
-        value={signupRejectReason}
-        onChange={setSignupRejectReason}
-        confirmLabel="Reject request"
-        loading={processingSignup === signupPendingReject?.id}
-        onCancel={() => {
-          setSignupPendingReject(null)
-          setSignupRejectReason('')
-        }}
-        onConfirm={async () => {
-          if (!signupPendingReject) return
-          await handleRejectSignup(signupPendingReject.id, signupRejectReason)
-          setSignupPendingReject(null)
-          setSignupRejectReason('')
-        }}
-      />
-
-      <ReasonModal
-        isOpen={!!customRequestPendingReject}
-        title="Reject this custom number request?"
-        message={
-          <>
-            Optionally provide a reason for rejecting this request from <strong>{customRequestPendingReject?.customer_name || 'this customer'}</strong>.
-          </>
-        }
-        placeholder="Rejection reason (optional)…"
-        value={customRequestRejectReason}
-        onChange={setCustomRequestRejectReason}
-        confirmLabel="Reject request"
-        loading={processingCustomRequest === customRequestPendingReject?.id}
-        onCancel={() => {
-          setCustomRequestPendingReject(null)
-          setCustomRequestRejectReason('')
-        }}
-        onConfirm={async () => {
-          if (!customRequestPendingReject) return
-          await handleCustomRequestStatus(customRequestPendingReject.id, 'rejected', customRequestRejectReason)
-          setCustomRequestPendingReject(null)
-          setCustomRequestRejectReason('')
-        }}
-      />
     </main>
   )
 }
