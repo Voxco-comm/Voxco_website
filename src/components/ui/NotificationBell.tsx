@@ -1,87 +1,46 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { Bell, X, ChevronLeft } from 'lucide-react'
+import {
+  Bell,
+  X,
+  ChevronLeft,
+  Package,
+  PackagePlus,
+  Clock,
+  ShieldCheck,
+  Info,
+  CircleCheckBig,
+  XCircle,
+  Loader2,
+} from 'lucide-react'
 import { useNotifications, Notification } from '../NotificationContext'
 
-const typeIconMap: Record<Notification['type'], React.ReactNode> = {
-  order_status: (
-    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
-    </div>
-  ),
-  draft_reminder: (
-    <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
-      <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    </div>
-  ),
-  admin_action: (
-    <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
-      <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-      </svg>
-    </div>
-  ),
-  system: (
-    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-      <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    </div>
-  ),
-  signup_approved: (
-    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-      </svg>
-    </div>
-  ),
-  signup_rejected: (
-    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-      <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-      </svg>
-    </div>
-  ),
-  new_order: (
-    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-      <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-      </svg>
-    </div>
-  ),
-  order_approved: (
-    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    </div>
-  ),
-  order_rejected: (
-    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-      <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    </div>
-  ),
-  custom_request_approved: (
-    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    </div>
-  ),
-  custom_request_rejected: (
-    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-      <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-      </svg>
-    </div>
-  ),
+// Presentation-only: derives an icon + color tone for each existing
+// notification type. Every key below already exists on Notification['type'];
+// nothing here reads, writes, or reinterprets the underlying data.
+const typeMeta: Record<Notification['type'], { icon: React.ComponentType<{ className?: string }>; className: string }> = {
+  order_status: { icon: Package, className: 'bg-blue-50 text-blue-600' },
+  draft_reminder: { icon: Clock, className: 'bg-amber-50 text-amber-600' },
+  admin_action: { icon: ShieldCheck, className: 'bg-purple-50 text-purple-600' },
+  system: { icon: Info, className: 'bg-slate-100 text-slate-500' },
+  signup_approved: { icon: CircleCheckBig, className: 'bg-emerald-50 text-emerald-600' },
+  signup_rejected: { icon: XCircle, className: 'bg-red-50 text-red-600' },
+  new_order: { icon: PackagePlus, className: 'bg-indigo-50 text-indigo-600' },
+  order_approved: { icon: CircleCheckBig, className: 'bg-emerald-50 text-emerald-600' },
+  order_rejected: { icon: XCircle, className: 'bg-red-50 text-red-600' },
+  custom_request_approved: { icon: CircleCheckBig, className: 'bg-emerald-50 text-emerald-600' },
+  custom_request_rejected: { icon: XCircle, className: 'bg-red-50 text-red-600' },
+}
+
+function NotificationIcon({ type }: { type: Notification['type'] }) {
+  const meta = typeMeta[type]
+  const Icon = meta.icon
+  return (
+    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${meta.className}`}>
+      <Icon className="h-4 w-4" />
+    </span>
+  )
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -145,11 +104,12 @@ export default function NotificationBell() {
       {/* Bell Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-xl hover:bg-white/10 transition-colors"
+        aria-label="Notifications"
+        className="relative flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-white/10"
       >
-        <Bell className="w-5 h-5 text-white" />
+        <Bell className="h-5 w-5 text-white" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+          <span className="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold leading-none text-white ring-2 ring-[#215F9A]">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -157,40 +117,42 @@ export default function NotificationBell() {
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-scale-in origin-top-right">
+        <div className="animate-scale-in absolute right-0 top-full z-50 mt-2 w-96 max-w-[calc(100vw-2rem)] origin-top-right overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl ring-1 ring-black/5">
           {/* Selected Notification Full View */}
           {selectedNotification ? (
             <>
               {/* Header */}
-              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-3">
+              <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3.5">
                 <button
                   onClick={handleBack}
-                  className="p-1 hover:bg-gray-200 rounded-lg transition-colors"
+                  aria-label="Back"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100"
                 >
-                  <ChevronLeft className="w-5 h-5 text-gray-600" />
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
-                <h3 className="font-semibold text-gray-900 flex-1">Notification Details</h3>
+                <h3 className="flex-1 text-sm font-semibold text-slate-900">Notification details</h3>
                 <button
                   onClick={() => { setIsOpen(false); setSelectedNotification(null); }}
-                  className="p-1 hover:bg-gray-200 rounded-lg transition-colors"
+                  aria-label="Close"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
                 >
-                  <X className="w-5 h-5 text-gray-600" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
               {/* Full Content */}
-              <div className="p-4 max-h-[60vh] overflow-y-auto">
-                <div className="flex items-start gap-3 mb-4">
-                  {typeIconMap[selectedNotification.type]}
-                  <div>
-                    <h4 className="font-semibold text-gray-900">{selectedNotification.title}</h4>
-                    <p className="text-xs text-gray-400 mt-1">
+              <div className="max-h-[60vh] overflow-y-auto p-4">
+                <div className="mb-4 flex items-start gap-3">
+                  <NotificationIcon type={selectedNotification.type} />
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-semibold text-slate-900">{selectedNotification.title}</h4>
+                    <p className="mt-1 text-xs text-slate-400">
                       {formatTimeAgo(selectedNotification.created_at)}
                     </p>
                   </div>
                 </div>
                 {selectedNotification.message && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
                       {selectedNotification.message}
                     </p>
                   </div>
@@ -200,26 +162,32 @@ export default function NotificationBell() {
           ) : (
             <>
               {/* Header */}
-              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
                 {showAll ? (
                   <>
                     <button
                       onClick={handleBack}
-                      className="p-1 hover:bg-gray-200 rounded-lg transition-colors mr-2"
+                      aria-label="Back"
+                      className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100"
                     >
-                      <ChevronLeft className="w-5 h-5 text-gray-600" />
+                      <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <h3 className="font-semibold text-gray-900 flex-1">All Notifications ({notifications.length})</h3>
+                    <h3 className="flex-1 text-sm font-semibold text-slate-900">All notifications ({notifications.length})</h3>
                   </>
                 ) : (
-                  <h3 className="font-semibold text-gray-900">Notifications</h3>
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <p className="mt-0.5 text-xs text-slate-500">{unreadCount} unread</p>
+                    )}
+                  </div>
                 )}
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="text-xs text-[#215F9A] hover:text-[#2c78c0] font-medium"
+                    className="shrink-0 whitespace-nowrap text-xs font-semibold text-[#215F9A] transition-colors hover:text-[#1b4e80]"
                   >
-                    Mark all as read
+                    Mark all read
                   </button>
                 )}
               </div>
@@ -227,41 +195,46 @@ export default function NotificationBell() {
               {/* Notifications List */}
               <div className={`overflow-y-auto ${showAll ? 'max-h-[60vh]' : 'max-h-96'}`}>
                 {loading ? (
-                  <div className="p-4 text-center text-gray-500">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#215F9A] mx-auto"></div>
-                    <p className="mt-2 text-sm">Loading notifications...</p>
+                  <div className="flex flex-col items-center gap-3 py-10 text-center">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#215F9A]" />
+                    <p className="text-sm font-medium text-slate-500">Loading notifications…</p>
                   </div>
                 ) : notifications.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">No notifications yet</p>
+                  <div className="flex flex-col items-center gap-3 py-10 text-center">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                      <Bell className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm text-slate-500">No notifications yet</p>
                   </div>
                 ) : (
-                  <div>
+                  <div className="divide-y divide-slate-50">
                     {displayedNotifications.map((notification) => (
                       <button
                         key={notification.id}
                         onClick={() => handleNotificationClick(notification)}
-                        className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-start gap-3 border-b border-gray-50 ${
-                          !notification.is_read ? 'bg-blue-50/50' : ''
+                        className={`relative flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-50 ${
+                          !notification.is_read ? 'bg-blue-50/40' : ''
                         }`}
                       >
-                        {typeIconMap[notification.type]}
-                        <div className="flex-1 min-w-0">
+                        {!notification.is_read && (
+                          <span className="absolute left-0 top-0 h-full w-0.5 bg-[#215F9A]" aria-hidden="true" />
+                        )}
+                        <NotificationIcon type={notification.type} />
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-gray-900 truncate">
+                            <p className="truncate text-sm font-medium text-slate-900">
                               {notification.title}
                             </p>
                             {!notification.is_read && (
-                              <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></span>
+                              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#215F9A]"></span>
                             )}
                           </div>
                           {notification.message && (
-                            <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                            <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">
                               {notification.message}
                             </p>
                           )}
-                          <p className="text-xs text-gray-400 mt-1">
+                          <p className="mt-1 text-xs text-slate-400">
                             {formatTimeAgo(notification.created_at)}
                           </p>
                         </div>
@@ -273,10 +246,10 @@ export default function NotificationBell() {
 
               {/* Footer */}
               {notifications.length > 5 && !showAll && (
-                <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 text-center">
-                  <button 
+                <div className="border-t border-slate-100 px-4 py-2.5 text-center">
+                  <button
                     onClick={handleViewAll}
-                    className="text-xs text-[#215F9A] hover:text-[#2c78c0] font-medium"
+                    className="text-xs font-semibold text-[#215F9A] transition-colors hover:text-[#1b4e80]"
                   >
                     View all notifications ({notifications.length})
                   </button>
@@ -289,4 +262,3 @@ export default function NotificationBell() {
     </div>
   )
 }
-

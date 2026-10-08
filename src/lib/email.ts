@@ -29,6 +29,20 @@ interface EmailResult {
   messageId?: string
 }
 
+// Portal sign-in page. Every email link meant to take a user (customer or
+// admin) to sign in points here, regardless of any `signInUrl` passed by callers.
+export const PORTAL_SIGN_IN_URL = 'https://orders.voxcocom.net/sign-in'
+
+// Escape user-supplied text before interpolating it into email HTML.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 // Email templates
 export const emailTemplates = {
   // Admin notification for new order
@@ -46,50 +60,77 @@ export const emailTemplates = {
   }) => ({
     subject: `New Order Received from ${orderDetails.customerName}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #215F9A; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">New Order Received</h1>
-        </div>
-        <div style="padding: 20px; background-color: #f9f9f9;">
-          <h2 style="color: #215F9A;">Order Details</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Customer:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.customerName}</td>
-            </tr>
-            ${orderDetails.companyName ? `<tr><td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Company:</strong></td><td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.companyName}</td></tr>` : ''}
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Email:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.customerEmail}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Country:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.country}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Number Type:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.numberType}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Quantity:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.quantity}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>MRC:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.currency} ${orderDetails.mrc.toFixed(2)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>NRC:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.currency} ${orderDetails.nrc.toFixed(2)}</td>
-            </tr>
-          </table>
-          <p style="margin-top: 20px;">Please review and process this order in the admin dashboard.</p>
-          ${orderDetails.signInUrl ? `<p style="margin-top: 16px;"><a href="${orderDetails.signInUrl}" style="color: #215F9A; font-weight: bold;">Sign in to the portal</a></p>` : ''}
-        </div>
-        <div style="background-color: #215F9A; color: white; padding: 10px; text-align: center; font-size: 12px;">
-          <p>Voxco Number Ordering Portal</p>
-        </div>
-      </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; background-color: #F5F7FA;">
+        <tr>
+          <td align="center" style="padding: 20px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 560px; background-color: #FFFFFF; border: 1px solid #EDF1F6; border-radius: 14px; border-collapse: separate; overflow: hidden;">
+              <tr>
+                <td bgcolor="#215F9A" style="background-color: #215F9A; background-image: linear-gradient(135deg, #215F9A 0%, #12324F 100%); border-radius: 14px 14px 0 0; padding: 20px 20px 24px 20px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td align="left" valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; color: #FFFFFF;">Voxco</td>
+                      <td align="right" valign="middle">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right">
+                          <tr>
+                            <td style="border: 1px solid #5B83AD; border-color: rgba(255,255,255,0.35); border-radius: 999px; padding: 4px 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10px; line-height: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #FFFFFF; white-space: nowrap;"><span style="color: #F97316; font-size: 8px; line-height: 14px; vertical-align: 1px;">&#9679;</span>&nbsp; Action Required</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="2" style="padding: 28px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        <h1 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em; color: #FFFFFF;">New Order Received</h1>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; line-height: 20px; font-weight: 400; color: #C3D3E4; color: rgba(255,255,255,0.7); word-break: break-word; overflow-wrap: anywhere;">from ${orderDetails.customerName}</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 16px 22px 24px 22px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Customer</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;">${orderDetails.customerName}</td>
+                    </tr>
+                    ${orderDetails.companyName ? `<tr><td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Company</td><td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;">${orderDetails.companyName}</td></tr>` : ''}
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Email</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;"><a href="mailto:${orderDetails.customerEmail}" style="color: #0F172A; text-decoration: none;">${orderDetails.customerEmail}</a></td>
+                    </tr>
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Country</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;">${orderDetails.country}</td>
+                    </tr>
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Number Type</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;">${orderDetails.numberType}</td>
+                    </tr>
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Quantity</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left;">${orderDetails.quantity}</td>
+                    </tr>
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">MRC</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 500; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;">${orderDetails.currency} ${orderDetails.mrc.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">NRC</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 500; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;">${orderDetails.currency} ${orderDetails.nrc.toFixed(2)}</td>
+                    </tr>
+                  </table>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td style="padding: 16px 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 20px; font-weight: 400; color: #64748B;">Please review and process this order in the admin dashboard.</td>
+                    </tr>
+                  </table>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;"><tr><td style="padding: 16px 0 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: separate;"><tr><td width="100%" align="center" bgcolor="#215F9A" style="width: 100%; background-color: #215F9A; border-bottom: 1px solid #184A78; border-radius: 10px; mso-padding-alt: 15px 24px;"><a href="${PORTAL_SIGN_IN_URL}" target="_blank" style="display: block; width: 100%; box-sizing: border-box; min-height: 50px; padding: 15px 24px; border-radius: 10px; background-color: #215F9A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: 0.01em; color: #FFFFFF; text-align: center; text-decoration: none;">Open Admin Dashboard&nbsp;&nbsp;&rarr;</a></td></tr></table></td></tr></table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     `,
   }),
 
@@ -103,62 +144,97 @@ export const emailTemplates = {
     quantity: number
     reason?: string
     signInUrl?: string
-  }) => ({
-    subject: `Order ${orderDetails.status === 'granted' ? 'Approved' : 'Update'} - Voxco`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #215F9A; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">Order ${orderDetails.status === 'granted' ? 'Approved!' : 'Status Update'}</h1>
-        </div>
-        <div style="padding: 20px; background-color: #f9f9f9;">
-          <p>Dear ${orderDetails.customerName}${orderDetails.companyName ? ` (${orderDetails.companyName})` : ''},</p>
-          ${orderDetails.status === 'granted'
-        ? `<p style="color: #22c55e; font-size: 18px;"><strong>Great news! Your order has been approved.</strong></p>`
-        : orderDetails.status === 'rejected'
-          ? `<p style="color: #ef4444; font-size: 18px;"><strong>We regret to inform you that your order has been rejected due to the below reasons:</strong></p>`
-          : `<p style="color: #ef4444; font-size: 18px;"><strong>Your order has been ${orderDetails.status}.</strong></p>`
-      }
-          <h3 style="color: #215F9A;">Order Details</h3>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Country:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.country}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Number Type:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.numberType}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Quantity:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.quantity}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Status:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">
-                <span style="color: ${orderDetails.status === 'granted' ? '#22c55e' : '#ef4444'}; font-weight: bold;">
-                  ${orderDetails.status.charAt(0).toUpperCase() + orderDetails.status.slice(1)}
-                </span>
-              </td>
-            </tr>
-            ${orderDetails.reason ? `
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Reason:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${orderDetails.reason}</td>
-            </tr>
-            ` : ''}
-          </table>
-          ${orderDetails.status === 'granted'
-        ? `<p style="margin-top: 20px;">Your numbers will be provisioned shortly. You can view your order in the dashboard.</p>`
-        : `<p style="margin-top: 20px;">If you have questions, please contact our support team.</p>`
-      }
-          ${orderDetails.signInUrl ? `<p style="margin-top: 16px;"><a href="${orderDetails.signInUrl}" style="color: #215F9A; font-weight: bold;">Sign in to the portal</a></p>` : ''}
-        </div>
-        <div style="background-color: #215F9A; color: white; padding: 10px; text-align: center; font-size: 12px;">
-          <p>Voxco Number Ordering Portal</p>
-        </div>
-      </div>
+  }) => {
+    const isGranted = orderDetails.status === 'granted'
+    const isRejected = orderDetails.status === 'rejected'
+    const statusLabel = orderDetails.status.charAt(0).toUpperCase() + orderDetails.status.slice(1)
+    const pillLabel = isGranted ? 'Approved' : isRejected ? 'Rejected' : statusLabel
+    const pillDot = isGranted ? '#22C55E' : isRejected ? '#EF4444' : '#CBD5E1'
+    const heading = isGranted ? 'Order Approved' : isRejected ? 'Order Not Approved' : 'Order Status Update'
+    const subheading = isGranted
+      ? 'Your numbers will be provisioned shortly.'
+      : isRejected
+        ? 'We were unable to approve this order.'
+        : `Your order has been ${orderDetails.status}.`
+    const intro = isGranted
+      ? 'Great news! Your order has been approved.'
+      : isRejected
+        ? 'We regret to inform you that your order has been rejected due to the below reasons:'
+        : `Your order has been ${orderDetails.status}.`
+    const helper = isGranted
+      ? 'Your numbers will be provisioned shortly. You can view your order in the dashboard.'
+      : 'If you have questions, please contact our support team.'
+    const ctaLabel = isGranted ? 'View Your Order' : 'Go to Portal'
+
+    return {
+      subject: `Order ${orderDetails.status === 'granted' ? 'Approved' : 'Update'} - Voxco`,
+      html: `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; background-color: #F5F7FA;">
+        <tr>
+          <td align="center" style="padding: 20px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 560px; background-color: #FFFFFF; border: 1px solid #EDF1F6; border-radius: 14px; border-collapse: separate; overflow: hidden;">
+              <tr>
+                <td bgcolor="#215F9A" style="background-color: #215F9A; background-image: linear-gradient(135deg, #215F9A 0%, #12324F 100%); border-radius: 14px 14px 0 0; padding: 20px 20px 24px 20px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td align="left" valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; color: #FFFFFF;">Voxco</td>
+                      <td align="right" valign="middle">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right">
+                          <tr>
+                            <td style="border: 1px solid #5B83AD; border-color: rgba(255,255,255,0.35); border-radius: 999px; padding: 4px 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10px; line-height: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #FFFFFF; white-space: nowrap;"><span style="color: ${pillDot}; font-size: 8px; line-height: 14px; vertical-align: 1px;">&#9679;</span>&nbsp; ${pillLabel}</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="2" style="padding: 28px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        <h1 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em; color: #FFFFFF;">${heading}</h1>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; line-height: 20px; font-weight: 400; color: #C3D3E4; color: rgba(255,255,255,0.7); word-break: break-word; overflow-wrap: anywhere;">${subheading}</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 22px 22px 24px 22px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td style="padding: 0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 23px; font-weight: 400; color: #0F172A; word-break: break-word; overflow-wrap: anywhere;">Dear ${orderDetails.customerName}${orderDetails.companyName ? ` (${orderDetails.companyName})` : ''},</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 0 0 10px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 22px; font-weight: 400; color: #475569;">${intro}</td>
+                    </tr>
+                  </table>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Country</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;">${orderDetails.country}</td>
+                    </tr>
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Number Type</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;">${orderDetails.numberType}</td>
+                    </tr>
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Quantity</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left;">${orderDetails.quantity}</td>
+                    </tr>
+                  </table>
+                  ${orderDetails.reason ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;"><tr><td style="padding: 14px 0 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: separate;"><tr><td bgcolor="#FEF2F2" style="background-color: #FEF2F2; border: 1px solid #FEE2E2; border-left: 3px solid #EF4444; border-radius: 8px; padding: 13px 16px 14px 16px;"><p style="margin: 0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #B91C1C;">Reason</p><p style="margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; white-space: pre-line; word-break: break-word; overflow-wrap: anywhere;">${orderDetails.reason}</p></td></tr></table></td></tr></table>` : ''}
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td style="padding: 16px 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 20px; font-weight: 400; color: #64748B;">${helper}</td>
+                    </tr>
+                  </table>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;"><tr><td style="padding: 16px 0 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: separate;"><tr><td width="100%" align="center" bgcolor="#215F9A" style="width: 100%; background-color: #215F9A; border-bottom: 1px solid #184A78; border-radius: 10px; mso-padding-alt: 15px 24px;"><a href="${PORTAL_SIGN_IN_URL}" target="_blank" style="display: block; width: 100%; box-sizing: border-box; min-height: 50px; padding: 15px 24px; border-radius: 10px; background-color: #215F9A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: 0.01em; color: #FFFFFF; text-align: center; text-decoration: none;">${ctaLabel}&nbsp;&nbsp;&rarr;</a></td></tr></table></td></tr></table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     `,
-  }),
+    }
+  },
 
   // Signup request notification for admin
   newSignupRequest: (details: {
@@ -170,34 +246,69 @@ export const emailTemplates = {
   }) => ({
     subject: `New Signup Request from ${details.name}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #215F9A; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">New Signup Request</h1>
-        </div>
-        <div style="padding: 20px; background-color: #f9f9f9;">
-          <h2 style="color: #215F9A;">Applicant Details</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Name:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${details.name}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Email:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${details.email}</td>
-            </tr>
-            ${details.companyName ? `<tr><td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Company:</strong></td><td style="padding: 10px; border-bottom: 1px solid #ddd;">${details.companyName}</td></tr>` : ''}
-            <tr>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Message:</strong></td>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${details.message}</td>
-            </tr>
-          </table>
-          <p style="margin-top: 20px;">Please review this request in the admin dashboard.</p>
-          ${details.signInUrl ? `<p style="margin-top: 16px;"><a href="${details.signInUrl}" style="color: #215F9A; font-weight: bold;">Sign in to the portal</a></p>` : ''}
-        </div>
-        <div style="background-color: #215F9A; color: white; padding: 10px; text-align: center; font-size: 12px;">
-          <p>Voxco Number Ordering Portal</p>
-        </div>
-      </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; background-color: #F5F7FA;">
+        <tr>
+          <td align="center" style="padding: 20px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 560px; background-color: #FFFFFF; border: 1px solid #EDF1F6; border-radius: 14px; border-collapse: separate; overflow: hidden;">
+              <tr>
+                <td bgcolor="#215F9A" style="background-color: #215F9A; background-image: linear-gradient(135deg, #215F9A 0%, #12324F 100%); border-radius: 14px 14px 0 0; padding: 20px 20px 24px 20px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td align="left" valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; color: #FFFFFF;">Voxco</td>
+                      <td align="right" valign="middle">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right">
+                          <tr>
+                            <td style="border: 1px solid #5B83AD; border-color: rgba(255,255,255,0.35); border-radius: 999px; padding: 4px 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10px; line-height: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #FFFFFF; white-space: nowrap;"><span style="color: #F97316; font-size: 8px; line-height: 14px; vertical-align: 1px;">&#9679;</span>&nbsp; Action Required</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="2" style="padding: 28px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        <h1 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em; color: #FFFFFF;">New Signup Request</h1>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; line-height: 20px; font-weight: 400; color: #C3D3E4; color: rgba(255,255,255,0.7); word-break: break-word; overflow-wrap: anywhere;">from ${details.name}</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 16px 22px 24px 22px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Name</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;">${details.name}</td>
+                    </tr>
+                    ${details.companyName ? `<tr><td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Company</td><td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;">${details.companyName}</td></tr>` : ''}
+                    <tr>
+                      <td width="38%" valign="top" style="width: 38%; padding: 14px 10px 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Email</td>
+                      <td width="62%" valign="top" style="width: 62%; padding: 11px 0; border-bottom: 1px solid #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; line-height: 21px; font-weight: 400; color: #0F172A; text-align: left; word-break: break-word; overflow-wrap: anywhere;"><a href="mailto:${details.email}" style="color: #0F172A; text-decoration: none;">${details.email}</a></td>
+                    </tr>
+                    <tr>
+                      <td colspan="2" style="padding: 14px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #94A3B8;">Message</td>
+                    </tr>
+                    <tr>
+                      <td colspan="2" style="padding: 8px 0 0 0;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: separate;">
+                          <tr>
+                            <td bgcolor="#F8FAFC" style="background-color: #F8FAFC; border: 1px solid #EDF1F6; border-radius: 8px; padding: 12px 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; white-space: pre-line; word-break: break-word; overflow-wrap: anywhere;">${details.message || '<span style="color: #94A3B8;">No message provided</span>'}</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td style="padding: 16px 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 20px; font-weight: 400; color: #64748B;">Please review this request in the admin dashboard.</td>
+                    </tr>
+                  </table>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;"><tr><td style="padding: 16px 0 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: separate;"><tr><td width="100%" align="center" bgcolor="#215F9A" style="width: 100%; background-color: #215F9A; border-bottom: 1px solid #184A78; border-radius: 10px; mso-padding-alt: 15px 24px;"><a href="${PORTAL_SIGN_IN_URL}" target="_blank" style="display: block; width: 100%; box-sizing: border-box; min-height: 50px; padding: 15px 24px; border-radius: 10px; background-color: #215F9A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: 0.01em; color: #FFFFFF; text-align: center; text-decoration: none;">Open Admin Dashboard&nbsp;&nbsp;&rarr;</a></td></tr></table></td></tr></table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     `,
   }),
 
@@ -205,23 +316,119 @@ export const emailTemplates = {
   signupApproved: (details: { name: string; signInUrl?: string }) => ({
     subject: 'Your Account Has Been Approved - Voxco',
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #215F9A; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">Welcome to Voxco!</h1>
-        </div>
-        <div style="padding: 20px; background-color: #f9f9f9;">
-          <p>Dear ${details.name},</p>
-          <p style="color: #22c55e; font-size: 18px;"><strong>Your account has been approved!</strong></p>
-          <p>You can now sign in to the Voxco Number Ordering Portal and start ordering numbers.</p>
-          ${details.signInUrl ? `<p><a href="${details.signInUrl}" style="color: #215F9A; font-weight: bold;">Sign in to the portal</a></p>` : ''}
-          <p>If you have any questions, please don't hesitate to contact our support team.</p>
-        </div>
-        <div style="background-color: #215F9A; color: white; padding: 10px; text-align: center; font-size: 12px;">
-          <p>Voxco Number Ordering Portal</p>
-        </div>
-      </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; background-color: #F5F7FA;">
+        <tr>
+          <td align="center" style="padding: 20px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 560px; background-color: #FFFFFF; border: 1px solid #EDF1F6; border-radius: 14px; border-collapse: separate; overflow: hidden;">
+              <tr>
+                <td bgcolor="#215F9A" style="background-color: #215F9A; background-image: linear-gradient(135deg, #215F9A 0%, #12324F 100%); border-radius: 14px 14px 0 0; padding: 20px 20px 24px 20px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td align="left" valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; color: #FFFFFF;">Voxco</td>
+                      <td align="right" valign="middle">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right">
+                          <tr>
+                            <td style="border: 1px solid #5B83AD; border-color: rgba(255,255,255,0.35); border-radius: 999px; padding: 4px 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10px; line-height: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #FFFFFF; white-space: nowrap;"><span style="color: #22C55E; font-size: 8px; line-height: 14px; vertical-align: 1px;">&#9679;</span>&nbsp; Account Active</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="2" style="padding: 28px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        <h1 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em; color: #FFFFFF;">Welcome to Voxco</h1>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; line-height: 20px; font-weight: 400; color: #C3D3E4; color: rgba(255,255,255,0.7);">Your account is ready</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 22px 22px 24px 22px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td style="padding: 0 0 10px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 23px; font-weight: 400; color: #0F172A; word-break: break-word; overflow-wrap: anywhere;">Dear ${details.name},</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 0 0 10px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 22px; font-weight: 400; color: #475569;">Your account has been approved. You can now sign in to the Voxco Number Ordering Portal and start ordering numbers.</td>
+                    </tr>
+                  </table>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;"><tr><td style="padding: 12px 0 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: separate;"><tr><td width="100%" align="center" bgcolor="#215F9A" style="width: 100%; background-color: #215F9A; border-bottom: 1px solid #184A78; border-radius: 10px; mso-padding-alt: 15px 24px;"><a href="${PORTAL_SIGN_IN_URL}" target="_blank" style="display: block; width: 100%; box-sizing: border-box; min-height: 50px; padding: 15px 24px; border-radius: 10px; background-color: #215F9A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: 0.01em; color: #FFFFFF; text-align: center; text-decoration: none;">Sign In to Portal&nbsp;&nbsp;&rarr;</a></td></tr></table></td></tr></table>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td style="padding: 18px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 20px; font-weight: 400; color: #64748B;">If you have any questions, please don't hesitate to contact our support team.</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     `,
   }),
+
+  // Applicant notification when an admin rejects their signup request.
+  // `reason` is only shown when the admin actually entered one; name and
+  // reason are user/admin-supplied, so they're HTML-escaped.
+  signupRejected: (details: { name?: string; reason?: string }) => {
+    const name = details.name?.trim() ? escapeHtml(details.name.trim()) : ''
+    const reason = details.reason?.trim() ? escapeHtml(details.reason.trim()) : ''
+
+    return {
+      subject: 'Your Signup Request Rejected - Voxco',
+      html: `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; background-color: #F5F7FA;">
+        <tr>
+          <td align="center" style="padding: 20px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 560px; background-color: #FFFFFF; border: 1px solid #EDF1F6; border-radius: 14px; border-collapse: separate; overflow: hidden;">
+              <tr>
+                <td bgcolor="#215F9A" style="background-color: #215F9A; background-image: linear-gradient(135deg, #215F9A 0%, #12324F 100%); border-radius: 14px 14px 0 0; padding: 20px 20px 24px 20px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td align="left" valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; color: #FFFFFF;">Voxco</td>
+                      <td align="right" valign="middle">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right">
+                          <tr>
+                            <td style="border: 1px solid #5B83AD; border-color: rgba(255,255,255,0.35); border-radius: 999px; padding: 4px 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10px; line-height: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #FFFFFF; white-space: nowrap;"><span style="color: #EF4444; font-size: 8px; line-height: 14px; vertical-align: 1px;">&#9679;</span>&nbsp; Not Approved</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="2" style="padding: 28px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        <h1 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em; color: #FFFFFF;">Signup Request Not Approved</h1>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; line-height: 20px; font-weight: 400; color: #C3D3E4; color: rgba(255,255,255,0.7); word-break: break-word; overflow-wrap: anywhere;">We were unable to approve your signup request.</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 22px 22px 24px 22px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td style="padding: 0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 23px; font-weight: 400; color: #0F172A; word-break: break-word; overflow-wrap: anywhere;">${name ? `Dear ${name},` : 'Hello,'}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 0 0 10px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 22px; font-weight: 400; color: #475569;">Thank you for your interest in the Voxco Number Ordering Portal. After reviewing your signup request, we are unable to approve it at this time.</td>
+                    </tr>
+                  </table>
+                  ${reason ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;"><tr><td style="padding: 6px 0 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: separate;"><tr><td bgcolor="#FEF2F2" style="background-color: #FEF2F2; border: 1px solid #FEE2E2; border-left: 3px solid #EF4444; border-radius: 8px; padding: 13px 16px 14px 16px;"><p style="margin: 0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #B91C1C;">Reason</p><p style="margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; white-space: pre-line; word-break: break-word; overflow-wrap: anywhere;">${reason}</p></td></tr></table></td></tr></table>` : ''}
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td style="padding: 16px 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 20px; font-weight: 400; color: #64748B;">If you have questions, please contact our support team.</td>
+                    </tr>
+                  </table>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;"><tr><td style="padding: 16px 0 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: separate;"><tr><td width="100%" align="center" bgcolor="#215F9A" style="width: 100%; background-color: #215F9A; border-bottom: 1px solid #184A78; border-radius: 10px; mso-padding-alt: 15px 24px;"><a href="${PORTAL_SIGN_IN_URL}" target="_blank" style="display: block; width: 100%; box-sizing: border-box; min-height: 50px; padding: 15px 24px; border-radius: 10px; background-color: #215F9A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: 0.01em; color: #FFFFFF; text-align: center; text-decoration: none;">Go to Portal&nbsp;&nbsp;&rarr;</a></td></tr></table></td></tr></table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    `,
+    }
+  },
 
   testNotification: (opts: { signInUrl?: string }) => ({
     subject: 'Voxco: notification email test',
@@ -232,7 +439,7 @@ export const emailTemplates = {
         </div>
         <div style="padding: 20px; background-color: #f9f9f9;">
           <p>This message confirms that admin notification email delivery is working.</p>
-          ${opts.signInUrl ? `<p><a href="${opts.signInUrl}" style="color: #215F9A;">Sign in to the portal</a></p>` : ''}
+          <p><a href="${PORTAL_SIGN_IN_URL}" style="color: #215F9A;">Sign in to the portal</a></p>
         </div>
       </div>
     `,
