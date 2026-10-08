@@ -9,6 +9,7 @@ import { EmptyState } from './ui/Alert'
 import { formatDecimal, formatPricePerUnit } from '@/lib/utils/formatNumber'
 import SelectWithCustom from './ui/SelectWithCustom'
 import DualScrollbar from './ui/DualScrollbar'
+import { PaginationBar } from './ui/Pagination'
 import InventoryNumberDetails from './InventoryNumberDetails'
 import { getCountryFlagEmoji } from '@/lib/utils/countryFlag'
 import {
@@ -25,8 +26,6 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
-  ChevronLeft,
-  ChevronRight,
   X,
   AlertTriangle,
   CircleCheckBig,
@@ -580,122 +579,6 @@ function FilterSelect({
   )
 }
 
-// Compact page-number sequence with ellipsis for large page counts, e.g.
-// [1, '…', 4, 5, 6, '…', 42]. Pure function of (current page, total pages).
-function getPaginationRange(current: number, total: number): (number | 'ellipsis')[] {
-  if (total <= 1) return total === 1 ? [1] : []
-  const range: (number | 'ellipsis')[] = [1]
-  const left = Math.max(2, current - 1)
-  const right = Math.min(total - 1, current + 1)
-  if (left > 2) range.push('ellipsis')
-  for (let i = left; i <= right; i++) range.push(i)
-  if (right < total - 1) range.push('ellipsis')
-  range.push(total)
-  return range
-}
-
-// Client-side pagination footer: "Showing X–Y of Z", compact page numbers,
-// Prev/Next, and an optional rows-per-page selector. Purely presentational —
-// holds no state of its own and calls nothing but the callbacks it's given.
-// The caller owns the page/pageSize state and is responsible for slicing its
-// already-filtered array; this component never reads or filters data itself.
-function PaginationBar({
-  page,
-  totalPages,
-  pageSize,
-  totalItems,
-  onPageChange,
-  onPageSizeChange,
-  pageSizeOptions = [20, 50, 100],
-}: {
-  page: number
-  totalPages: number
-  pageSize: number
-  totalItems: number
-  onPageChange: (page: number) => void
-  onPageSizeChange?: (size: number) => void
-  pageSizeOptions?: number[]
-}) {
-  if (totalItems === 0) return null
-
-  const startItem = (page - 1) * pageSize + 1
-  const endItem = Math.min(page * pageSize, totalItems)
-  const pages = getPaginationRange(page, totalPages)
-
-  return (
-    <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-        <span>
-          Showing <span className="font-medium tabular-nums text-slate-700">{startItem}–{endItem}</span> of{' '}
-          <span className="font-medium tabular-nums text-slate-700">{totalItems}</span>
-        </span>
-        {onPageSizeChange && (
-          <label className="flex items-center gap-1.5">
-            <span className="hidden sm:inline">Rows per page</span>
-            <select
-              value={pageSize}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="rounded-md border border-slate-200 bg-white py-1 pl-2 pr-6 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:border-slate-300 focus:border-[#215F9A] focus:outline-none focus:ring-2 focus:ring-[#215F9A]/20"
-            >
-              {pageSizeOptions.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1}
-            aria-label="Previous page"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-[#215F9A]/30 hover:bg-[#215F9A]/5 hover:text-[#215F9A] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-transparent disabled:hover:text-slate-500"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-
-          {pages.map((p, idx) =>
-            p === 'ellipsis' ? (
-              <span key={`ellipsis-${idx}`} className="px-1 text-xs text-slate-400">
-                …
-              </span>
-            ) : (
-              <button
-                key={p}
-                type="button"
-                onClick={() => onPageChange(p)}
-                aria-current={p === page ? 'page' : undefined}
-                className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold tabular-nums transition-colors ${
-                  p === page
-                    ? 'bg-[#215F9A] text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                {p}
-              </button>
-            )
-          )}
-
-          <button
-            type="button"
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= totalPages}
-            aria-label="Next page"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-[#215F9A]/30 hover:bg-[#215F9A]/5 hover:text-[#215F9A] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-transparent disabled:hover:text-slate-500"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // Shared chrome for admin modals: backdrop, panel, header (icon + title +
 // optional subtitle + close), scrollable body, optional footer. Holds no
 // state; calls nothing but the onClose the caller supplies.
@@ -1217,7 +1100,12 @@ export default function AdminDashboard() {
     setError(null)
 
     try {
-      const { error } = await supabase
+      const request = signupRequests.find(r => r.id === requestId)
+
+      // Only transition a still-pending request. The status guard makes this
+      // atomic in the database, so a double-click or a second admin can never
+      // reject (and email) the same request twice.
+      const { data: rejectedRows, error } = await supabase
         .from('signup_requests')
         .update({
           status: 'rejected',
@@ -1225,10 +1113,42 @@ export default function AdminDashboard() {
           rejected_at: new Date().toISOString(),
         })
         .eq('id', requestId)
+        .eq('status', 'pending')
+        .select('id')
 
       if (error) throw error
+      if (!rejectedRows || rejectedRows.length === 0) {
+        await loadSignupRequests()
+        await loadPendingSignupCount()
+        throw new Error('This signup request has already been processed')
+      }
 
-      setSuccess('Signup request rejected')
+      // Notify the applicant. The server looks up the recipient from the
+      // rejected request itself. A delivery failure never undoes the
+      // rejection — it's reported to the admin instead.
+      let emailError: string | null = null
+      try {
+        const emailRes = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'signup_rejected', data: { requestId } }),
+        })
+        if (!emailRes.ok) {
+          const errData = await emailRes.json().catch(() => ({}))
+          emailError = errData?.error || emailRes.statusText || 'Unknown error'
+        }
+      } catch (emailErr: any) {
+        emailError = emailErr?.message || 'Network error'
+      }
+
+      const recipient = request?.email || 'the applicant'
+      if (emailError) {
+        console.warn('Failed to send signup rejected email:', emailError)
+        setSuccess('Signup request rejected')
+        setError(`The rejection was saved, but the notification email to ${recipient} could not be sent: ${emailError}`)
+      } else {
+        setSuccess(`Signup request rejected. A notification email has been sent to ${recipient}.`)
+      }
       await loadSignupRequests()
       await loadPendingSignupCount()
     } catch (err: any) {

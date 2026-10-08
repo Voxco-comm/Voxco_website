@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail, emailTemplates, getNotificationEmail } from '@/lib/email'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { isAdmin } from '@/lib/admin'
+
+// Stored by the admin dashboard when a signup is rejected without a reason;
+// it's a placeholder, not a real reason, so it is never shown to the applicant.
+const DEFAULT_SIGNUP_REJECTED_REASON = 'Application rejected'
 
 export async function POST(request: NextRequest) {
   try {
@@ -80,6 +85,45 @@ export async function POST(request: NextRequest) {
           }
         }
         break
+
+      case 'signup_rejected': {
+        // Trusted path: only an active admin may trigger this, and the
+        // recipient, name and reason come from the database row — never from
+        // the request body — so callers cannot direct mail to arbitrary
+        // addresses or send it for a request that wasn't actually rejected.
+        if (!(await isAdmin())) {
+          return NextResponse.json({ error: 'Not authorized', code: 'FORBIDDEN' }, { status: 403 })
+        }
+        const requestId = data?.requestId
+        if (!requestId || typeof requestId !== 'string') {
+          return NextResponse.json({ error: 'Signup request ID is required', code: 'BAD_REQUEST' }, { status: 400 })
+        }
+        const { data: signupRequest, error: signupError } = await supabaseForSettings
+          .from('signup_requests')
+          .select('email, name, status, rejected_reason')
+          .eq('id', requestId)
+          .single()
+        if (signupError || !signupRequest) {
+          return NextResponse.json({ error: 'Signup request not found', code: 'NOT_FOUND' }, { status: 404 })
+        }
+        if (signupRequest.status !== 'rejected') {
+          return NextResponse.json(
+            { error: 'Signup request is not rejected', code: 'INVALID_STATUS' },
+            { status: 409 }
+          )
+        }
+        const reason =
+          signupRequest.rejected_reason && signupRequest.rejected_reason !== DEFAULT_SIGNUP_REJECTED_REASON
+            ? signupRequest.rejected_reason
+            : undefined
+        const template = emailTemplates.signupRejected({ name: signupRequest.name, reason })
+        emailOptions = {
+          to: signupRequest.email,
+          subject: template.subject,
+          html: template.html,
+        }
+        break
+      }
 
       case 'test_notification':
         if (notificationEmail) {
