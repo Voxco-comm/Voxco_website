@@ -2,10 +2,20 @@
 
 import React, { useState, FormEvent, ChangeEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Loader2, Lock, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import Button from './ui/Button'
 import Alert from './ui/Alert'
-import AuthPagesFooter from './AuthPagesFooter'
+import AuthLayout, {
+  AuthHeader,
+  AuthPrimaryButton,
+  AuthSwitchPrompt,
+  PasswordToggle,
+  authIconClass,
+  authInputClass,
+  authLabelClass,
+  authLinkClass,
+  fieldBorder,
+} from './AuthLayout'
 
 export default function Signin() {
   const router = useRouter()
@@ -125,185 +135,132 @@ export default function Signin() {
     handleInputChange()
   }
 
+
+  // Presentational only: outline the empty field(s) when the existing
+  // "fill in all fields" validation message is showing.
+  const missingFields = error === 'Please fill in all fields.'
+  const emailInvalid = missingFields && !email.trim()
+  const passwordInvalid = missingFields && !password.trim()
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100 flex items-center justify-center p-4">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#215F9A]/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#215F9A]/10 rounded-full blur-3xl" />
-      </div>
+    <AuthLayout showSecureNote>
+      <AuthHeader title="Welcome back" subtitle="Sign in to Voxco Number Portal" />
 
-      <div className="relative w-full max-w-md animate-fade-in-up">
-        {/* Card */}
-        <div className="bg-white rounded-3xl shadow-xl p-8 md:p-10">
-          {/* Logo */}
-          <div className="flex justify-center mb-8 animate-fade-in" style={{ animationDelay: '100ms' }}>
-            <div className="bg-[#215F9A] px-6 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <img src="/logo.png" className="h-8" alt="Voxco logo" />
-            </div>
-          </div>
+      {/* Disabled account message */}
+      {disabledParam === '1' && (
+        <div className="mb-5">
+          <Alert
+            type="error"
+            message="Your account has been disabled. Please contact support."
+            dismissible
+            onDismiss={() => router.replace('/sign-in')}
+          />
+        </div>
+      )}
 
-          {/* Header */}
-          <div className="text-center mb-8 animate-fade-in" style={{ animationDelay: '200ms' }}>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome back</h1>
-            <p className="text-gray-500">Sign in to Voxco Number Portal</p>
-          </div>
+      {/* Error Alert */}
+      {error && (
+        <div className="mb-5" role="alert">
+          <Alert
+            type="error"
+            message={error}
+            dismissible
+            onDismiss={() => setError('')}
+          />
+        </div>
+      )}
 
-          {/* Disabled account message */}
-          {disabledParam === '1' && (
-            <div className="mb-6">
-              <Alert
-                type="error"
-                message="Your account has been disabled. Please contact support."
-                dismissible
-                onDismiss={() => router.replace('/sign-in')}
-              />
-            </div>
-          )}
+      {success && (
+        <div className="mb-5" role="status">
+          <Alert
+            type="success"
+            message={success}
+            dismissible
+            onDismiss={() => setSuccess('')}
+          />
+        </div>
+      )}
 
-          {/* Error Alert */}
-          {error && (
-            <div className="mb-6">
-              <Alert
-                type="error"
-                message={error}
-                dismissible
-                onDismiss={() => setError('')}
-              />
-            </div>
-          )}
-
-          {success && (
-            <div className="mb-6">
-              <Alert
-                type="success"
-                message={success}
-                dismissible
-                onDismiss={() => setSuccess('')}
-              />
-            </div>
-          )}
-
-          {/* Form */}
-          <form className="space-y-5">
-            {/* Email Field */}
-            <div className="animate-fade-in" style={{ animationDelay: '300ms' }}>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                  </svg>
-                </div>
-                <input
-                  className="input pl-12"
-                  style={{ textIndent: '1.5rem' }}
-                  type="email"
-                  id="email"
-                  name="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={handleEmailChange}
-                  required
-                  disabled={loading}
-                  autoComplete="email"
-                />
-              </div>
-            </div>
-
-            {/* Password Field */}
-            <div className="animate-fade-in" style={{ animationDelay: '400ms' }}>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </div>
-                <input
-                  className="input pl-12 pr-12"
-                  style={{ textIndent: '1.5rem' }}
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  name="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  required
-                  disabled={loading}
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showPassword ? (
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex justify-end animate-fade-in" style={{ animationDelay: '500ms' }}>
-              <button
-                type="button"
-                onClick={handleResetPassword}
-                disabled={resetLoading}
-                className="text-sm font-medium text-[#215F9A] hover:text-[#2c78c0] disabled:opacity-60"
-              >
-                {resetLoading ? 'Sending reset link...' : 'Forgot password?'}
-              </button>
-            </div>
-
-            {/* Sign In Button */}
-            <div className="animate-fade-in" style={{ animationDelay: '550ms' }}>
-              <Button
-                onClick={handleClick}
-                loading={loading}
-                loadingText="Signing in..."
-                fullWidth
-                size="lg"
-                className="mt-2"
-              >
-                Sign In
-              </Button>
-            </div>
-          </form>
-
-          {/* Sign Up Link */}
-          <div className="mt-8 text-center animate-fade-in" style={{ animationDelay: '600ms' }}>
-            <p className="text-gray-600">
-              Don&apos;t have an account?{' '}
-              <button
-                onClick={() => router.push('/sign-up')}
-                className="text-[#215F9A] font-semibold hover:text-[#2c78c0] transition-colors"
-              >
-                Sign Up
-              </button>
-            </p>
+      {/* Form */}
+      <form className="space-y-5">
+        {/* Email Field */}
+        <div>
+          <label htmlFor="email" className={authLabelClass}>
+            Email address
+          </label>
+          <div className="relative">
+            <input
+              className={`${authInputClass} pr-4 ${fieldBorder(emailInvalid)}`}
+              type="email"
+              id="email"
+              name="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={handleEmailChange}
+              required
+              disabled={loading}
+              autoComplete="email"
+              aria-invalid={emailInvalid || undefined}
+            />
+            <Mail className={authIconClass} strokeWidth={1.75} aria-hidden="true" />
           </div>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-sm text-gray-500 mt-6 animate-fade-in" style={{ animationDelay: '700ms' }}>
-          Secure login powered by Supabase
-        </p>
-        <div className="mt-4 animate-fade-in" style={{ animationDelay: '750ms' }}>
-          <AuthPagesFooter />
+        {/* Password Field */}
+        <div>
+          <label htmlFor="password" className={authLabelClass}>
+            Password
+          </label>
+          <div className="relative">
+            <input
+              className={`${authInputClass} pr-12 ${fieldBorder(passwordInvalid)}`}
+              type={showPassword ? 'text' : 'password'}
+              id="password"
+              name="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={handlePasswordChange}
+              required
+              disabled={loading}
+              autoComplete="current-password"
+              aria-invalid={passwordInvalid || undefined}
+            />
+            <Lock className={authIconClass} strokeWidth={1.75} aria-hidden="true" />
+            <PasswordToggle shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />
+          </div>
+
+          <div className="mt-2.5 flex justify-end">
+            <button
+              type="button"
+              onClick={handleResetPassword}
+              disabled={resetLoading}
+              className="inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-[#215F9A] transition-colors duration-200 hover:text-[#2c78c0] hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#215F9A]/40 focus-visible:ring-offset-2 disabled:cursor-wait disabled:no-underline disabled:opacity-70"
+            >
+              {resetLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+              {resetLoading ? 'Sending reset link...' : 'Forgot password?'}
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
+
+        {/* Sign In Button */}
+        <AuthPrimaryButton
+          type="submit"
+          onClick={handleClick}
+          loading={loading}
+          loadingText="Signing in..."
+          className="!mt-7"
+        >
+          Sign In
+        </AuthPrimaryButton>
+      </form>
+
+      {/* Sign Up Link */}
+      <AuthSwitchPrompt>
+        Don&apos;t have an account?{' '}
+        <button type="button" onClick={() => router.push('/sign-up')} className={authLinkClass}>
+          Sign Up
+        </button>
+      </AuthSwitchPrompt>
+    </AuthLayout>
   )
 }
