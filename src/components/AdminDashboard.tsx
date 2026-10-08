@@ -1100,7 +1100,12 @@ export default function AdminDashboard() {
     setError(null)
 
     try {
-      const { error } = await supabase
+      const request = signupRequests.find(r => r.id === requestId)
+
+      // Only transition a still-pending request. The status guard makes this
+      // atomic in the database, so a double-click or a second admin can never
+      // reject (and email) the same request twice.
+      const { data: rejectedRows, error } = await supabase
         .from('signup_requests')
         .update({
           status: 'rejected',
@@ -1108,10 +1113,42 @@ export default function AdminDashboard() {
           rejected_at: new Date().toISOString(),
         })
         .eq('id', requestId)
+        .eq('status', 'pending')
+        .select('id')
 
       if (error) throw error
+      if (!rejectedRows || rejectedRows.length === 0) {
+        await loadSignupRequests()
+        await loadPendingSignupCount()
+        throw new Error('This signup request has already been processed')
+      }
 
-      setSuccess('Signup request rejected')
+      // Notify the applicant. The server looks up the recipient from the
+      // rejected request itself. A delivery failure never undoes the
+      // rejection — it's reported to the admin instead.
+      let emailError: string | null = null
+      try {
+        const emailRes = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'signup_rejected', data: { requestId } }),
+        })
+        if (!emailRes.ok) {
+          const errData = await emailRes.json().catch(() => ({}))
+          emailError = errData?.error || emailRes.statusText || 'Unknown error'
+        }
+      } catch (emailErr: any) {
+        emailError = emailErr?.message || 'Network error'
+      }
+
+      const recipient = request?.email || 'the applicant'
+      if (emailError) {
+        console.warn('Failed to send signup rejected email:', emailError)
+        setSuccess('Signup request rejected')
+        setError(`The rejection was saved, but the notification email to ${recipient} could not be sent: ${emailError}`)
+      } else {
+        setSuccess(`Signup request rejected. A notification email has been sent to ${recipient}.`)
+      }
       await loadSignupRequests()
       await loadPendingSignupCount()
     } catch (err: any) {

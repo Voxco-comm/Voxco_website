@@ -33,6 +33,16 @@ interface EmailResult {
 // admin) to sign in points here, regardless of any `signInUrl` passed by callers.
 export const PORTAL_SIGN_IN_URL = 'https://orders.voxcocom.net/sign-in'
 
+// Escape user-supplied text before interpolating it into email HTML.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 // Email templates
 export const emailTemplates = {
   // Admin notification for new order
@@ -356,6 +366,69 @@ export const emailTemplates = {
       </table>
     `,
   }),
+
+  // Applicant notification when an admin rejects their signup request.
+  // `reason` is only shown when the admin actually entered one; name and
+  // reason are user/admin-supplied, so they're HTML-escaped.
+  signupRejected: (details: { name?: string; reason?: string }) => {
+    const name = details.name?.trim() ? escapeHtml(details.name.trim()) : ''
+    const reason = details.reason?.trim() ? escapeHtml(details.reason.trim()) : ''
+
+    return {
+      subject: 'Your Signup Request Rejected - Voxco',
+      html: `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; background-color: #F5F7FA;">
+        <tr>
+          <td align="center" style="padding: 20px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 560px; background-color: #FFFFFF; border: 1px solid #EDF1F6; border-radius: 14px; border-collapse: separate; overflow: hidden;">
+              <tr>
+                <td bgcolor="#215F9A" style="background-color: #215F9A; background-image: linear-gradient(135deg, #215F9A 0%, #12324F 100%); border-radius: 14px 14px 0 0; padding: 20px 20px 24px 20px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td align="left" valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; color: #FFFFFF;">Voxco</td>
+                      <td align="right" valign="middle">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right">
+                          <tr>
+                            <td style="border: 1px solid #5B83AD; border-color: rgba(255,255,255,0.35); border-radius: 999px; padding: 4px 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10px; line-height: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #FFFFFF; white-space: nowrap;"><span style="color: #EF4444; font-size: 8px; line-height: 14px; vertical-align: 1px;">&#9679;</span>&nbsp; Not Approved</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="2" style="padding: 28px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        <h1 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em; color: #FFFFFF;">Signup Request Not Approved</h1>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; line-height: 20px; font-weight: 400; color: #C3D3E4; color: rgba(255,255,255,0.7); word-break: break-word; overflow-wrap: anywhere;">We were unable to approve your signup request.</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 22px 22px 24px 22px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td style="padding: 0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 23px; font-weight: 400; color: #0F172A; word-break: break-word; overflow-wrap: anywhere;">${name ? `Dear ${name},` : 'Hello,'}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 0 0 10px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 22px; font-weight: 400; color: #475569;">Thank you for your interest in the Voxco Number Ordering Portal. After reviewing your signup request, we are unable to approve it at this time.</td>
+                    </tr>
+                  </table>
+                  ${reason ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;"><tr><td style="padding: 6px 0 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: separate;"><tr><td bgcolor="#FEF2F2" style="background-color: #FEF2F2; border: 1px solid #FEE2E2; border-left: 3px solid #EF4444; border-radius: 8px; padding: 13px 16px 14px 16px;"><p style="margin: 0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #B91C1C;">Reason</p><p style="margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; font-weight: 400; color: #0F172A; white-space: pre-line; word-break: break-word; overflow-wrap: anywhere;">${reason}</p></td></tr></table></td></tr></table>` : ''}
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                    <tr>
+                      <td style="padding: 16px 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 20px; font-weight: 400; color: #64748B;">If you have questions, please contact our support team.</td>
+                    </tr>
+                  </table>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;"><tr><td style="padding: 16px 0 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: separate;"><tr><td width="100%" align="center" bgcolor="#215F9A" style="width: 100%; background-color: #215F9A; border-bottom: 1px solid #184A78; border-radius: 10px; mso-padding-alt: 15px 24px;"><a href="${PORTAL_SIGN_IN_URL}" target="_blank" style="display: block; width: 100%; box-sizing: border-box; min-height: 50px; padding: 15px 24px; border-radius: 10px; background-color: #215F9A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: 0.01em; color: #FFFFFF; text-align: center; text-decoration: none;">Go to Portal&nbsp;&nbsp;&rarr;</a></td></tr></table></td></tr></table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    `,
+    }
+  },
 
   testNotification: (opts: { signInUrl?: string }) => ({
     subject: 'Voxco: notification email test',
