@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, ChangeEvent, useEffect } from 'react'
+import React, { useState, ChangeEvent, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import BackButton from './BackButton'
 import DualScrollbar from './ui/DualScrollbar'
+import { PaginationBar } from './ui/Pagination'
 import { formatDecimal } from '@/lib/utils/formatNumber'
 import { getCountryFlagEmoji } from '@/lib/utils/countryFlag'
 import { DetailCaption, DetailPill, RateList, RateRow, detailIconFor } from './ui/NumberDetails'
@@ -236,6 +237,26 @@ export default function Numbers() {
   }, [form.country, form.smsVoice, form.inboundOutbound])
 
   const [allLoadedNumbers, setAllLoadedNumbers] = useState<AvailableNumber[]>([])
+
+  // Client-side pagination over the already-filtered (and sorted) results —
+  // purely a display slice, never touches loading/filtering/ordering logic.
+  const [numbersPage, setNumbersPage] = useState(1)
+  const [numbersPageSize, setNumbersPageSize] = useState(20)
+
+  // Whenever any filter changes, jump back to page 1 — the previously-viewed
+  // page number may no longer make sense against the new filtered set.
+  useEffect(() => {
+    setNumbersPage(1)
+  }, [form.country, form.smsVoice, form.inboundOutbound])
+
+  // Clamped so a shrinking result set never leaves the page number pointing
+  // past the end.
+  const numbersTotalPages = Math.max(1, Math.ceil(availableNumbers.length / numbersPageSize))
+  const numbersCurrentPage = Math.min(numbersPage, numbersTotalPages)
+  const paginatedNumbers = useMemo(() => {
+    const start = (numbersCurrentPage - 1) * numbersPageSize
+    return availableNumbers.slice(start, start + numbersPageSize)
+  }, [availableNumbers, numbersCurrentPage, numbersPageSize])
 
   const loadAllNumbers = async () => {
     setLoading(true)
@@ -1163,7 +1184,7 @@ export default function Numbers() {
           ) : (
             <>
               <div className="divide-y divide-slate-100 lg:hidden">
-                {availableNumbers.map((num) => {
+                {paginatedNumbers.map((num) => {
                   const quantityStr = quantities[num.id]
                   const quantity = quantityStr !== undefined ? (quantityStr === '' ? 0 : parseInt(quantityStr) || 0) : num.moq
                   const displayValue = quantityStr !== undefined ? quantityStr : String(num.moq)
@@ -1322,7 +1343,7 @@ export default function Numbers() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {availableNumbers.map((num) => {
+                    {paginatedNumbers.map((num) => {
                       const quantityStr = quantities[num.id]
                       const quantity = quantityStr !== undefined ? (quantityStr === '' ? 0 : parseInt(quantityStr) || 0) : num.moq
                       const displayValue = quantityStr !== undefined ? quantityStr : String(num.moq)
@@ -1462,6 +1483,19 @@ export default function Numbers() {
                   </tbody>
                 </table>
               </DualScrollbar>
+              <PaginationBar
+                page={numbersCurrentPage}
+                totalPages={numbersTotalPages}
+                pageSize={numbersPageSize}
+                totalItems={availableNumbers.length}
+                itemLabel="numbers"
+                className="border-t border-slate-100 px-5 py-4"
+                onPageChange={setNumbersPage}
+                onPageSizeChange={(size) => {
+                  setNumbersPageSize(size)
+                  setNumbersPage(1)
+                }}
+              />
             </>
           )}
         </section>
